@@ -2519,13 +2519,6 @@ pvfs2_aio_cancel(struct kiocb *iocb, struct io_event *event)
         put_op(op);
         put_op(op);
         x->needs_cleanup = 0;
-        /*
-         * This seems to be a weird undocumented 
-         * thing, where the cancel routine is expected
-         * to manually decrement ki_users field!
-         * before calling aio_put_req().
-         */
-        atomic_dec(&iocb->ki_users);
         aio_put_req(iocb);
         /* x is itself deallocated by the destructor */
         return 0;
