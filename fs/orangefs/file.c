@@ -2374,13 +2374,13 @@ static ssize_t pvfs2_aio_retry(struct kiocb *iocb)
  * the aio operation is about to exit.
  */
 static int
-pvfs2_aio_cancel(struct kiocb *iocb, struct io_event *event)
+pvfs2_aio_cancel(struct kiocb *iocb)
 {
     pvfs2_kiocb *x = NULL;
-    if (iocb == NULL || event == NULL)
+    if (iocb == NULL)
     {
-        gossip_err("pvfs2_aio_cancel: Invalid parameters "
-                " %p, %p!\n", iocb, event);
+        gossip_err("pvfs2_aio_cancel: Invalid parameter "
+                " %p!\n", iocb);
         return -EINVAL;
     }
     x = (pvfs2_kiocb *) iocb->private;
@@ -2470,36 +2470,6 @@ pvfs2_aio_cancel(struct kiocb *iocb, struct io_event *event)
 
         } while (0);
 
-        /* We need to fill up event->res and event->res2 if at all */
-        if (op_state_serviced(op))
-        {
-            op->priv = NULL;
-            spin_unlock(&op->lock);
-            event->res = x->bytes_copied;
-            event->res2 = 0;
-        }
-        else if (op_state_in_progress(op))
-        {
-            op->priv = NULL;
-            spin_unlock(&op->lock);
-            gossip_debug(GOSSIP_FILE_DEBUG, "Trying to cancel operation in "
-                    " progress %llu\n", llu(op->tag));
-            /* 
-             * if operation is in progress we need to send 
-             * a cancellation upcall for this tag 
-             * The return value of that is the cancellation
-             * event return value.
-             */
-            event->res = pvfs2_cancel_op_in_progress(op->tag);
-            event->res2 = 0;
-        }
-        else 
-        {
-            op->priv = NULL;
-            spin_unlock(&op->lock);
-            event->res = -EINTR;
-            event->res2 = 0;
-        }
         /*
          * Drop the buffer pool index
          */
