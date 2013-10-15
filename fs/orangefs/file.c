@@ -2524,45 +2524,6 @@ pvfs2_aio_cancel(struct kiocb *iocb, struct io_event *event)
     }
 }
 
-/* 
- * Destructor is called when the kiocb structure is 
- * about to be deallocated by the AIO core.
- *
- * Conceivably, this could be moved onto pvfs2-cache.c
- * as the kiocb_dtor() function that can be associated
- * with the pvfs2_kiocb object. 
- */
-static void pvfs2_aio_dtor(struct kiocb *iocb)
-{
-    pvfs2_kiocb *x = iocb->private;
-    if (x && x->needs_cleanup == 1)
-    {
-        /* do a cleanup of the buffers and possibly op */
-        if (x->buffer_index >= 0)
-        {
-            gossip_debug(GOSSIP_FILE_DEBUG, "pvfs2_aio_dtor: put bufmap_index "
-                    " %d\n", x->buffer_index);
-            pvfs_bufmap_put(x->buffer_index);
-            x->buffer_index = -1;
-        }
-        if (x->op) 
-        {
-            x->op->priv = NULL;
-            put_op(x->op);
-        }
-        if (x->iov) 
-        {
-            kfree(x->iov);
-            x->iov = NULL;
-        }
-        x->needs_cleanup = 0;
-    }
-    gossip_debug(GOSSIP_FILE_DEBUG, "pvfs2_aio_dtor: kiocb_release %p\n", x);
-    kiocb_release(x);
-    iocb->private = NULL;
-    return;
-}
-
 static inline int 
 fill_default_kiocb(pvfs2_kiocb *x,
         struct task_struct *tsk,
