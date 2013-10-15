@@ -2570,7 +2570,7 @@ fill_default_kiocb(pvfs2_kiocb *x,
         int buffer_index, pvfs2_kernel_op_t *op, 
         const struct iovec *iovec, unsigned long nr_segs,
         loff_t offset, size_t count,
-        int (*aio_cancel)(struct kiocb *, struct io_event *))
+        int (*aio_cancel)(struct kiocb *))
 {
     x->tsk = tsk;
     x->kiocb = iocb;
