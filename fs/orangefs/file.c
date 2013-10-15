@@ -2828,11 +2828,6 @@ static ssize_t do_aio_read_write(struct rw_options *rw)
             put_op(new_op);
             goto out_error;
         }
-        /* 
-         * destructor function to make sure that we free
-         * up this allocated piece of memory 
-         */
-        iocb->ki_dtor = pvfs2_aio_dtor;
         /*
          * We need to be able to retrieve this structure from
          * the op structure as well, since the client-daemon
