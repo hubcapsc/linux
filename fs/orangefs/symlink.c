@@ -31,7 +31,12 @@ static void *pvfs2_follow_link(struct dentry *dentry, struct nameidata *nd)
     gossip_debug(GOSSIP_INODE_DEBUG, "pvfs2: pvfs2_follow_link called on %s (target is %p)\n",
                 (char *)dentry->d_name.name, pvfs2_inode->link_target);
 
-    return ERR_PTR(nd_set_link(nd, pvfs2_inode->link_target));
+   /* we used to use vfs_follow_link here, instead of nd_set_link.
+    * vfs_follow_link had an int return value, nd_set_link does not,
+    * so now we'll just call nd_set_link and return NULL...
+    */
+    nd_set_link(nd, pvfs2_inode->link_target);
+    return NULL;
 }
 
 struct inode_operations pvfs2_symlink_inode_operations =
