@@ -20,40 +20,16 @@
 #ifndef __PVFS2KERNEL_H
 #define __PVFS2KERNEL_H
 
-#ifdef HAVE_NOWARNINGS_WHEN_INCLUDING_LINUX_CONFIG_H
-#include <linux/config.h>
-#endif
 #include <linux/kernel.h>
-
-#ifdef PVFS2_LINUX_KERNEL_2_4
-
-/* the 2.4 kernel requires us to manually set up modversions if needed */
-#if CONFIG_MODVERSIONS==1
-#define MODVERSIONS
-#include <linux/modversions.h>
-#endif 
-
-#define __NO_VERSION__
-#include <linux/version.h>
-#include <linux/module.h>
-
-#ifndef HAVE_SECTOR_T
-typedef unsigned long sector_t;
-#endif
-
-#else /* !(PVFS2_LINUX_KERNEL_2_4) */
 #include <linux/moduleparam.h>
-#include <linux/vermagic.h>
+//#include <linux/vermagic.h>
 #include <linux/statfs.h>
-#include <linux/buffer_head.h>
+//#include <linux/buffer_head.h>
 #include <linux/backing-dev.h>
 #include <linux/device.h>
 #include <linux/mpage.h>
 #include <linux/namei.h>
 #include <linux/errno.h>
-
-#endif /* PVFS2_LINUX_KERNEL_2_4 */
-
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -61,74 +37,34 @@ typedef unsigned long sector_t;
 #include <linux/fs.h>
 #include <linux/vmalloc.h>
 
-#include "pvfs2-config.h"
-#include "pvfs2-debug.h"
-#include "gossip.h"
-
-#ifdef HAVE_AIO
 #include <linux/aio.h>
-#endif
-#ifdef HAVE_POSIX_ACL_H
 #include <linux/posix_acl.h>
-#endif
-#ifdef HAVE_POSIX_ACL_XATTR_H
 #include <linux/posix_acl_xattr.h>
-#endif
-#ifdef HAVE_LINUX_COMPAT_H
 #include <linux/compat.h>
-#endif
-#ifdef HAVE_LINUX_IOCTL32_H
-#include <linux/ioctl32.h>
-#endif
-#ifdef HAVE_LINUX_SYSCALLS_H
-#include <linux/syscalls.h>
-#endif
-#ifdef HAVE_LINUX_MOUNT_H
 #include <linux/mount.h>
-#endif
-#include <asm/uaccess.h>
-#include <asm/atomic.h>
+#include <linux/uaccess.h>
+#include <linux/atomic.h>
 #include <linux/uio.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
-#include <asm/atomic.h>
-#ifdef HAVE_SMP_LOCK_H
-#include <linux/smp_lock.h>
-#endif
 #include <linux/wait.h>
 #include <linux/dcache.h>
 #include <linux/pagemap.h>
 #include <linux/poll.h>
 #include <linux/rwsem.h>
-#include <asm/unaligned.h>
-#ifdef HAVE_ASM_IOCTL32_H
-#include <asm/ioctl32.h>
-#endif
-
-#ifdef HAVE_XATTR
 #include <linux/xattr.h>
-#ifdef HAVE_LINUX_XATTR_ACL_H
-#include <linux/xattr_acl.h>
-#endif
-#endif
-
-#ifdef HAVE_LINUX_EXPORTFS_H
 #include <linux/exportfs.h>
-#endif
+
+#include <asm/unaligned.h>
+
+#include "pvfs2-config.h"
+#include "pvfs2-debug.h"
+#include "gossip.h"
 
 #include "pint-dev-shared.h"
 #include "pvfs2-dev-proto.h"
 #include "pvfs2-types.h"
 #include "pvfs2-internal.h"
-
-/*
-  this attempts to disable the annotations used by the 'sparse' kernel
-  source utility on systems that can't understand it by defining the
-  used annotations away
-*/
-#ifndef __user
-#define __user
-#endif
 
 #ifdef PVFS2_KERNEL_DEBUG
 #define PVFS2_DEFAULT_OP_TIMEOUT_SECS       10
@@ -157,6 +93,11 @@ sizeof(uint64_t) + sizeof(pvfs2_downcall_t))
 
 #define BITS_PER_LONG_DIV_8 (BITS_PER_LONG >> 3)
 
+/* borrowed from irda.h */
+#ifndef MSECS_TO_JIFFIES
+#define MSECS_TO_JIFFIES(ms) (((ms)*HZ+999)/1000)
+#endif
+
 #define MAX_ALIGNED_DEV_REQ_UPSIZE                  \
 (MAX_DEV_REQ_UPSIZE +                               \
 ((((MAX_DEV_REQ_UPSIZE / (BITS_PER_LONG_DIV_8)) *   \
@@ -167,11 +108,6 @@ sizeof(uint64_t) + sizeof(pvfs2_downcall_t))
 ((((MAX_DEV_REQ_DOWNSIZE / (BITS_PER_LONG_DIV_8)) * \
    (BITS_PER_LONG_DIV_8)) +                         \
     (BITS_PER_LONG_DIV_8)) - MAX_DEV_REQ_DOWNSIZE))
-
-/* borrowed from irda.h */
-#ifndef MSECS_TO_JIFFIES
-#define MSECS_TO_JIFFIES(ms) (((ms)*HZ+999)/1000)
-#endif
 
 /************************************
  * valid pvfs2 kernel operation states
@@ -201,12 +137,6 @@ enum pvfs2_vfs_op_states {
 #define op_state_serviced(op)    ((op)->op_state & OP_VFS_STATE_SERVICED)
 #define op_state_purged(op)      ((op)->op_state & OP_VFS_STATE_PURGED)
 
-/* Defines for incrementing aio_ref_count */
-#ifndef HAVE_AIO_VFS_SUPPORT
-#define get_op(op)
-#define put_op(op) op_release(op)
-#define op_wait(op)
-#else
 #define get_op(op) \
     do {\
         atomic_inc(&(op)->aio_ref_count);\
@@ -220,7 +150,6 @@ enum pvfs2_vfs_op_states {
         }\
     } while(0)
 #define op_wait(op) (atomic_read(&(op)->aio_ref_count) <= 2 ? 0 : 1)
-#endif
 
 /* Defines for controlling whether I/O upcalls are for async or sync operations */
 enum PVFS_async_io_type 
@@ -239,11 +168,7 @@ enum PVFS_async_io_type
 #define PVFS2_CACHE_CREATE_FLAGS 0
 #endif /* ((defined PVFS2_KERNEL_DEBUG) && (defined CONFIG_DEBUG_SLAB)) */
 
-#ifdef HAVE_SLAB_KERNEL_FLAG
-# define PVFS2_CACHE_ALLOC_FLAGS (SLAB_KERNEL)
-#else
-# define PVFS2_CACHE_ALLOC_FLAGS (GFP_KERNEL)
-#endif
+#define PVFS2_CACHE_ALLOC_FLAGS (GFP_KERNEL)
 #define PVFS2_GFP_FLAGS (GFP_KERNEL)
 #define PVFS2_BUFMAP_GFP_FLAGS (GFP_KERNEL)
 
@@ -251,17 +176,18 @@ enum PVFS_async_io_type
 #define pvfs2_kunmap(page) kunmap(page)
 
 /* pvfs2 xattr and acl related defines */
-#ifdef HAVE_XATTR
 #define PVFS2_XATTR_INDEX_POSIX_ACL_ACCESS  1
 #define PVFS2_XATTR_INDEX_POSIX_ACL_DEFAULT 2
 #define PVFS2_XATTR_INDEX_TRUSTED           3
 #define PVFS2_XATTR_INDEX_DEFAULT           4
 
+#if 0
 #ifndef POSIX_ACL_XATTR_ACCESS
 #define POSIX_ACL_XATTR_ACCESS	"system.posix_acl_access"
 #endif
 #ifndef POSIX_ACL_XATTR_DEFAULT
 #define POSIX_ACL_XATTR_DEFAULT	"system.posix_acl_default"
+#endif
 #endif
 
 #define PVFS2_XATTR_NAME_ACL_ACCESS  POSIX_ACL_XATTR_ACCESS
@@ -269,22 +195,12 @@ enum PVFS_async_io_type
 #define PVFS2_XATTR_NAME_TRUSTED_PREFIX "trusted."
 #define PVFS2_XATTR_NAME_DEFAULT_PREFIX ""
 
-#if !defined(PVFS2_LINUX_KERNEL_2_4) && defined(HAVE_GENERIC_GETXATTR)
-
 extern int pvfs2_acl_chmod(struct inode *inode);
 extern int pvfs2_init_acl(struct inode *inode, struct inode *dir);
-
-#ifdef HAVE_CONST_S_XATTR_IN_SUPERBLOCK
 extern const struct xattr_handler *pvfs2_xattr_handlers[];
-#else
-extern struct xattr_handler *pvfs2_xattr_handlers[];
-#endif /* HAVE_CONST_S_XATTR_IN_SUPERBLOCK */
-
 extern struct xattr_handler pvfs2_xattr_acl_default_handler, pvfs2_xattr_acl_access_handler;
 extern struct xattr_handler pvfs2_xattr_trusted_handler;
 extern struct xattr_handler pvfs2_xattr_default_handler;
-
-#endif
 
 extern struct posix_acl *pvfs2_get_acl(struct inode *inode, int type);
 
@@ -306,74 +222,41 @@ static inline int convert_to_internal_xattr_flags(int setxattr_flags)
 }
 
 int pvfs2_xattr_set_trusted(
-#ifdef HAVE_XATTR_HANDLER_SET_SIX_PARAM
     struct dentry *dentry, 
-#else
-    struct inode *inode, 
-#endif /* HAVE_XATTR_HANDLER_SET_SIX_PARAM */
     const char *name, 
     const void *buffer, 
     size_t size, 
-    int flags
-#ifdef HAVE_XATTR_HANDLER_SET_SIX_PARAM
-    , int handler_flags
-#endif /* HAVE_XATTR_HANDLER_SET_SIX_PARAM */
-    );
+    int flags,
+    int handler_flags);
 
 int pvfs2_xattr_get_trusted(
-#ifdef HAVE_XATTR_HANDLER_GET_FIVE_PARAM
     struct dentry *dentry,
-#else
-    struct inode *inode,
-#endif /* HAVE_XATTR_HANDLER_GET_FIVE_PARAM */
     const char *name, 
     void *buffer, 
-    size_t size
-#ifdef HAVE_XATTR_HANDLER_GET_FIVE_PARAM
-    , int handler_flags
-#endif /* HAVE_XATTR_HANDLER_GET_FIVE_PARAM */
-    );
+    size_t size,
+    int handler_flags);
 
 int pvfs2_xattr_set_default(
-#ifdef HAVE_XATTR_HANDLER_SET_SIX_PARAM
     struct dentry *dentry, 
-#else
-    struct inode *inode, 
-#endif /*HAVE_XATTR_HANDLER_SET_SIX_PARAM */
     const char *name, 
     const void *buffer, 
     size_t size, 
-    int flags
-#ifdef HAVE_XATTR_HANDLER_SET_SIX_PARAM
-    , int handler_flags
-#endif /* HAVE_XATTR_HANDLER_SET_SIX_PARAM */
-    );
+    int flags,
+    int handler_flags);
 
 int pvfs2_xattr_get_default(
-#ifdef HAVE_XATTR_HANDLER_GET_FIVE_PARAM
     struct dentry *dentry,
-#else
-    struct inode *inode,
-#endif /* HAVE_XATTR_HANDLER_GET_FIVE_PARAM */
     const char *name, 
     void *buffer, 
-    size_t size
-#ifdef HAVE_XATTR_HANDLER_GET_FIVE_PARAM
-    , int handler_flags
-#endif /* HAVE_XATTR_HANDLER_GET_FIVE_PARAM */
-    );
+    size_t size,
+    int handler_flags);
 
-
-#endif
-
-#ifndef HAVE_STRUCT_XTVEC
 /* Redefine xtvec structure so that we could move helper functions out of the define */
 struct xtvec 
 {
     __kernel_off_t xtv_off;  /* must be off_t */
     __kernel_size_t xtv_len; /* must be size_t */
 };
-#endif
 
 /************************************
  * pvfs2 data structures
@@ -430,11 +313,7 @@ typedef struct
      */
     struct rw_semaphore xattr_sem;
 
-#ifdef PVFS2_LINUX_KERNEL_2_4
-    struct inode *vfs_inode;
-#else
     struct inode vfs_inode;
-#endif
     sector_t last_failed_block_index_read;
     int error_code;
     int revalidate_failed;
@@ -611,8 +490,6 @@ typedef struct
 } while (0)
 #endif
 
-#ifdef HAVE_AIO_VFS_SUPPORT
-
 /** structure that holds the state of any async I/O operation issued 
  *  through the VFS. Needed especially to handle cancellation requests
  *  or even completion notification so that the VFS client-side daemon
@@ -633,8 +510,6 @@ typedef struct
     int needs_cleanup;
 } pvfs2_kiocb;
 
-#endif
-
 typedef struct pvfs2_stats {
     unsigned long cache_hits;
     unsigned long cache_misses;
@@ -651,21 +526,13 @@ extern pvfs2_stats g_pvfs2_stats;
 static inline pvfs2_inode_t *PVFS2_I(
     struct inode *inode)
 {
-#ifdef PVFS2_LINUX_KERNEL_2_4
-    return (pvfs2_inode_t *)inode->u.generic_ip;
-#else
     return container_of(inode, pvfs2_inode_t, vfs_inode);
-#endif
 }
 
 static inline pvfs2_sb_info_t *PVFS2_SB(
     struct super_block *sb)
 {
-#ifdef PVFS2_LINUX_KERNEL_2_4
-    return (pvfs2_sb_info_t *)sb->u.generic_sbp;
-#else
     return (pvfs2_sb_info_t *)sb->s_fs_info;
-#endif
 }
 
 static inline PVFS_handle ino_to_pvfs2_handle(ino_t ino)
@@ -685,11 +552,7 @@ static inline ino_t pvfs2_handle_to_ino(PVFS_handle handle)
 
 static inline PVFS_handle get_handle_from_ino(struct inode *inode)
 {
-#if defined(HAVE_IGET5_LOCKED) || defined(HAVE_IGET4_LOCKED)
     return PVFS2_I(inode)->refn.handle;
-#else
-    return ino_to_pvfs2_handle(inode->i_ino);
-#endif
 }
 
 static inline PVFS_fs_id get_fsid_from_ino(struct inode *inode)
@@ -742,21 +605,10 @@ int pvfs2_inode_cache_finalize(void);
 pvfs2_inode_t *pvfs2_inode_alloc(void);
 void pvfs2_inode_release(pvfs2_inode_t *);
 
-#ifdef HAVE_AIO_VFS_SUPPORT
 int kiocb_cache_initialize(void);
 int kiocb_cache_finalize(void);
 pvfs2_kiocb* kiocb_alloc(void);
 void kiocb_release(pvfs2_kiocb *ptr);
-#else
-static inline int kiocb_cache_initialize(void)
-{
-    return 0;
-}
-static inline int kiocb_cache_finalize(void)
-{
-    return 0;
-}
-#endif
 
 /****************************
  * defined in pvfs2-mod.c
@@ -777,35 +629,10 @@ void purge_waiting_ops(void);
 /****************************
  * defined in super.c
  ****************************/
-#ifdef HAVE_FIND_INODE_HANDLE_SUPER_OPERATIONS
-extern struct inode *pvfs2_sb_find_inode_handle(struct super_block *sb, 
-        const struct file_handle *handle);
-#endif
-#ifdef PVFS2_LINUX_KERNEL_2_4
-struct super_block* pvfs2_get_sb(struct super_block *sb,
-                                 void *data,
-                                 int silent);
-#else
-#ifdef HAVE_FSTYPE_MOUNT_ONLY
 struct dentry *pvfs2_mount(struct file_system_type *fst,
                            int flags,
                            const char *devname,
                            void *data);
-#else
-#ifdef HAVE_VFSMOUNT_GETSB
-int pvfs2_get_sb(struct file_system_type *fst,
-                 int flags,
-                 const char *devname,
-                 void *data, 
-                 struct vfsmount *mnt);
-#else
-struct super_block *pvfs2_get_sb(struct file_system_type *fst,
-                                 int flags,
-                                 const char *devname,
-                                 void *data);
-#endif /* HAVE_VFSMOUNT_GETSB */
-#endif /* HAVE_FSTYPE_MOUNT_ONLY */
-#endif
 
 void pvfs2_read_inode(struct inode *inode);
 
@@ -839,30 +666,18 @@ struct inode *pvfs2_get_custom_inode_common(struct super_block *sb,
 int pvfs2_setattr(struct dentry *dentry,
                   struct iattr *iattr);
 
-#ifdef PVFS2_LINUX_KERNEL_2_4
-int pvfs2_revalidate(struct dentry *dentry);
-#else
 int pvfs2_getattr(struct vfsmount *mnt,
                   struct dentry *dentry,
                   struct kstat *kstat);
-#endif
 
 /****************************
  * defined in xattr.c
  ****************************/
-#ifdef HAVE_SETXATTR_CONST_ARG
 int pvfs2_setxattr(struct dentry *dentry,
                    const char *name,
 		   const void *value,
                    size_t size,
                    int flags);
-#else
-int pvfs2_setxattr(struct dentry *dentry,
-                   const char *name,
-		   void *value,
-                   size_t size,
-                   int flags);
-#endif
 ssize_t pvfs2_getxattr(struct dentry *dentry,
                        const char *name,
 		       void *buffer,
@@ -879,17 +694,8 @@ struct inode *pvfs2_iget_common(struct super_block *sb,
 #define pvfs2_iget(sb, ref)        pvfs2_iget_common(sb, ref, 0)
 #define pvfs2_iget_locked(sb, ref) pvfs2_iget_common(sb, ref, 1)
 
-#if defined(PVFS2_LINUX_KERNEL_2_4) || defined(HAVE_TWO_PARAM_PERMISSION)
-int pvfs2_permission(struct inode *, int);
-#else
 int pvfs2_permission(struct inode *,
-                     int mask, 
-#ifdef HAVE_THREE_PARAM_PERMISSION_WITH_FLAG
-                     unsigned int flags);
-#else
-                     struct nameidata *nd);
-#endif /* HAVE_THREE_PARAM_PERMISSION_WITH_FLAG */
-#endif
+                     int mask);
 
 /*****************************
  * defined in file.c (shared file/dir operations)
@@ -976,19 +782,11 @@ void mask_blocked_signals(sigset_t *orig_sigset);
 
 void unmask_blocked_signals(sigset_t *orig_sigset);
 
-#ifdef USE_MMAP_RA_CACHE
-int pvfs2_flush_mmap_racache(struct inode *inode);
-#endif
-
 int pvfs2_unmount_sb(struct super_block *sb);
 
 int pvfs2_cancel_op_in_progress(uint64_t tag);
 
 PVFS_time pvfs2_convert_time_field(void *time_ptr);
-
-#ifdef HAVE_FILL_HANDLE_INODE_OPERATIONS
-int pvfs2_fill_handle(struct inode *inode, struct file_handle *handle);
-#endif
 
 int pvfs2_normalize_to_errno(PVFS_error error_code);
 
@@ -1130,18 +928,6 @@ do {                                                      \
 #define get_suid_flag(inode)                              \
 (PVFS2_SB(inode->i_sb)->mnt_options.suid)
 
-#ifdef USE_MMAP_RA_CACHE
-#define clear_inode_mmap_ra_cache(inode)                  \
-do {                                                      \
-  gossip_debug(GOSSIP_INODE_DEBUG, "calling clear_inode_mmap_ra_cache on %llu\n",\
-              llu(get_handle_from_ino(inode)));                         \
-  pvfs2_flush_mmap_racache(inode);                        \
-  gossip_debug(GOSSIP_INODE_DEBUG, "clear_inode_mmap_ra_cache finished\n");    \
-} while(0)
-#else
-#define clear_inode_mmap_ra_cache(inode)
-#endif /* USE_MMAP_RA_CACHE */
-
 #define add_pvfs2_sb(sb)                                             \
 do {                                                                 \
     gossip_debug(GOSSIP_SUPER_DEBUG, "Adding SB %p to pvfs2 superblocks\n", PVFS2_SB(sb));\
@@ -1172,52 +958,6 @@ do {                                                                 \
 #define pvfs2_update_inode_time(inode) \
 do { inode->i_mtime = inode->i_ctime = CURRENT_TIME; } while(0)
 
-
-#ifdef PVFS2_LINUX_KERNEL_2_4
-#define get_block_block_type long
-#define pvfs2_lock_inode(inode) do {} while(0)
-#define pvfs2_unlock_inode(inode) do {} while(0)
-#define pvfs2_kernel_readpage block_read_full_page
-
-static inline struct dentry *pvfs2_d_splice_alias(struct dentry *dentry,
-                                                  struct inode *inode)
-{ 
-    d_add(dentry, inode); 
-    return dentry;
-}
-
-/*
-  redhat 9 2.4.x kernels have to be treated almost like 2.6.x kernels
-  so we special case them here
-*/
-#ifdef REDHAT_RELEASE_9
-#define pvfs2_current_signal_lock current->sighand->siglock
-#define pvfs2_current_sigaction current->sighand->action
-#define pvfs2_recalc_sigpending recalc_sigpending
-#define pvfs2_set_page_reserved(page) do {} while(0)
-#define pvfs2_clear_page_reserved(page) do {} while(0)
-#else
-#define pvfs2_current_signal_lock current->sigmask_lock
-#define pvfs2_current_sigaction current->sig->action
-#define pvfs2_recalc_sigpending() recalc_sigpending(current)
-#define pvfs2_set_page_reserved(page) SetPageReserved(page)
-#define pvfs2_clear_page_reserved(page) \
-do { ClearPageReserved(page); put_page(page); } while(0)
-#endif /* REDHAT_RELEASE_9 */
-
-#define fill_default_sys_attrs(sys_attr,type,mode)     \
-do                                                     \
-{                                                      \
-    sys_attr.owner = current->fsuid;                   \
-    sys_attr.group = current->fsgid;                   \
-    sys_attr.size = 0;                                 \
-    sys_attr.perms = PVFS_util_translate_mode(mode,0); \
-    sys_attr.objtype = type;                           \
-    sys_attr.mask = PVFS_ATTR_SYS_ALL_SETABLE;         \
-} while(0)
-
-#else /* !(PVFS2_LINUX_KERNEL_2_4) */
-
 #define get_block_block_type sector_t
 #define pvfs2_lock_inode(inode) spin_lock(&inode->i_lock)
 #define pvfs2_unlock_inode(inode) spin_unlock(&inode->i_lock)
@@ -1234,103 +974,24 @@ static inline struct dentry* pvfs2_d_splice_alias(struct dentry *dentry,
     return d_splice_alias(inode, dentry);
 }
 
-#ifdef HAVE_CURRENT_FSUID 
 #define fill_default_sys_attrs(sys_attr,type,mode)\
 do                                                \
 {                                                 \
-    sys_attr.owner = current_fsuid();             \
-    sys_attr.group = current_fsgid();             \
+    sys_attr.owner = from_kuid(&init_user_ns, current_fsuid()); \
+    sys_attr.group = from_kgid(&init_user_ns, current_fsgid()); \
     sys_attr.size = 0;                            \
     sys_attr.perms = PVFS_util_translate_mode(mode,0); \
     sys_attr.objtype = type;                      \
     sys_attr.mask = PVFS_ATTR_SYS_ALL_SETABLE;    \
 } while(0)
-#else
-#define fill_default_sys_attrs(sys_attr,type,mode)\
-do                                                \
-{ \
-    sys_attr.owner = current->fsuid;              \
-    sys_attr.group = current->fsgid;              \
-    sys_attr.size = 0;                            \
-    sys_attr.perms = PVFS_util_translate_mode(mode,0); \
-    sys_attr.objtype = type;                      \
-    sys_attr.mask = PVFS_ATTR_SYS_ALL_SETABLE;    \
-} while(0)
-#endif /* HAVE_CURRENT_FSUID */
 
-#endif /* PVFS2_LINUX_KERNEL_2_4 */
-
-#ifdef PVFS2_LINUX_KERNEL_2_4
-/*
-  based on code from 2.6.x's fs/libfs.c with required macro support
-  from include/linux/list.h
-*/
-static inline int simple_positive(struct dentry *dentry)
-{
-    return dentry->d_inode && !d_unhashed(dentry);
-}
-
-#define list_for_each_entry(pos, head, member)             \
-for (pos = list_entry((head)->next, typeof(*pos), member), \
-  prefetch(pos->member.next);                              \
-  &pos->member != (head);                                  \
-  pos = list_entry(pos->member.next, typeof(*pos), member),\
-  prefetch(pos->member.next))
-
-static inline int simple_empty(struct dentry *dentry)
-{
-    struct dentry *child;
-    int ret = 0;
-    spin_lock(&dcache_lock);
-    list_for_each_entry(child, &dentry->d_subdirs, d_child)
-    {
-        if (simple_positive(child))
-        {
-            goto out;
-        }
-    }
-    ret = 1;
-out:
-    spin_unlock(&dcache_lock);
-    return ret;
-}
-
-#if (PVFS2_LINUX_KERNEL_2_4_MINOR_VER < 19)
-static inline int dcache_dir_open(struct inode *inode, struct file *file)
-{
-    static struct qstr cursor_name = {.len = 1, .name = "."};
-
-    file->private_data = d_alloc(file->f_dentry, &cursor_name);
-
-    return file->private_data ? 0 : -ENOMEM;
-}
-
-static inline int dcache_dir_close(struct inode *inode, struct file *file)
-{
-    dput(file->private_data);
-    return 0;
-}
-#endif /* PVFS2_LINUX_KERNEL_2_4_MINOR_VER */
-
-#endif /* PVFS2_LINUX_KERNEL_2_4 */
-
-#ifdef HAVE_I_SEM_IN_STRUCT_INODE
-#define pvfs2_inode_lock(__i) do \
-{ down(&(__i)->i_sem); } while (0)
-#define pvfs2_inode_unlock(__i) do \
-{ up(&(__i)->i_sem); } while (0)
-#else
 #define pvfs2_inode_lock(__i) do \
 { mutex_lock(&(__i)->i_mutex); } while (0)
 #define pvfs2_inode_unlock(__i) do \
 { mutex_unlock(&(__i)->i_mutex); } while (0)
-#endif /* HAVE_I_SEM_IN_STRUCT_INODE */
 
 static inline void pvfs2_i_size_write(struct inode *inode, loff_t i_size)
 {
-#ifndef HAVE_I_SIZE_WRITE
-    inode->i_size = i_size;
-#else
     #if BITS_PER_LONG==32 && defined(CONFIG_SMP)
     pvfs2_inode_lock(inode);
     #endif
@@ -1338,53 +999,32 @@ static inline void pvfs2_i_size_write(struct inode *inode, loff_t i_size)
     #if BITS_PER_LONG==32 && defined(CONFIG_SMP)
     pvfs2_inode_unlock(inode);
     #endif
-#endif
     return;
 }
 
 static inline loff_t pvfs2_i_size_read(struct inode *inode)
 {
-#ifndef HAVE_I_SIZE_READ
-    return inode->i_size;
-#else
     return i_size_read(inode);
-#endif
 }
 
 static inline void pvfs2_i_set_nlink(struct inode *inode, unsigned int nlink)
 {
-#ifdef HAVE_I_SET_NLINK
     set_nlink(inode, nlink); 
-#else
-    inode->i_nlink = nlink;
-#endif
 }
 
 static inline void pvfs2_i_inc_nlink(struct inode *inode)
 {
-#ifdef HAVE_I_INC_NLINK
     inc_nlink(inode); 
-#else
-    inode->i_nlink++;
-#endif
 }
 
 static inline void pvfs2_i_drop_nlink(struct inode *inode)
 {
-#ifdef HAVE_I_DROP_NLINK
     drop_nlink(inode);    
-#else
-    inode->i_nlink--;
-#endif
 }
 
 static inline void pvfs2_i_clear_nlink(struct inode *inode)
 {
-#ifdef HAVE_I_CLEAR_NLINK
     clear_nlink(inode);    
-#else
-    inode->i_nlink = 0;
-#endif
 }
 
 static inline unsigned int diff(struct timeval *end, struct timeval *begin)
@@ -1396,29 +1036,6 @@ static inline unsigned int diff(struct timeval *end, struct timeval *begin)
     end->tv_usec -= begin->tv_usec;
     return ((end->tv_sec * 1000000) + end->tv_usec);
 }
-
-#ifndef HAVE_KZALLOC
-static inline void *kzalloc(size_t size, int flags)
-{
-	void * ptr;
-
-	ptr = kmalloc(size, flags);
-	if (ptr)
-	{
-            memset(ptr, 0, size);
-	}
-	return ptr;
-}
-#endif
-
-/* add in true/false enum for 2.6 kernels that don't have it (<2.6.9),
- * taken include/linux/stddef.h */
-#ifndef HAVE_TRUE_FALSE_ENUM
-enum {
-    false   = 0,
-    true    = 1
-};
-#endif
 
 #endif /* __PVFS2KERNEL_H */
 

@@ -94,7 +94,6 @@ int pvfs_bufmap_copy_from_pages(
     unsigned long nr_segs, 
     size_t size);
 
-#ifdef HAVE_AIO_VFS_SUPPORT
 size_t pvfs_bufmap_copy_to_user_task(
         struct task_struct *tsk,
         void __user *to,
@@ -107,7 +106,6 @@ size_t pvfs_bufmap_copy_to_user_task_iovec(
         unsigned long nr_segs,
         int buffer_index,
         size_t bytes_to_be_copied);
-#endif
 
 #endif /* __PVFS2_BUFMAP_H */
 

@@ -2998,7 +2998,6 @@ int pvfs2_file_release(
         file->f_dentry->d_inode->i_mapping &&
         mapping_nrpages(&file->f_dentry->d_inode->i_data))
     {
-        clear_inode_mmap_ra_cache(file->f_dentry->d_inode);
         truncate_inode_pages(file->f_dentry->d_inode->i_mapping, 0);
     }
     return 0;

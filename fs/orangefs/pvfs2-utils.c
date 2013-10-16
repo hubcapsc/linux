@@ -19,8 +19,8 @@ int pvfs2_gen_credentials(
     if (credentials)
     {
         memset(credentials, 0, sizeof(PVFS_credentials));
-        credentials->uid = current_fsuid();
-        credentials->gid = current_fsgid();
+        credentials->uid = from_kuid(&init_user_ns, current_fsuid());
+        credentials->gid = from_kgid(&init_user_ns, current_fsgid());
 
         ret = 0;
     }
@@ -196,8 +196,8 @@ int copy_attributes_to_inode(
             inode->i_size = PAGE_CACHE_SIZE;
         }
 
-        inode->i_uid = attrs->owner;
-        inode->i_gid = attrs->group;
+        inode->i_uid = make_kuid(&init_user_ns, attrs->owner);
+        inode->i_gid = make_kgid(&init_user_ns, attrs->group);
         inode->i_atime.tv_sec = (time_t)attrs->atime;
         inode->i_mtime.tv_sec = (time_t)attrs->mtime;
         inode->i_ctime.tv_sec = (time_t)attrs->ctime;
@@ -326,13 +326,13 @@ static inline int copy_attributes_from_inode(
     attrs->mask = 0;
     if (iattr->ia_valid & ATTR_UID) 
     {
-        attrs->owner = iattr->ia_uid;
+        attrs->owner = from_kuid(&init_user_ns, iattr->ia_uid);
         attrs->mask |= PVFS_ATTR_SYS_UID;
         gossip_debug(GOSSIP_UTILS_DEBUG, "(UID) %d\n", attrs->owner);
     }
     if (iattr->ia_valid & ATTR_GID)
     {
-        attrs->group = iattr->ia_gid; 
+        attrs->group = from_kgid(&init_user_ns, iattr->ia_gid);
         attrs->mask |= PVFS_ATTR_SYS_GID;
         gossip_debug(GOSSIP_UTILS_DEBUG, "(GID) %d\n", attrs->group);
     }
@@ -737,8 +737,8 @@ ssize_t pvfs2_inode_getxattr(struct inode *inode, const char* prefix,
     }
     if (inode)
     {
-        fsuid = current_fsuid();
-        fsgid = current_fsgid();
+        fsuid = from_kuid(&init_user_ns, current_fsuid());
+        fsgid = from_kgid(&init_user_ns, current_fsgid());
 
         gossip_debug(GOSSIP_XATTR_DEBUG, "getxattr on inode %llu, name %s (uid %o, gid %o)\n", 
                 llu(get_handle_from_ino(inode)), name, fsuid, fsgid);
