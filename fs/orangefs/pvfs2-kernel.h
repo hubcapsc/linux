@@ -57,14 +57,15 @@
 
 #include <asm/unaligned.h>
 
-#include "pvfs2-config.h"
-#include "pvfs2-debug.h"
-#include "gossip.h"
+//#include "pvfs2-config.h"
+//#include "pvfs2-debug.h"
+//#include "gossip.h"
 
-#include "pint-dev-shared.h"
+//#include "pint-dev-shared.h"
 #include "pvfs2-dev-proto.h"
-#include "pvfs2-types.h"
-#include "pvfs2-internal.h"
+//#include "pvfs2-types.h"
+//#include "pvfs2-internal.h"
+//#include "hubcap.h"
 
 #ifdef PVFS2_KERNEL_DEBUG
 #define PVFS2_DEFAULT_OP_TIMEOUT_SECS       10

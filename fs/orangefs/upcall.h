@@ -7,7 +7,8 @@
 #ifndef __UPCALL_H
 #define __UPCALL_H
 
-#include "pvfs2-sysint.h"
+//#include "pvfs2-sysint.h"
+//#include "hubcap.h"
 
 /* Sanitized this header file to fix
  * 32-64 bit interaction issues between

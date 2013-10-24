@@ -10,6 +10,7 @@
  *  Extended attributes for PVFS2 that handle the trusted prefix.
  */
 
+#include "hubcap.h"
 #include "pvfs2-kernel.h"
 #include "pvfs2-bufmap.h"
 #include <linux/xattr.h>

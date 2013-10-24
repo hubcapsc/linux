@@ -12,11 +12,10 @@
  *  with appropriate modifications necessary for PVFS2.
  */
 
+#include "hubcap.h"
 #include "pvfs2-kernel.h"
 #include "pvfs2-bufmap.h"
-#include "pvfs2-internal.h"
 #include <linux/posix_acl_xattr.h>
-#include "bmi-byteswap.h"
 #include <linux/fs_struct.h>
 
 /*

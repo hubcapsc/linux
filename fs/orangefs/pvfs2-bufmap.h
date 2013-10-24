@@ -7,7 +7,7 @@
 #ifndef __PVFS2_BUFMAP_H
 #define __PVFS2_BUFMAP_H
 
-#include "pint-dev-shared.h"
+//#include "pint-dev-shared.h"
 
 /* used to describe mapped buffers */
 struct pvfs_bufmap_desc

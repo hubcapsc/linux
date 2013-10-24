@@ -4,12 +4,10 @@
  * See COPYING in top-level directory.
  */
 #define  __PINT_PROTO_ENCODE_OPAQUE_HANDLE
+#include "hubcap.h"
 #include "pvfs2-kernel.h"
-#include "pvfs2-types.h"
-#include "pint-dev-shared.h"
 #include "pvfs2-dev-proto.h"
 #include "pvfs2-bufmap.h"
-#include "pvfs2-internal.h"
 
 int pvfs2_gen_credentials(
     PVFS_credentials *credentials)

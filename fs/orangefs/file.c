@@ -10,10 +10,9 @@
  *  Linux VFS file operations.
  */
 
+#include "hubcap.h"
 #include "pvfs2-kernel.h"
 #include "pvfs2-bufmap.h"
-#include "pvfs2-types.h"
-#include "pvfs2-internal.h"
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 
@@ -2846,32 +2845,6 @@ static ssize_t pvfs2_file_aio_write_iovec(struct kiocb *iocb,
     g_pvfs2_stats.writes++;
     return do_aio_read_write(&rw);
 }
-
-/* compat functions for < 2.6.19 */
-#ifndef HAVE_COMBINED_AIO_AND_VECTOR
-static ssize_t 
-pvfs2_file_aio_read(struct kiocb *iocb, char __user *buffer,
-        size_t count, loff_t offset)
-
-{
-    struct iovec iov = {
-        .iov_base = buffer,
-        .iov_len = count,
-    };
-    return pvfs2_file_aio_read_iovec(iocb, &iov, 1, offset);
-}
-
-static ssize_t 
-pvfs2_file_aio_write(struct kiocb *iocb, const char __user *buffer,
-        size_t count, loff_t offset)
-{
-    struct iovec iov = {
-        .iov_base = (void __user *) buffer,  /* discard const so it fits */
-        .iov_len = count,
-    };
-    return pvfs2_file_aio_write_iovec(iocb, &iov, 1, offset);
-}
-#endif
 
 /** Perform a miscellaneous operation on a file.
  */

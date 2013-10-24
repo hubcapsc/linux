@@ -10,8 +10,8 @@
  *  Implementation of dentry (directory cache) functions.
  */
 
+#include "hubcap.h"
 #include "pvfs2-kernel.h"
-#include "pvfs2-internal.h"
 
 static void __attribute__ ((unused)) print_dentry(struct dentry *entry, int ret);
 

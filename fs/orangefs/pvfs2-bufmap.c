@@ -3,10 +3,9 @@
  *
  * See COPYING in top-level directory.
  */
+#include "hubcap.h"
 #include "pvfs2-kernel.h"
 #include "pvfs2-bufmap.h"
-#include "pint-dev-shared.h"
-
 
 DECLARE_WAIT_QUEUE_HEAD(pvfs2_bufmap_init_waitq);
 

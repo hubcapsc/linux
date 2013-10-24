@@ -14,8 +14,8 @@
  *  In-kernel waitqueue operations.
  */
 
+#include "hubcap.h"
 #include "pvfs2-kernel.h"
-#include "pvfs2-internal.h"
 #include "pvfs2-bufmap.h"
 
 

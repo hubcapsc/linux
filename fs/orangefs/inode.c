@@ -10,10 +10,9 @@
  *  Linux VFS inode operations.
  */
 
+#include "hubcap.h"
 #include "pvfs2-kernel.h"
 #include "pvfs2-bufmap.h"
-#include "pvfs2-types.h"
-#include "pvfs2-internal.h"
 
 static int read_one_page(struct page *page)
 {

@@ -7,9 +7,9 @@
  * See COPYING in top-level directory.
  */
 
+#include "hubcap.h"
 #include "pvfs2-kernel.h"
 #include "pvfs2-proc.h"
-#include "pvfs2-internal.h"
 
 /* PVFS2_VERSION is a ./configure define */
 #ifndef PVFS2_VERSION

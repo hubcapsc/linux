@@ -4,9 +4,9 @@
  * See COPYING in top-level directory.
  */
 
+#include "hubcap.h"
 #include "pvfs2-kernel.h"
 #include "pvfs2-bufmap.h"
-#include "pvfs2-internal.h"
 
 static int pvfs2_readlink(
     struct dentry *dentry, char __user *buffer, int buflen)

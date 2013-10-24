@@ -10,10 +10,9 @@
  *  Linux VFS directory operations.
  */
 
+#include "hubcap.h"
 #include "pvfs2-kernel.h"
 #include "pvfs2-bufmap.h"
-#include "pvfs2-sysint.h"
-#include "pvfs2-internal.h"
 
 typedef struct 
 {

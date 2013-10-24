@@ -12,6 +12,7 @@
  *  This is the 2.6 kernels way of doing extended attributes
  */
 
+#include "hubcap.h"
 #include "pvfs2-kernel.h"
 #include "pvfs2-bufmap.h"
 #include <linux/xattr.h>

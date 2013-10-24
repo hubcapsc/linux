@@ -4,8 +4,8 @@
  * See COPYING in top-level directory.
  */
 
+#include "hubcap.h"
 #include "pvfs2-kernel.h"
-#include "pvfs2-internal.h"
 
 /* A list of all allocated pvfs2 inode objects */
 static DEFINE_SPINLOCK(pvfs2_inode_list_lock);

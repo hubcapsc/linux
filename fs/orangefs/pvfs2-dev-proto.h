@@ -59,11 +59,11 @@
 #define MAX_DIRENT_COUNT_READDIR       0x00000060
 #define MAX_DIRENT_COUNT_READDIRPLUS   0x0000003C
 
-#include "pvfs2.h"
+//#include "pvfs2.h"
 
 #include "upcall.h"
 #include "downcall.h"
-#include "quickhash.h"
+//#include "quickhash.h"
 
 /*
  * These macros differ from proto macros in that they don't do any

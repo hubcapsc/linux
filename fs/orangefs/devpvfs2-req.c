@@ -7,12 +7,10 @@
  * See COPYING in top-level directory.
  */
 
+#include "hubcap.h"
 #include "pvfs2-kernel.h"
-#include "pint-dev-shared.h"
 #include "pvfs2-dev-proto.h"
 #include "pvfs2-bufmap.h"
-#include "pvfs2-internal.h"
-#include "pint-dev.h"
 
 /* these functions are defined in pvfs2-utils.c */
 int PVFS_proc_kmod_mask_to_eventlog(uint64_t mask, char *debug_string);

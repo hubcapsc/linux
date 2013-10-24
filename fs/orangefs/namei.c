@@ -10,8 +10,8 @@
  *  Linux VFS namei operations.
  */
 
+#include "hubcap.h"
 #include "pvfs2-kernel.h"
-#include "pvfs2-internal.h"
 
 /** Get a newly allocated inode to go with a negative dentry.
  */
