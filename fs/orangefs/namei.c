@@ -502,17 +502,10 @@ struct inode_operations pvfs2_dir_inode_operations =
     .rename = pvfs2_rename,
     .setattr = pvfs2_setattr,
     .getattr = pvfs2_getattr,
-/* CONFIG_FS_POSIX_ACL is in .config */
-#if defined(CONFIG_FS_POSIX_ACL)
     .getxattr = generic_getxattr,
     .setxattr = generic_setxattr,
     .removexattr = generic_removexattr,
-#endif
     .listxattr = pvfs2_listxattr,
-/* CONFIG_FS_POSIX_ACL is in .config */
-#if defined(CONFIG_FS_POSIX_ACL)
-    .permission = pvfs2_permission,
-#endif
 };
 
 /*

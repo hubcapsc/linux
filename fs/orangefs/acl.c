@@ -277,7 +277,6 @@ static int pvfs2_xattr_set_acl(struct inode *inode,
 {
     struct posix_acl *acl;
     int error;
-    int fsuid = current_fsuid();
 
     gossip_debug(GOSSIP_ACL_DEBUG, "pvfs2_xattr_set_acl called with size %ld\n",
             (long)size);
@@ -289,13 +288,9 @@ static int pvfs2_xattr_set_acl(struct inode *inode,
         return -EOPNOTSUPP;
     }
     /* Are we capable of setting acls on a file for which we should not be? */
-    if ((fsuid != inode->i_uid) && !capable(CAP_FOWNER))
-    {
-        gossip_err("pvfs2_xattr_set_acl: operation not permitted "
-                "(current->fsuid %d), (inode->owner %d)\n", 
-                fsuid, inode->i_uid);
+    if (!inode_owner_or_capable(inode))
         return -EPERM;
-    }
+
     if (value) 
     {
         acl = posix_acl_from_xattr(&init_user_ns, value, size);
@@ -510,43 +505,6 @@ int pvfs2_acl_chmod(struct inode *inode)
 out:
     posix_acl_release(acl);
     return error;
-}
-
-int pvfs2_permission(struct inode *inode, int mask)
-{
-    int fsuid = current_fsuid();
-    int ret;
-
-    ret = generic_permission(inode, mask); 
-    if (ret != 0)
-    {
-        gossip_debug(GOSSIP_ACL_DEBUG,
-                     "pvfs2_permission failed: inode: %llu mask = %o"
-                     "mode = %o current->fsuid = %d "
-                     "inode->i_uid = %d, inode->i_gid = %d "
-                     "in_group_p = %d "
-                     "(ret = %d)\n",
-                     llu(get_handle_from_ino(inode)), mask, inode->i_mode,
-                     fsuid, inode->i_uid, inode->i_gid, 
-                     in_group_p(inode->i_gid),
-                     ret);
-        gossip_debug(GOSSIP_ACL_DEBUG,
-                     "pvfs2_permission: mode [%o] & mask [%o] "
-                     " & S_IRWXO [%o] = %o == mask [%o]?\n", 
-                     inode->i_mode, mask, S_IRWXO, 
-                     (inode->i_mode & mask & S_IRWXO), mask);
-        gossip_debug(GOSSIP_ACL_DEBUG,
-                     "pvfs2_permission: did we check ACL's? "
-                     "(mode & S_IRWXG = %d)\n",
-                     inode->i_mode & S_IRWXG);
-    }
-    else
-    {
-        gossip_debug(GOSSIP_ACL_DEBUG,
-                     "pvfs2_permission succeeded on inode %llu\n",
-                     llu(get_handle_from_ino(inode)));
-    }
-    return ret;
 }
 
 /*

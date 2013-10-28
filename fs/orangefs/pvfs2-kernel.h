@@ -695,9 +695,6 @@ struct inode *pvfs2_iget_common(struct super_block *sb,
 #define pvfs2_iget(sb, ref)        pvfs2_iget_common(sb, ref, 0)
 #define pvfs2_iget_locked(sb, ref) pvfs2_iget_common(sb, ref, 1)
 
-int pvfs2_permission(struct inode *,
-                     int mask);
-
 /*****************************
  * defined in file.c (shared file/dir operations)
  ****************************/

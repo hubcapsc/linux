@@ -16,8 +16,6 @@
 #include <linux/posix_acl_xattr.h>
 #include <linux/xattr.h>
 
-#if defined(CONFIG_FS_POSIX_ACL)
-
 /*
  * NOTES from fs/xattr.c
  * In order to implement different sets of xattr operations for each xattr
@@ -37,8 +35,6 @@ const struct xattr_handler *pvfs2_xattr_handlers[] =
     &pvfs2_xattr_default_handler,
     NULL
 };
-
-#endif
 
 ssize_t pvfs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {

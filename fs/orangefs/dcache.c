@@ -197,46 +197,10 @@ static int pvfs2_d_revalidate(struct dentry *dentry,
     return(pvfs2_d_revalidate_common(dentry));
 }
 
-/*
-  to propagate an error, return a value < 0, as this causes
-  link_path_walk to pass our error up
-*/
-static int pvfs2_d_hash(const struct dentry *parent, struct qstr *hash)
-{
-/*     gossip_debug(GOSSIP_DCACHE_DEBUG, "pvfs2: pvfs2_d_hash called " */
-/*                 "(name: %s | len: %d | hash: %d)\n", */
-/*                 hash->name, hash->len, hash->hash); */
-    return 0;
-}
-
-static int pvfs2_d_compare(const struct dentry *parent, 
-                           const struct dentry *dentry, 
-                           unsigned int len, 
-                           const char *str, 
-                           const struct qstr *name)
-{
-    int i = 0;
-    gossip_debug(GOSSIP_DCACHE_DEBUG, "pvfs2_d_compare: "
-                 "called on parent %p\n  (name1: %s| name2: %s)\n", 
-                 parent, str, name->name);
-
-    if( len != name->len ) 
-        return 1;
-  
-    for( i=0; i < len; i++ )
-    {
-        if( str[i] != name->name[i] )
-            return 1;
-    }
-    return 0;
-}
-
 /** PVFS2 implementation of VFS dentry operations */
 struct dentry_operations pvfs2_dentry_operations =
 {
     .d_revalidate = pvfs2_d_revalidate,
-    .d_hash = pvfs2_d_hash,
-    .d_compare = pvfs2_d_compare,
     .d_delete = pvfs2_d_delete,
 };
 

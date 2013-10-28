@@ -46,12 +46,7 @@ struct inode_operations pvfs2_symlink_inode_operations =
     .setattr = pvfs2_setattr,
     .getattr = pvfs2_getattr,
     .listxattr = pvfs2_listxattr,
-#if defined(CONFIG_FS_POSIX_ACL)
     .setxattr = generic_setxattr,
-#endif
-#if defined(CONFIG_FS_POSIX_ACL)
-    .permission = pvfs2_permission,
-#endif
 };
 
 /*

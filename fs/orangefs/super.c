@@ -349,13 +349,10 @@ static int pvfs2_remount_fs(
             {
                 return ret;
             }
-/* CONFIG_FS_POSIX_ACL is set in .config */
-#if defined(CONFIG_FS_POSIX_ACL)
             /* mark the superblock as whether it supports acl's or not */
             sb->s_flags = ((sb->s_flags & ~MS_POSIXACL) | 
                 ((PVFS2_SB(sb)->mnt_options.acl == 1) ? MS_POSIXACL : 0));
             sb->s_xattr = pvfs2_xattr_handlers;
-#endif
             sb->s_flags = ((sb->s_flags & ~MS_NOATIME)  |
                 ((PVFS2_SB(sb)->mnt_options.noatime == 1) ? MS_NOATIME : 0));
             sb->s_flags = ((sb->s_flags & ~MS_NODIRATIME) |
@@ -404,13 +401,10 @@ int pvfs2_remount(
             {
                 return ret;
             }
-/* CONFIG_FS_POSIX_ACL is set in .config */
-#if defined(CONFIG_FS_POSIX_ACL)
             /* mark the superblock as whether it supports acl's or not */
             sb->s_flags = ((sb->s_flags & ~MS_POSIXACL) | 
                 ((PVFS2_SB(sb)->mnt_options.acl == 1) ? MS_POSIXACL : 0));
             sb->s_xattr = pvfs2_xattr_handlers;
-#endif
             sb->s_flags = ((sb->s_flags & ~MS_NOATIME)  |
                 ((PVFS2_SB(sb)->mnt_options.noatime == 1) ? MS_NOATIME : 0));
             sb->s_flags = ((sb->s_flags & ~MS_NODIRATIME) |
@@ -612,11 +606,8 @@ int pvfs2_fill_sb(struct super_block *sb,
         sb->s_flags = (sb->s_flags & ~(MS_POSIXACL | MS_NOATIME | MS_NODIRATIME));
     }
 
-/* CONFIG_FS_POSIX_ACL is defined in .config */
-#if defined(CONFIG_FS_POSIX_ACL)
     /* Hang the xattr handlers off the superblock */
     sb->s_xattr = pvfs2_xattr_handlers;
-#endif
     sb->s_magic = PVFS2_SUPER_MAGIC;
     sb->s_op = &pvfs2_s_ops;
     sb->s_type = &pvfs2_fs_type;

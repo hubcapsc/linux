@@ -197,14 +197,11 @@ int pvfs2_setattr(struct dentry *dentry, struct iattr *iattr)
         {
             ret = pvfs2_inode_setattr(inode, iattr);
 
-/* CONFIG_FS_POSIX_ACL is in .config */
-#if defined(CONFIG_FS_POSIX_ACL)
             if (!ret && (iattr->ia_valid & ATTR_MODE))
             {
                 /* change mod on a file that has ACLs */
                 ret = pvfs2_acl_chmod(inode);
             }
-#endif
         }
     }
     gossip_debug(GOSSIP_INODE_DEBUG, "pvfs2_setattr: returning %d\n", ret);
@@ -265,18 +262,11 @@ struct inode_operations pvfs2_file_inode_operations =
 {
     .setattr = pvfs2_setattr,
     .getattr = pvfs2_getattr,
-/* CONFIG_FS_POSIX_ACL is in .config */
-#if defined(CONFIG_FS_POSIX_ACL)
     .setxattr = generic_setxattr,
     .getxattr = generic_getxattr,
     .removexattr = generic_removexattr,
-#endif
     .listxattr = pvfs2_listxattr,
-/* CONFIG_FS_POSIX_ACL is in .config */
-#if defined(CONFIG_FS_POSIX_ACL)
-    .permission = pvfs2_permission,
     .get_acl = pvfs2_get_acl,
-#endif
 };
 
 /*
@@ -466,13 +456,10 @@ struct inode *pvfs2_get_custom_inode_common(
 	    gossip_debug(GOSSIP_INODE_DEBUG, "pvfs2_get_custom_inode: unsupported mode\n");
             goto error;
 	}
-/* CONFIG_FS_POSIX_ACL is in .config */
-#if defined(CONFIG_FS_POSIX_ACL)
         gossip_debug(GOSSIP_ACL_DEBUG, "Initializing ACL's for inode %llu\n", 
                 llu(get_handle_from_ino(inode)));
         /* Initialize the ACLs of the new inode */
         pvfs2_init_acl(inode, dir);
-#endif
     }
 error:
     return inode;
