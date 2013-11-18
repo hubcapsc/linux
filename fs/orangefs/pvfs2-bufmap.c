@@ -182,7 +182,7 @@ int pvfs_bufmap_initialize(struct PVFS_dev_map_desc *user_desc)
     pvfs2_bufmap_total_size = user_desc->total_size;
     pvfs2_bufmap_desc_count = user_desc->count;
     pvfs2_bufmap_desc_size  = user_desc->size;
-    pvfs2_bufmap_desc_shift = LOG2(pvfs2_bufmap_desc_size);
+    pvfs2_bufmap_desc_shift = ilog2(pvfs2_bufmap_desc_size);
     bufmap_page_count = pvfs2_bufmap_total_size / PAGE_SIZE;
     pages_per_desc    = pvfs2_bufmap_desc_size / PAGE_SIZE;
     /* Initialize descriptor arrays */

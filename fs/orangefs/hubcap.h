@@ -497,22 +497,6 @@ struct PVFS_dev_map_desc
     int32_t  count;
 };
 
-/* log to base 2 when we know that number is a power of 2 */
-static inline int LOG2(int number)
-{
-    int count = 0;
-    if (number == 0 || (number & (number - 1)))
-    {
-        return -1;
-    }
-    while (number >>= 1)
-    {
-        count++;
-    }
-    return count;
-}
-
-
 /* gossip.h *****************************************************************/
 
 #ifdef GOSSIP_DISABLE_DEBUG
