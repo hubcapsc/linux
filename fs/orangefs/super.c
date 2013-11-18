@@ -475,12 +475,13 @@ static void pvfs2_dirty_inode(struct inode *inode, int flags)
 
 struct super_operations pvfs2_s_ops =
 {
-    .drop_inode = generic_delete_inode,
     .alloc_inode = pvfs2_alloc_inode,
     .destroy_inode = pvfs2_destroy_inode,
     .dirty_inode = pvfs2_dirty_inode,
+    .drop_inode = generic_delete_inode,
     .statfs = pvfs2_statfs,
     .remount_fs = pvfs2_remount_fs,
+    .show_options = generic_show_options,
 };
 
 struct dentry *pvfs2_fh_to_dentry(struct super_block *sb,
@@ -660,7 +661,7 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
     struct dentry *mnt_sb_d = ERR_PTR(-EINVAL);
 
     gossip_debug(GOSSIP_SUPER_DEBUG,
-                 "pvfs2_get_sb: called with devname %s\n", devname);
+                 "pvfs2_mount: called with devname %s\n", devname);
 
     if (devname)
     {
@@ -677,10 +678,10 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
         gossip_debug(GOSSIP_SUPER_DEBUG, "Attempting PVFS2 Mount via host %s\n",
                     new_op->upcall.req.fs_mount.pvfs2_config_server);
 
-        ret = service_operation(new_op, "pvfs2_get_sb", 0);
+        ret = service_operation(new_op, "pvfs2_mount", 0);
 
         gossip_debug(GOSSIP_SUPER_DEBUG,
-                     "pvfs2_get_sb: mount got return value of %d\n", ret);
+                     "pvfs2_mount: mount got return value of %d\n", ret);
         if (ret)
         {
             goto free_op;
@@ -766,7 +767,7 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
     return mnt_sb_d;
 
 free_op:
-    gossip_err("pvfs2_get_sb: mount request failed with %d\n", ret);
+    gossip_err("pvfs2_mount: mount request failed with %d\n", ret);
     if (ret == -EINVAL)
     {
         gossip_err("Ensure that all pvfs2-servers have the "
@@ -779,7 +780,7 @@ free_op:
     {
         op_release(new_op);
     }
-    gossip_debug(GOSSIP_SUPER_DEBUG, "pvfs2_get_sb: returning dentry %p\n", 
+    gossip_debug(GOSSIP_SUPER_DEBUG, "pvfs2_mount: returning dentry %p\n", 
         mnt_sb_d);
     return mnt_sb_d;
 }

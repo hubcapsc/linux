@@ -260,13 +260,13 @@ int pvfs2_getattr(
 /** PVFS2 implementation of VFS inode operations for files */
 struct inode_operations pvfs2_file_inode_operations =
 {
+    .get_acl = pvfs2_get_acl,
     .setattr = pvfs2_setattr,
     .getattr = pvfs2_getattr,
     .setxattr = generic_setxattr,
     .getxattr = generic_getxattr,
-    .removexattr = generic_removexattr,
     .listxattr = pvfs2_listxattr,
-    .get_acl = pvfs2_get_acl,
+    .removexattr = generic_removexattr,
 };
 
 /*

@@ -491,8 +491,9 @@ static int pvfs2_rename(
 /** PVFS2 implementation of VFS inode operations for directories */
 struct inode_operations pvfs2_dir_inode_operations =
 {
-    .create = pvfs2_create,
     .lookup = pvfs2_lookup,
+    .get_acl = pvfs2_get_acl,
+    .create = pvfs2_create,
     .link = pvfs2_link,
     .unlink = pvfs2_unlink,
     .symlink = pvfs2_symlink,
@@ -502,8 +503,8 @@ struct inode_operations pvfs2_dir_inode_operations =
     .rename = pvfs2_rename,
     .setattr = pvfs2_setattr,
     .getattr = pvfs2_getattr,
-    .getxattr = generic_getxattr,
     .setxattr = generic_setxattr,
+    .getxattr = generic_getxattr,
     .removexattr = generic_removexattr,
     .listxattr = pvfs2_listxattr,
 };
