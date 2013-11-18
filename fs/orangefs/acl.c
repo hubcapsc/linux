@@ -34,7 +34,6 @@ struct posix_acl *pvfs2_get_acl(struct inode *inode, int type)
 	struct posix_acl *acl;
 	int ret;
 	char *key = NULL, *value = NULL;
-gossip_debug(GOSSIP_ACL_DEBUG,"pvfs2_get_acl: start\n");
 
 	/* Won't work if you don't mount with the right set of options */
 	if (get_acl_flag(inode) == 0) {
