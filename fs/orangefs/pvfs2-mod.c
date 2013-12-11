@@ -28,28 +28,28 @@ int PVFS_proc_mask_to_eventlog(uint64_t mask, char *debug_string);
 /* external references */
 extern char kernel_debug_string[];
 
-/* prototypes */
-static int hash_func(void *key, int table_size);
-static int hash_compare(void *key, struct qhash_head *link);
-
-/*************************************
+/*
  * global variables declared here
- *************************************/
+ */ 
 
 /* the size of the hash tables for ops in progress */
-static int hash_table_size = 509;
+int hash_table_size = 509;
 
-/* the insmod command only understands "unsigned long" and NOT "unsigned long long" as
- * an input parameter.  So, to accomodate both 32- and 64- bit machines, we will read
- * the debug mask parameter as an unsigned long (4-bytes on a 32-bit machine and 8-bytes
- * on a 64-bit machine) and then cast the "unsigned long" to an "unsigned long long"
- * once we have the value in the kernel.  In this way, the gossip_debug_mask can remain
- * as a "uint64_t" and the kernel and client may continue to use the same gossip functions.
- * NOTE: the kernel debug mask currently does not have more than 32 valid keywords, so
- * only reading a 32-bit integer from the insmod command line is not a problem.  However,
- * the /proc/sys/pvfs2/kernel-debug functionality can accomodate up to 64 keywords, in 
- * the event that the kernel debug mask supports more than 32 keywords.
-*/
+/* the insmod command only understands "unsigned long" and NOT 
+ * "unsigned long long" as an input parameter.  So, to accomodate 
+ * both 32- and 64- bit machines, we will read the debug mask parameter 
+ * as an unsigned long (4-bytes on a 32-bit machine and 8-bytes
+ * on a 64-bit machine) and then cast the "unsigned long" to an 
+ * "unsigned long long" once we have the value in the kernel.  In this 
+ * way, the gossip_debug_mask can remain as a "uint64_t" and the kernel 
+ * and client may continue to use the same gossip functions.
+ * NOTE: the kernel debug mask currently does not have more than 32 
+ * valid keywords, so only reading a 32-bit integer from the insmod 
+ * command line is not a problem.  However, the 
+ * /proc/sys/pvfs2/kernel-debug functionality can accomodate up to 
+ * 64 keywords, in the event that the kernel debug mask supports more 
+ * than 32 keywords.
+ */
 uint32_t module_parm_debug_mask = 0;
 uint64_t gossip_debug_mask = 0;
 unsigned int kernel_mask_set_mod_init = false;
@@ -103,7 +103,8 @@ struct semaphore devreq_semaphore;
 struct semaphore request_semaphore;
 
 /* hash table for storing operations waiting for matching downcall */
-struct qhash_table *htable_ops_in_progress = NULL;
+struct list_head *htable_ops_in_progress = NULL;
+DEFINE_SPINLOCK(htable_ops_in_progress_lock);
 
 /* list for queueing upcall operations */
 LIST_HEAD(pvfs2_request_list);
@@ -229,13 +230,20 @@ static int __init pvfs2_init(void)
     sema_init(&request_semaphore, 1);
 
     htable_ops_in_progress =
-	qhash_init(hash_compare, hash_func, hash_table_size);
+      kcalloc(hash_table_size, sizeof(struct list_head), GFP_KERNEL);
     if (!htable_ops_in_progress)
     {
 	gossip_err("Failed to initialize op hashtable");
         ret = -ENOMEM;
         goto cleanup_device;
     }
+
+    /* initialize a doubly linked at each hash table index */
+    for (i = 0; i < hash_table_size; i++)
+    {
+       INIT_LIST_HEAD(&htable_ops_in_progress[i]);
+    }
+
     if ((ret = fsid_key_table_initialize()) < 0) 
     {
         goto cleanup_progress_table;
@@ -251,7 +259,7 @@ static int __init pvfs2_init(void)
     pvfs2_proc_finalize();
     fsid_key_table_finalize();
 cleanup_progress_table:
-    qhash_finalize(htable_ops_in_progress);
+    kfree(htable_ops_in_progress);
 cleanup_device:
     pvfs2_dev_cleanup();
 cleanup_kiocb:
@@ -271,7 +279,6 @@ static void __exit pvfs2_exit(void)
 {
     int i = 0;
     pvfs2_kernel_op_t *cur_op = NULL;
-    struct qhash_head *hash_link = NULL;
 
     gossip_debug(GOSSIP_INIT_DEBUG, "pvfs2: pvfs2_exit called\n");
 
@@ -281,8 +288,7 @@ static void __exit pvfs2_exit(void)
     pvfs2_dev_cleanup();
     /* clear out all pending upcall op requests */
     spin_lock(&pvfs2_request_list_lock);
-    while (!list_empty(&pvfs2_request_list))
-    {
+    while (!list_empty(&pvfs2_request_list)) {
 	cur_op = list_entry(pvfs2_request_list.next,
                             pvfs2_kernel_op_t, list);
 	list_del(&cur_op->list);
@@ -292,52 +298,28 @@ static void __exit pvfs2_exit(void)
     }
     spin_unlock(&pvfs2_request_list_lock);
 
-    for (i = 0; i < htable_ops_in_progress->table_size; i++)
-    {
-	do
-	{
-	    hash_link = qhash_search_and_remove_at_index(
-                htable_ops_in_progress, i);
-	    if (hash_link)
-	    {
-		cur_op = qhash_entry(hash_link, pvfs2_kernel_op_t, list);
-                op_release(cur_op);
-	    }
-	} while (hash_link);
+    for (i = 0; i < hash_table_size; i++) {
+       while (!list_empty(&htable_ops_in_progress[i])) {
+           cur_op = list_entry(htable_ops_in_progress[i].next,
+                               pvfs2_kernel_op_t, 
+                               list);
+           op_release(cur_op);
+       }
     }
     kiocb_cache_finalize();
     pvfs2_inode_cache_finalize();
     dev_req_cache_finalize();
     op_cache_finalize();
 
-    qhash_finalize(htable_ops_in_progress);
+    kfree(htable_ops_in_progress);
     
     bdi_destroy(&pvfs2_backing_dev_info);
 
     printk("pvfs2: module version %s unloaded\n", PVFS2_VERSION);
 }
 
-/* simply return an index valid for the table_size */
-static int hash_func(void *key, int table_size)
-{
-    uint64_t ret, *tag = (uint64_t *) key;
-
-    ret = *tag % ((unsigned int) table_size);
-
-    return (int) ret;
-}
-
-static int hash_compare(void *key, struct qhash_head *link)
-{
-    uint64_t *real_tag = (uint64_t *)key;
-    pvfs2_kernel_op_t *op = qhash_entry(
-        link, pvfs2_kernel_op_t, list);
-
-    return (op->tag == *real_tag);
-}
-
-/* What we do in this function is to walk the list of operations that are in progress
- * in the hash table and mark them as purged as well.
+/* What we do in this function is to walk the list of operations 
+ * that are in progress in the hash table and mark them as purged as well.
  */
 void purge_inprogress_ops(void)
 {
@@ -345,10 +327,9 @@ void purge_inprogress_ops(void)
 
     for (i = 0; i < hash_table_size; i++)
     {
-        struct qhash_head *tmp_link = NULL, *scratch = NULL;
-        qhash_for_each_safe(tmp_link, scratch, &(htable_ops_in_progress->array[i]))
-        {
-            pvfs2_kernel_op_t *op = qhash_entry(tmp_link, pvfs2_kernel_op_t, list);
+        pvfs2_kernel_op_t *op, *next;
+
+        list_for_each_entry_safe(op, next, &htable_ops_in_progress[i], list) {
             spin_lock(&op->lock);
             gossip_debug(GOSSIP_INIT_DEBUG, "pvfs2-client-core: purging in-progress op tag %llu %s\n",
                     llu(op->tag), get_opname_string(op));

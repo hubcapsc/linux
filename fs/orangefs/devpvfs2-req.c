@@ -40,6 +40,45 @@ gossip_err("'lsof | grep %s' (run this as root)\n",                   \
 gossip_err("  open_access_count = %d\n", open_access_count);          \
 gossip_err("*****************************************************\n")
 
+static int hash_func(uint64_t tag, int table_size)
+{
+       return tag % ((unsigned int) table_size);
+}
+
+static void
+pvfs2_devreq_add_op(pvfs2_kernel_op_t *op)
+{
+       int index = hash_func(op->tag, hash_table_size);
+
+       spin_lock(&htable_ops_in_progress_lock);
+       list_add_tail(&op->list, &htable_ops_in_progress[index]);
+       spin_unlock(&htable_ops_in_progress_lock);
+}
+
+static pvfs2_kernel_op_t *
+pvfs2_devreq_remove_op(uint64_t tag)
+{
+       pvfs2_kernel_op_t *op, *next;
+       int index;
+
+       index = hash_func(tag, hash_table_size);
+
+       spin_lock(&htable_ops_in_progress_lock);
+       list_for_each_entry_safe(op,
+                                next,
+                                &htable_ops_in_progress[index],
+                                list) {
+               if (op->tag == tag) {
+                       list_del(&op->list);
+                       spin_unlock(&htable_ops_in_progress_lock);
+                       return op;
+               }
+       }
+
+       spin_unlock(&htable_ops_in_progress_lock);
+       return NULL;
+}
+
 static int pvfs2_devreq_open(
     struct inode *inode,
     struct file *file)
@@ -153,11 +192,9 @@ static ssize_t pvfs2_devreq_read(
         else if (cur_op->op_linger == 1 
                 || (cur_op->op_linger == 2 && cur_op->op_linger_tmp == 0)) 
         {
-            set_op_state_inprogress(cur_op);
-
             /* atomically move the operation to the htable_ops_in_progress */
-            qhash_add(htable_ops_in_progress,
-                      (void *) &(cur_op->tag), &cur_op->list);
+            set_op_state_inprogress(cur_op);
+            pvfs2_devreq_add_op(cur_op);
         }
 
         spin_unlock(&cur_op->lock);
@@ -248,7 +285,6 @@ static ssize_t pvfs2_devreq_writev(
     loff_t *offset)
 {
     pvfs2_kernel_op_t *op = NULL;
-    struct qhash_head *hash_link = NULL;
     void *buffer = NULL;
     void *ptr = NULL;
     unsigned long i = 0;
@@ -324,13 +360,9 @@ static ssize_t pvfs2_devreq_writev(
     }
 
 
-    /* lookup (and remove) the op based on the tag */
-    hash_link = qhash_search_and_remove(htable_ops_in_progress, &(tag));
-    if (hash_link)
+    op = pvfs2_devreq_remove_op(tag);
+    if (op)
     {
-	op = qhash_entry(hash_link, pvfs2_kernel_op_t, list);
-	if (op)
-	{
             /* Increase ref count! */
             get_op(op);
 	    /* cut off magic and tag from payload size */
@@ -541,7 +573,6 @@ static ssize_t pvfs2_devreq_writev(
                 */
                 wake_up_interruptible(&op->waitq);
             }
-	}
     }
     else
     {

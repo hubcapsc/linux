@@ -22,9 +22,7 @@
 
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
-//#include <linux/vermagic.h>
 #include <linux/statfs.h>
-//#include <linux/buffer_head.h>
 #include <linux/backing-dev.h>
 #include <linux/device.h>
 #include <linux/mpage.h>
@@ -799,7 +797,9 @@ extern spinlock_t pvfs2_superblocks_lock;
 extern struct list_head pvfs2_request_list;
 extern spinlock_t pvfs2_request_list_lock;
 extern wait_queue_head_t pvfs2_request_list_waitq;
-extern struct qhash_table *htable_ops_in_progress;
+extern struct list_head *htable_ops_in_progress;
+extern spinlock_t htable_ops_in_progress_lock;
+extern int hash_table_size;
 
 extern struct file_system_type pvfs2_fs_type;
 extern struct address_space_operations pvfs2_address_operations;
@@ -856,12 +856,6 @@ do {                                                         \
         }                                                    \
     }                                                        \
     spin_unlock(&pvfs2_request_list_lock);                   \
-} while(0)
-
-#define remove_op_from_htable_ops_in_progress(op)            \
-do {                                                         \
-    qhash_search_and_remove(htable_ops_in_progress,          \
-                            &(op->tag));                     \
 } while(0)
 
 #define PVFS2_OP_INTERRUPTIBLE 1   /**< service_operation() is interruptible */

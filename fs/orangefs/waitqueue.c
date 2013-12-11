@@ -60,12 +60,11 @@ int service_operation(
 
     /* irqflags and wait_entry are only used IF the client-core aborts */
     unsigned long irqflags;
-    DECLARE_WAITQUEUE(wait_entry, current);
 
+    DECLARE_WAITQUEUE(wait_entry, current);
 
     op->upcall.tgid = current->tgid;
     op->upcall.pid = current->pid;
-
 
 retry_servicing:
     op->downcall.status = 0;
@@ -251,8 +250,7 @@ void pvfs2_clean_up_interrupted_operation(
 
     spin_lock(&op->lock);
 
-    if (op_state_waiting(op))
-    {
+    if (op_state_waiting(op)) {
         /*
           upcall hasn't been read; remove op from upcall request
           list.
@@ -261,16 +259,15 @@ void pvfs2_clean_up_interrupted_operation(
         remove_op_from_request_list(op);
         gossip_debug(GOSSIP_WAIT_DEBUG, "Interrupted: Removed op %p from request_list\n", op);
     }
-    else if (op_state_in_progress(op))
-    {
+    else if (op_state_in_progress(op)) {
         /* op must be removed from the in progress htable */
         spin_unlock(&op->lock);
-        remove_op_from_htable_ops_in_progress(op);
-        gossip_debug(GOSSIP_WAIT_DEBUG, "Interrupted: Removed op %p from "
-                    "htable_ops_in_progress\n", op);
+        spin_lock(&htable_ops_in_progress_lock);
+        list_del(&op->list);
+        spin_unlock(&htable_ops_in_progress_lock);
+        gossip_debug(GOSSIP_WAIT_DEBUG, "Interrupted: Removed op %p from htable_ops_in_progress\n", op);
     }
-    else if (!op_state_serviced(op))
-    {
+    else if (!op_state_serviced(op)) {
         spin_unlock(&op->lock);
         gossip_err("interrupted operation is in a weird state 0x%x\n",
                     op->op_state);
@@ -432,7 +429,6 @@ int wait_for_cancellation_downcall(pvfs2_kernel_op_t * op)
         ret = -ETIMEDOUT;
         break;
     }/*end while*/
-
 
     set_current_state(TASK_RUNNING);
 
