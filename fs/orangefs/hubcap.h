@@ -1,12 +1,11 @@
 #include <linux/spinlock_types.h>
 #include <linux/types.h>
 #include <linux/slab.h>
-//#include <linux/errno.h>
 
 /* pvfs2-config.h ***********************************************************/
 #define PVFS2_VERSION_MAJOR 2
-#define PVFS2_VERSION_MINOR 8
-#define PVFS2_VERSION_SUB 8
+#define PVFS2_VERSION_MINOR 9
+#define PVFS2_VERSION_SUB 0
 
 /* pvfs2-types.h ************************************************************/
 typedef uint32_t PVFS_uid;
@@ -108,7 +107,7 @@ typedef int64_t PVFS_offset;
 #define PVFS_ENORECVR   (6|(PVFS_NON_ERRNO_ERROR_BIT|PVFS_ERROR_BIT))
 #define PVFS_ETRYAGAIN  (7|(PVFS_NON_ERRNO_ERROR_BIT|PVFS_ERROR_BIT))
 #define PVFS_ENOTPVFS   (8|(PVFS_NON_ERRNO_ERROR_BIT|PVFS_ERROR_BIT))
-
+#define PVFS_ESECURITY  (9|(PVFS_NON_ERRNO_ERROR_BIT|PVFS_ERROR_BIT))
 
 
 /* NOTE: PLEASE DO NOT ARBITRARILY ADD NEW ERRNO ERROR CODES!
@@ -118,7 +117,7 @@ typedef int64_t PVFS_offset;
  * UNIX ERRNO VALUE IN THE MACROS BELOW (USED IN
  * src/common/misc/errno-mapping.c and the kernel module)
  */
-#define PVFS_ERRNO_MAX          60
+#define PVFS_ERRNO_MAX          61
 
 #define PVFS_ERROR_BMI    (1 << 7) /* BMI-specific error */
 #define PVFS_ERROR_TROVE  (2 << 7) /* Trove-specific error */
@@ -194,6 +193,7 @@ PVFS_error PINT_errno_mapping[PVFS_ERRNO_MAX + 1] = { \
     EALREADY,                                         \
     EACCES,                                           \
     ECONNRESET,   /* 59 */                            \
+    ERANGE,                                           \
     0         /* PVFS_ERRNO_MAX */                    \
 };                                                    \
 const char *PINT_non_errno_strerror_mapping[] = {     \
@@ -206,6 +206,7 @@ const char *PINT_non_errno_strerror_mapping[] = {     \
     "Unknown server error",                           \
     "Host name lookup failure",                       \
     "Path contains non-PVFS elements",                \
+    "Security error",                                 \
 };                                                    \
 PVFS_error PINT_non_errno_mapping[] = {               \
     0,     /* leave this one empty */                 \
@@ -217,18 +218,18 @@ PVFS_error PINT_non_errno_mapping[] = {               \
     PVFS_ENORECVR,  /* 6 */                           \
     PVFS_ETRYAGAIN, /* 7 */                           \
     PVFS_ENOTPVFS,  /* 8 */                           \
+    PVFS_ESECURITY, /* 9 */                           \
 }
 
 /*
-  NOTE: PVFS_get_errno_mapping will convert a PVFS_ERROR_CODE to an
-  errno value.  If the error code is a pvfs2 specific error code
-  (i.e. a PVFS_NON_ERRNO_ERROR_CODE), PVFS_get_errno_mapping will
-  return an index into the PINT_non_errno_strerror_mapping array which
-  can be used for getting the pvfs2 specific strerror message given
-  the error code.  if the value is not a recognized error code, the
-  passed in value will be returned unchanged.
-*/
-
+ *   NOTE: PVFS_get_errno_mapping will convert a PVFS_ERROR_CODE to an
+ *   errno value.  If the error code is a pvfs2 specific error code
+ *   (i.e. a PVFS_NON_ERRNO_ERROR_CODE), PVFS_get_errno_mapping will
+ *   return an index into the PINT_non_errno_strerror_mapping array which
+ *   can be used for getting the pvfs2 specific strerror message given
+ *   the error code.  if the value is not a recognized error code, the
+ *   passed in value will be returned unchanged.
+ */
 #define DECLARE_ERRNO_MAPPING_AND_FN()                     \
 extern PVFS_error PINT_errno_mapping[];                    \
 extern PVFS_error PINT_non_errno_mapping[];                \
@@ -261,10 +262,10 @@ PVFS_error PVFS_errno_to_error(int err)                    \
     {                                                      \
         if(PINT_errno_mapping[e] == err)                   \
         {                                                  \
-            return e;                                      \
+            return e | PVFS_ERROR_BIT;                     \
         }                                                  \
     }                                                      \
-    return 0;                                              \
+    return err;                                            \
 }                                                          \
 DECLARE_ERRNO_MAPPING()
 
@@ -369,11 +370,60 @@ typedef enum
     PVFS_TYPE_INTERNAL =    (1 << 5)   /* for the server's private use */
 } PVFS_ds_type;
 
-typedef struct
+typedef unsigned char *PVFS_cert_data;
+
+/* PVFS_certificate simply stores a buffer with the buffer size.
+ * The buffer can be converted to an OpenSSL X509 struct for use.
+ */
+typedef struct PVFS_certificate PVFS_certificate;
+struct PVFS_certificate
 {
-    PVFS_uid uid;
-    PVFS_gid gid;
-} PVFS_credentials;
+    uint32_t buf_size;
+    PVFS_cert_data buf;
+};
+
+typedef unsigned char *PVFS_signature;
+
+/* A credential identifies a user and is signed by the client/user
+ * private key.
+ */
+typedef struct PVFS_credential PVFS_credential;
+struct PVFS_credential
+{
+    PVFS_uid userid;           /* user id */
+    uint32_t num_groups;       /* length of group_array */
+    PVFS_gid *group_array;     /* groups for which the user is a member */
+    char *issuer;              /* alias of the issuing server */
+    PVFS_time timeout;         /* seconds after epoch to time out */
+    uint32_t sig_size;         /* length of the signature in bytes */
+    PVFS_signature signature;  /* digital signature */
+    PVFS_certificate certificate; /* user certificate buffer */
+};
+/*
+endecode_fields_3a2a1_struct (
+    PVFS_credential,
+    skip4,,
+    skip4,,
+    PVFS_uid, userid,
+    uint32_t, num_groups,
+    PVFS_gid, group_array,
+    string, issuer,
+    PVFS_time, timeout,
+    uint32_t, sig_size,
+    PVFS_signature, signature,
+    PVFS_certificate, certificate);
+*/
+#define extra_size_PVFS_credential (PVFS_REQ_LIMIT_GROUPS    * \
+                                    sizeof(PVFS_gid)         + \
+                                    PVFS_REQ_LIMIT_ISSUER    + \
+                                    PVFS_REQ_LIMIT_SIGNATURE + \
+                                    extra_size_PVFS_certificate)
+
+/*
+ * NOTE: for backwards compatibility only.
+ * For all new code use PVFS_credential.
+ */
+typedef PVFS_credential PVFS_credentials;
 
 /* This structure is used by the VFS-client interaction alone */
 typedef struct {
@@ -393,8 +443,8 @@ typedef struct
     int32_t    __pad1;
 } PVFS_object_ref;
 
-/* pvfs2-sysint.h */
-/* Describes attributes for a file, directory, or symlink. */
+/* pvfs2-sysint.h ***********************************************************/
+/** Describes attributes for a file, directory, or symlink. */
 struct PVFS_sys_attr_s
 {
     PVFS_uid owner;
@@ -405,7 +455,10 @@ struct PVFS_sys_attr_s
     PVFS_time ctime;
     PVFS_size size;
     PVFS2_ALIGN_VAR(char *, link_target);/**< NOTE: caller must free if valid */
-    PVFS2_ALIGN_VAR(int32_t, dfile_count);
+    PVFS2_ALIGN_VAR(int32_t, dfile_count); /* Changed to int32_t so that size of structure does not change */
+    PVFS2_ALIGN_VAR(int32_t, distr_dir_servers_initial); /* Changed to int32_t so that size of structure does not change */
+    PVFS2_ALIGN_VAR(int32_t, distr_dir_servers_max); /* Changed to int32_t so that size of structure does not change */
+    PVFS2_ALIGN_VAR(int32_t, distr_dir_split_size); /* Changed to int32_t so that size of structure does not change */
     PVFS2_ALIGN_VAR(uint32_t, mirror_copies_count);
     PVFS2_ALIGN_VAR(char*, dist_name);   /**< NOTE: caller must free if valid */
     PVFS2_ALIGN_VAR(char*, dist_params); /**< NOTE: caller must free if valid */
@@ -416,6 +469,7 @@ struct PVFS_sys_attr_s
     PVFS_size blksize;
 };
 typedef struct PVFS_sys_attr_s PVFS_sys_attr;
+
 #define PVFS2_LOOKUP_LINK_NO_FOLLOW 0
 #define PVFS2_LOOKUP_LINK_FOLLOW    1
 
@@ -440,7 +494,6 @@ int32_t PVFS_util_translate_mode(int mode, int suid);
 #include "pvfs2-debug.h"
 
 /* pvfs2-internal.h *********************************************************/
-#define llu(x) (unsigned long long)(x)
 #define DIRECTORY_ENTRY_KEYSTR  "de\0"
 #define DATAFILE_HANDLES_KEYSTR "dh\0"
 #define METAFILE_DIST_KEYSTR    "md\0"

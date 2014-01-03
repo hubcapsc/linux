@@ -77,6 +77,10 @@
 #define GOSSIP_MGMT_DEBUG              ((uint64_t)1 << 55)
 #define GOSSIP_MIRROR_DEBUG            ((uint64_t)1 << 56)
 #define GOSSIP_WIN_CLIENT_DEBUG        ((uint64_t)1 << 57)
+#define GOSSIP_SECURITY_DEBUG          ((uint64_t)1 << 58)
+#define GOSSIP_USRINT_DEBUG            ((uint64_t)1 << 59)
+#define GOSSIP_RCACHE_DEBUG            ((uint64_t)1 << 60)
+#define GOSSIP_SECCACHE_DEBUG          ((uint64_t)1 << 61)
 
 #define GOSSIP_BMI_DEBUG_ALL (uint64_t)                               \
 (GOSSIP_BMI_DEBUG_TCP + GOSSIP_BMI_DEBUG_CONTROL +                    \
@@ -214,11 +218,21 @@ static __keyword_mask_t s_keyword_mask_map[] =
     /* Debug the bstream code */
     { "bstream", GOSSIP_BSTREAM_DEBUG },
     /* Debug trove in direct io mode */
-    {"directio", GOSSIP_DIRECTIO_DEBUG},
+    { "directio", GOSSIP_DIRECTIO_DEBUG },
+    /* Debug direct io thread management */
+    { "mgmt", GOSSIP_MGMT_DEBUG },
     /* Debug mirroring process */
-    {"mirror",GOSSIP_MIRROR_DEBUG},
+    { "mirror",GOSSIP_MIRROR_DEBUG },
     /* Windows client */
-    {"win_client", GOSSIP_WIN_CLIENT_DEBUG},
+    { "win_client", GOSSIP_WIN_CLIENT_DEBUG },
+    /* Debug robust security code */
+    { "security", GOSSIP_SECURITY_DEBUG },
+    /* Capability Cache */
+    { "seccache", GOSSIP_SECCACHE_DEBUG },
+    /* Client User Interface */
+    { "usrint", GOSSIP_USRINT_DEBUG },
+    /* rcache */
+    { "rcache", GOSSIP_RCACHE_DEBUG },
     /* Everything except the periodic events.  Useful for debugging */
     { "verbose",
       (__DEBUG_ALL & ~(GOSSIP_PERFCOUNTER_DEBUG | GOSSIP_STATE_MACHINE_DEBUG |
