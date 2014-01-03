@@ -53,6 +53,27 @@ do {							\
 	wake_up_interruptible(&op->io_completion_waitq);\
 } while(0)
 
+int pvfs2_dir_open(struct inode *inode, struct file *file)
+{
+	PVFS_ds_position *ptoken;
+
+	file->private_data = kmalloc(sizeof(PVFS_ds_position), GFP_KERNEL);
+	if (! file->private_data)
+		return -ENOMEM;
+
+	ptoken = file->private_data;
+	*ptoken = PVFS_READDIR_START;
+
+	return 0;
+}
+
+int pvfs2_dir_close(struct inode *inode, struct file *file)
+{
+	kfree(file->private_data);
+	return 0;
+}
+
+
 /* Called when a process requests to open a file.  */
 int pvfs2_file_open(struct inode *inode, struct file *file)
 {
@@ -68,7 +89,7 @@ int pvfs2_file_open(struct inode *inode, struct file *file)
 	inode->i_mapping->backing_dev_info = &pvfs2_backing_dev_info;
 
 	if (S_ISDIR(inode->i_mode)) {
-		ret = dcache_dir_open(inode, file);
+		ret = pvfs2_dir_open(inode, file);
 	} else {
 		/*
 		   if the file's being opened for append mode, set the file pos
@@ -3042,7 +3063,7 @@ int pvfs2_file_release(struct inode *inode, struct file *file)
 
 	pvfs2_flush_inode(inode);
 	if (S_ISDIR(inode->i_mode))
-		return dcache_dir_close(inode, file);
+		return pvfs2_dir_close(inode, file);
 
 	/*
 	   remove all associated inode pages from the page cache and mmap
