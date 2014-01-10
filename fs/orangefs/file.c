@@ -97,7 +97,7 @@ int pvfs2_file_open(struct inode *inode, struct file *file)
 		   must forcefully do here in this case, afaict atm)
 		 */
 		if (file->f_flags & O_APPEND) {
-			/* 
+			/*
 			 * When we do a getattr in response to an open
 			 * with O_APPEND, all we are interested in is the
 			 * file size. Hence we will set the mask to only
@@ -151,7 +151,7 @@ struct rw_options {
 	struct inode *inode;
 	pvfs2_inode_t *pvfs2_inode;
 	loff_t readahead_size;
-	int copy_to_user_addresses; /* whether the destination addresses 
+	int copy_to_user_addresses; /* whether the destination addresses
 				     * are in user or kernel */
 	const char *fnstr;
 	ssize_t count;
@@ -172,8 +172,9 @@ struct rw_options {
 			struct page **issue_pages;
 			/* and the count of such pages */
 			unsigned long nr_issue_pages;
-			/* list of pages for which I/O needs to be 
-			 * done as dictated by read_cache_pages 
+			/* 
+			 * list of pages for which I/O needs to be
+			 * done as dictated by read_cache_pages
 			 */
 			struct list_head page_list;
 		} pages;
@@ -212,8 +213,8 @@ static int precopy_buffers(int buffer_index,
 	int ret = 0;
 
 	if (rw->type == IO_WRITEV) {
-		/* 
-		 * copy data from application/kernel by pulling it out 
+		/*
+		 * copy data from application/kernel by pulling it out
 		 * of the iovec. NOTE: target buffers can be addresses
 		 * or struct page pointers
 		 */
@@ -226,7 +227,7 @@ static int precopy_buffers(int buffer_index,
 					nr_segs,
 					total_size);
 			/* Are we copying from Kernel Virtual Addresses? */
-			else 
+			else
 				ret = pvfs_bufmap_copy_iovec_from_kernel(
 					buffer_index,
 					vec,
@@ -238,7 +239,7 @@ static int precopy_buffers(int buffer_index,
 							  vec,
 							  nr_segs,
 							  total_size);
-		if (ret < 0) 
+		if (ret < 0)
 			gossip_err("%s: Failed to copy-in buffers. Please make sure that the pvfs2-client is running. %ld\n", rw->fnstr, (long)ret);
 	}
 	return ret;
@@ -267,7 +268,7 @@ static int postcopy_buffers(int buffer_index,
 	if (rw->type == IO_READV) {
 		/*
 		 * copy data to application/kernel by pushing it out to
-		 * the iovec. NOTE; target buffers can be addresses or 
+		 * the iovec. NOTE; target buffers can be addresses or
 		 * struct page pointers.
 		 */
 		if (total_size) {
@@ -280,7 +281,7 @@ static int postcopy_buffers(int buffer_index,
 						nr_segs,
 						total_size);
 				/* Are we copying to Kern Virtual Addresses? */
-				else 
+				else
 					ret = pvfs_bufmap_copy_to_kernel_iovec(
 						buffer_index,
 						vec,
@@ -300,7 +301,7 @@ static int postcopy_buffers(int buffer_index,
 }
 
 /*
- * Copy from page-cache to application address space 
+ * Copy from page-cache to application address space
  * @rw - operation context, contains information about the I/O operation
  *       and holds the pointers to the page-cache page array from which
  *       the copies are to be initiated.
@@ -351,7 +352,7 @@ static int copy_from_pagecache(struct rw_options *rw,
 	amt_copied = 0;
 	seg = 0;
 	page_offset = 0;
-	/* 
+	/*
 	 * Go through each segment in the iovec and copy from the page-cache,
 	 * but make sure that we do so one page at a time.
 	 */
@@ -409,7 +410,7 @@ static int copy_from_pagecache(struct rw_options *rw,
 /*
  * Post and wait for the I/O upcall to finish
  * @rw - contains state information to initiate the I/O operation
- * @vec- contains the memory vector regions 
+ * @vec- contains the memory vector regions
  * @nr_segs - number of memory vector regions
  * @total_size - total expected size of the I/O operation
  */
@@ -546,7 +547,7 @@ populate_shared_memory:
 	if (ret < 0) {
 		/*
 		 * put error codes in downcall so that handle_io_error()
-		 * preserves it properly 
+		 * preserves it properly
 		 */
 		new_op->downcall.status = ret;
 		handle_io_error();
@@ -590,9 +591,9 @@ out:
 
 /*
  * The reason we need to do this is to be able to support readv and writev
- * that are larger than (pvfs_bufmap_size_query()) Default is 
- * PVFS2_BUFMAP_DEFAULT_DESC_SIZE MB. What that means is that we will 
- * create a new io vec descriptor for those memory addresses that 
+ * that are larger than (pvfs_bufmap_size_query()) Default is
+ * PVFS2_BUFMAP_DEFAULT_DESC_SIZE MB. What that means is that we will
+ * create a new io vec descriptor for those memory addresses that
  * go beyond the limit. Return value for this routine is negative in case
  * of errors and 0 in case of success.
  *
@@ -868,7 +869,7 @@ static int check_mapping_tree(struct address_space *mapping, size_t file_size)
 }
 
 /*
- * Locate the pages of the file blocks from the page-cache and 
+ * Locate the pages of the file blocks from the page-cache and
  * store them in the rw_options control block.
  * Note: if we don't locate, we allocate them.
  * After that we increment their ref count so that we know for sure that
@@ -1029,7 +1030,7 @@ static int locate_file_pages(struct rw_options *rw, size_t total_size)
 				 pvfs2_readpages_fill_cb,
 				 rw);
 		BUG_ON(!list_empty(&rw->dest.pages.page_list));
-		/* 
+		/*
 		 * A failed read_cache_pages will be
 		 * indicated if
 		 * rw->dest.pages.nr_issues_pages != ret
@@ -1091,7 +1092,7 @@ static int are_contiguous(int nr_pages, struct page **page_array)
 }
 
 /*
- * Issue any I/O for regions not found in the cache 
+ * Issue any I/O for regions not found in the cache
  * NOTE: Try to be smart about whether to issue non-contiguous I/O
  * or contiguous I/O.
  */
@@ -1244,8 +1245,8 @@ static ssize_t wait_for_cached_io(struct rw_options *old_rw,
 		     total_size,
 		     rw.dest.pages.nr_pages);
 	/*
-	 * Issue and wait for I/O only for pages that are not uptodate 
-	 * or are not found in the cache 
+	 * Issue and wait for I/O only for pages that are not uptodate
+	 * or are not found in the cache
 	 */
 	if ((ret = wait_for_missing_io(&rw)) < 0) {
 		gossip_err("error waiting for missing I/O %ld\n", (long)err);
@@ -1360,8 +1361,8 @@ static ssize_t do_readv_writev(struct rw_options *rw)
 		if (file->f_pos > pvfs2_i_size_read(inode))
 			pvfs2_i_size_write(inode, file->f_pos);
 		/*
-		 * perform generic linux kernel tests for sanity of write 
-		 * arguments 
+		 * perform generic linux kernel tests for sanity of write
+		 * arguments
 		 */
 		ret = generic_write_checks(file,
 					   offset,
@@ -1479,7 +1480,7 @@ static ssize_t do_readv_writev(struct rw_options *rw)
 		size_t amt_complete;
 
 		/* how much to transfer in this loop iteration */
-		each_count = 
+		each_count =
 		   (((count - total_count) > pvfs_bufmap_size_query()) ?
 			pvfs_bufmap_size_query() :
 			(count - total_count));
@@ -1525,7 +1526,7 @@ static ssize_t do_readv_writev(struct rw_options *rw)
 
 		/*
 		 * if we got a short I/O operations,
-		 * fall out and return what we got so far 
+		 * fall out and return what we got so far
 		 */
 		if (amt_complete < each_count)
 			break;
@@ -1699,7 +1700,7 @@ static int construct_file_offset_trailer(char **trailer,
 
 /*
  * The reason we need to do this is to be able to support readx() and writex()
- * of larger than (pvfs_bufmap_size_query()) 
+ * of larger than (pvfs_bufmap_size_query())
  * (default is PVFS2_BUFMAP_DEFAULT_DESC_SIZE MB).
  * What that means is that we will create a new xtvec descriptor for those
  * file offsets that go beyond the limit.
@@ -2170,7 +2171,7 @@ static ssize_t do_readx_writex(struct rw_options *rw)
 			     nr_segs,
 			     new_nr_segs_mem,
 			     max_new_nr_segs_mem);
-		/* 
+		/*
 		 * Split up the given xtvec description such that
 		 * no xtvec descriptor straddles over the block-size limitation.
 		 */
@@ -2261,7 +2262,7 @@ static ssize_t do_readx_writex(struct rw_options *rw)
 		amt_complete = ret;
 		/*
 		 * if we got a short I/O operations,
-		 * fall out and return what we got so far 
+		 * fall out and return what we got so far
 		 */
 		if (amt_complete < each_count)
 			break;
@@ -2356,20 +2357,20 @@ static ssize_t pvfs2_file_writex(struct file *file,
  * NOTES on the aio implementation.
  * Conceivably, we could just make use of the
  * generic_aio_file_read/generic_aio_file_write
- * functions that stages the read/write through 
+ * functions that stages the read/write through
  * the page-cache. But given that we are not
- * interested in staging anything thru the page-cache, 
+ * interested in staging anything thru the page-cache,
  * we are going to resort to another
  * design.
- * 
+ *
  * The aio callbacks to be implemented at the f.s. level
- * are fairly straightforward. All we see at this level 
- * are individual contiguous file block reads/writes. 
- * This means that we can just make use of the current 
- * set of I/O upcalls without too much modifications. 
+ * are fairly straightforward. All we see at this level
+ * are individual contiguous file block reads/writes.
+ * This means that we can just make use of the current
+ * set of I/O upcalls without too much modifications.
  * (All we need is an extra flag for sync/async)
  *
- * However, we do need to handle cancellations properly. 
+ * However, we do need to handle cancellations properly.
  * What this means is that the "ki_cancel" callback function must
  * be set so that the kernel calls us back with the kiocb structure
  * for proper cancellation. This way we can send appropriate upcalls
@@ -2378,8 +2379,8 @@ static ssize_t pvfs2_file_writex(struct file *file,
  */
 
 /*
- * This is the retry routine called by the AIO core to 
- * try and see if the I/O operation submitted earlier can be completed 
+ * This is the retry routine called by the AIO core to
+ * try and see if the I/O operation submitted earlier can be completed
  * at least now :)
  * We can use copy_*() functions here because the kaio
  * threads do a use_mm() and assume the memory context of
@@ -2402,7 +2403,7 @@ static ssize_t pvfs2_aio_retry(struct kiocb *iocb)
 	    x->buffer_index < 0) {
 		/*
 		 * Well, if this happens, we are toast!
-		 * What should we cleanup if such a thing happens? 
+		 * What should we cleanup if such a thing happens?
 		 */
 		gossip_err("pvfs2_aio_retry: critical error "
 			   " x->op = %p, iocb = %p, buffer_index = %d\n",
@@ -2419,12 +2420,12 @@ static ssize_t pvfs2_aio_retry(struct kiocb *iocb)
 		return -EIOCBQUEUED;
 	} else {
 		/*
-		 * the daemon has finished servicing this 
+		 * the daemon has finished servicing this
 		 * operation. It has also staged
 		 * the I/O to the data servers on a write
 		 * (if possible) and put the return value
-		 * of the operation in bytes_copied. 
-		 * Similarly, on a read the value stored in 
+		 * of the operation in bytes_copied.
+		 * Similarly, on a read the value stored in
 		 * bytes_copied is the error code or the amount
 		 * of data that was copied to user buffers.
 		 */
@@ -2449,9 +2450,9 @@ static ssize_t pvfs2_aio_retry(struct kiocb *iocb)
 			}
 			mark_inode_dirty_sync(inode);
 		}
-		/* 
+		/*
 		 * Now we can happily free up the op,
-		 * and put buffer_index also away 
+		 * and put buffer_index also away
 		 */
 		if (x->buffer_index >= 0) {
 			gossip_debug(GOSSIP_FILE_DEBUG,
@@ -2469,12 +2470,12 @@ static ssize_t pvfs2_aio_retry(struct kiocb *iocb)
 }
 
 /*
- * Using the iocb->private->op->tag field, 
+ * Using the iocb->private->op->tag field,
  * we should try and cancel the I/O
  * operation, and also update res->obj
  * and res->data to the values
  * at the time of cancellation.
- * This is called not only by the io_cancel() 
+ * This is called not only by the io_cancel()
  * system call, but also by the exit_mm()/aio_cancel_all()
  * functions when the process that issued
  * the aio operation is about to exit.
@@ -2505,7 +2506,7 @@ static int pvfs2_aio_cancel(struct kiocb *iocb)
 		}
 		get_op(op);
 		/*
-		 * This will essentially remove it from 
+		 * This will essentially remove it from
 		 * htable_in_progress or from the req list
 		 * as the case may be.
 		 */
@@ -2514,8 +2515,8 @@ static int pvfs2_aio_cancel(struct kiocb *iocb)
 			     __func__,
 			     llu(op->tag), op);
 		pvfs2_clean_up_interrupted_operation(op);
-		/* 
-		 * However, we need to make sure that 
+		/*
+		 * However, we need to make sure that
 		 * the client daemon is not transferring data
 		 * as we speak! Thus we look at the reference
 		 * counter to determine if that is indeed the case.
@@ -2544,7 +2545,7 @@ static int pvfs2_aio_cancel(struct kiocb *iocb)
 				 * canceller (i.e. this piece of code) acquires
 				 * the same. Consequently we may end up with a
 				 * race. To prevent that we use the aio_ref_cnt
-				 * counter. 
+				 * counter.
 				 */
 				spin_unlock(&op->lock);
 				if (!signal_pending(current)) {
@@ -2581,9 +2582,9 @@ static int pvfs2_aio_cancel(struct kiocb *iocb)
 			pvfs_bufmap_put(x->buffer_index);
 			x->buffer_index = -1;
 		}
-		/* 
+		/*
 		 * Put reference to op twice, once for the reader/writer
-		 * that initiated the op and once for the cancel 
+		 * that initiated the op and once for the cancel
 		 */
 		put_op(op);
 		put_op(op);
@@ -2632,12 +2633,12 @@ fill_default_kiocb(pvfs2_kiocb * x,
 /*
  * This function will do the following,
  * On an error, it returns a negative error number.
- * For a synchronous iocb, we copy the data into the 
+ * For a synchronous iocb, we copy the data into the
  * user buffer's before returning and
  * the count of how much was actually read.
- * For a first-time asynchronous iocb, we submit the 
+ * For a first-time asynchronous iocb, we submit the
  * I/O to the client-daemon and do not wait
- * for the matching downcall to be written and we 
+ * for the matching downcall to be written and we
  * return a special -EIOCBQUEUED
  * to indicate that we have queued the request.
  * NOTE: Unlike typical aio requests
@@ -2743,8 +2744,8 @@ static ssize_t do_aio_read_write(struct rw_options *rw)
 		goto out_error;
 	} else if (count > pvfs_bufmap_size_query()) {
 		/*
-		 * TODO: Asynchronous I/O operation is not allowed to 
-		 * be greater than our block size 
+		 * TODO: Asynchronous I/O operation is not allowed to
+		 * be greater than our block size
 		 */
 		gossip_lerr("%s: cannot transfer (%zd) bytes"
 			    " (larger than block size %d)\n",
@@ -2792,9 +2793,9 @@ static ssize_t do_aio_read_write(struct rw_options *rw)
 		new_op->upcall.req.io.count = count;
 		new_op->upcall.req.io.offset = *offset;
 		if (rw->type == IO_WRITE) {
-			/* 
+			/*
 			 * copy the data from the application for writes.
-			 * We could return -EIOCBRETRY here and have 
+			 * We could return -EIOCBRETRY here and have
 			 * the data copied in the pvfs2_aio_retry routine,
 			 * I dont see too much point in doing that
 			 * since the app would have touched the
@@ -2839,11 +2840,11 @@ static ssize_t do_aio_read_write(struct rw_options *rw)
 			goto out_error;
 		}
 		gossip_debug(GOSSIP_FILE_DEBUG, "kiocb_alloc: %p\n", x);
-		/* 
-		 * We need to set the cancellation callbacks + 
+		/*
+		 * We need to set the cancellation callbacks +
 		 * other state information
 		 * here if the asynchronous request is going to
-		 * be successfully submitted 
+		 * be successfully submitted
 		 */
 		error = fill_default_kiocb(x,
 					   current,
@@ -2880,8 +2881,8 @@ static ssize_t do_aio_read_write(struct rw_options *rw)
 		iocb->private = x;
 		/*
 		 * Add it to the list of ops to be serviced
-		 * but don't wait for it to be serviced. 
-		 * Return immediately 
+		 * but don't wait for it to be serviced.
+		 * Return immediately
 		 */
 		service_operation(new_op, rw->fnstr, PVFS2_OP_ASYNC);
 		gossip_debug(GOSSIP_FILE_DEBUG,
@@ -3129,7 +3130,7 @@ loff_t pvfs2_file_llseek(struct file * file, loff_t offset, int origin)
 
 	if (origin == PVFS2_SEEK_END) {
 		/*
-		 * revalidate the inode's file size. 
+		 * revalidate the inode's file size.
 		 * NOTE: We are only interested in file size here,
 		 * so we set mask accordingly.
 		 */

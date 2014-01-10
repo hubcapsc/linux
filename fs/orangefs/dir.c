@@ -122,7 +122,8 @@ static int pvfs2_readdir(struct file *file, struct dir_context *ctx)
 	pvfs2_inode_t *pvfs2_inode = PVFS2_I(dentry->d_inode);
 	int buffer_full = 0;
 	readdir_handle_t rhandle;
-	int i = 0, len = 0;
+	int i = 0;
+	int len = 0;
 	ino_t current_ino = 0;
 	char *current_entry = NULL;
 	long bytes_decoded;
@@ -173,11 +174,11 @@ static int pvfs2_readdir(struct file *file, struct dir_context *ctx)
 	/*
 	 * NOTE: the position we send to the readdir upcall is out of
 	 * sync with ctx->pos since:
-	 * 1. pvfs2 doesn't include the "." and ".." entries that are 
+	 * 1. pvfs2 doesn't include the "." and ".." entries that are
 	 *    added below.
 	 * 2. the introduction of distributed directory logic makes token no
 	 *    longer be related to f_pos and pos. Instead an independent
-	 *    variable is used inside the function and stored in the 
+	 *    variable is used inside the function and stored in the
 	 *    private_data of the file structure.
 	 */
 	new_op->upcall.req.readdir.token = *ptoken;
@@ -338,7 +339,7 @@ get_new_buffer_index:
 			ctx->pos -= 3;
 		} else {
 			/*
-			 * this means a filldir call failed. !!! need to set 
+			 * this means a dir_emit call failed. !!! need to set
 			 * back to previous ctx->pos, no middle value allowed
 			 */
 			pos -= (i - 1);
