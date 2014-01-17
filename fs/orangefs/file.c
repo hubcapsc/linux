@@ -84,10 +84,6 @@ int pvfs2_file_open(struct inode *inode, struct file *file)
 		     file->f_dentry->d_name.name,
 		     llu(get_handle_from_ino(inode)));
 
-	inode->i_mapping->host = inode;
-	inode->i_mapping->a_ops = &pvfs2_address_operations;
-	inode->i_mapping->backing_dev_info = &pvfs2_backing_dev_info;
-
 	if (S_ISDIR(inode->i_mode)) {
 		ret = pvfs2_dir_open(inode, file);
 	} else {
@@ -3026,25 +3022,15 @@ long pvfs2_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
  */
 static int pvfs2_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct inode *inode = file->f_dentry->d_inode;
-
 	gossip_debug(GOSSIP_FILE_DEBUG,
 		     "pvfs2_file_mmap: called on %s\n",
 		     (file ?
 			(char *)file->f_dentry->d_name.name :
 			(char *)"Unknown"));
-	/*
-	   for mmap on pvfs2, make sure we use pvfs2 specific address
-	   operations by explcitly setting the operations
-	 */
-	inode->i_mapping->host = inode;
-	inode->i_mapping->a_ops = &pvfs2_address_operations;
 
 	/* set the sequential readahead hint */
 	vma->vm_flags |= VM_SEQ_READ;
 	vma->vm_flags &= ~VM_RAND_READ;
-
-	inode->i_mapping->backing_dev_info = &pvfs2_backing_dev_info;
 	return generic_file_mmap(file, vma);
 }
 

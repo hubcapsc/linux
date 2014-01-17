@@ -126,7 +126,6 @@ int copy_attributes_to_inode(struct inode *inode,
 		   changing the inode->i_blkbits to something other than
 		   PAGE_CACHE_SHIFT breaks mmap/execution as we depend on that.
 		 */
-		inode->i_blkbits = PAGE_CACHE_SHIFT;
 		gossip_debug(GOSSIP_UTILS_DEBUG,
 			     "attrs->mask = %x (objtype = %s)\n",
 			     attrs->mask,
@@ -221,14 +220,10 @@ int copy_attributes_to_inode(struct inode *inode,
 		switch (attrs->objtype) {
 		case PVFS_TYPE_METAFILE:
 			inode->i_mode |= S_IFREG;
-			inode->i_op = &pvfs2_file_inode_operations;
-			inode->i_fop = &pvfs2_file_operations;
 			ret = 0;
 			break;
 		case PVFS_TYPE_DIRECTORY:
 			inode->i_mode |= S_IFDIR;
-			inode->i_op = &pvfs2_dir_inode_operations;
-			inode->i_fop = &pvfs2_dir_operations;
 			/* NOTE: we have no good way to keep nlink consistent
 			 * for directories across clients; keep constant at 1.
 			 * Why 1?  If we go with 2, then find(1) gets confused
@@ -239,8 +234,6 @@ int copy_attributes_to_inode(struct inode *inode,
 			break;
 		case PVFS_TYPE_SYMLINK:
 			inode->i_mode |= S_IFLNK;
-			inode->i_op = &pvfs2_symlink_inode_operations;
-			inode->i_fop = NULL;
 
 			/* copy link target to inode private data */
 			if (pvfs2_inode && symname) {

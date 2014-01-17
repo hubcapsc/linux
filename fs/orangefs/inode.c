@@ -302,12 +302,10 @@ static inline ino_t pvfs2_handle_hash(PVFS_object_ref *ref)
 }
 
 /*
- * the ->set callback of iget5_locked and friends. Sorta equivalent to
- * the ->read_inode() callback if we are using iget and friends.
+ * Called to set up an inode from iget5_locked.
  */
-int pvfs2_set_inode(struct inode *inode, void *data)
+static int pvfs2_set_inode(struct inode *inode, void *data)
 {
-	/* callbacks to set inode number handle */
 	PVFS_object_ref *ref = (PVFS_object_ref *) data;
 	pvfs2_inode_t *pvfs2_inode = NULL;
 
@@ -323,9 +321,11 @@ int pvfs2_set_inode(struct inode *inode, void *data)
 	return 0;
 }
 
+/*
+ * Called to determine if handles match.
+ */
 static int pvfs2_test_inode(struct inode *inode, void *data)
 {
-	/* callbacks to determine if handles match */
 	PVFS_object_ref *ref = (PVFS_object_ref *) data;
 	pvfs2_inode_t *pvfs2_inode = NULL;
 
@@ -358,15 +358,12 @@ struct inode *pvfs2_iget_common(struct super_block *sb,
 
 	hash = pvfs2_handle_hash(ref);
 	inode = iget5_locked(sb, hash, pvfs2_test_inode, pvfs2_set_inode, ref);
-	if (!keep_locked)
-		if (inode && (inode->i_state & I_NEW)) {
-			inode->i_ino = hash;	/* needed for stat etc */
-			if (PVFS2_I(inode))
-				pvfs2_set_inode(inode, ref);
-			/* issue a call to read the inode */
-			pvfs2_read_inode(inode);
-			unlock_new_inode(inode);
-		}
+	if (inode && (inode->i_state & I_NEW)) {
+		inode->i_ino = hash;	/* needed for stat etc */
+		pvfs2_read_inode(inode);
+		pvfs2_init_iops(inode);
+		unlock_new_inode(inode);
+	}
 	gossip_debug(GOSSIP_INODE_DEBUG,
 		     "iget handle %llu, fsid %d hash %ld i_ino %lu\n",
 		     ref->handle,
@@ -389,7 +386,6 @@ struct inode *pvfs2_get_custom_inode_common(struct super_block *sb,
 {
 	struct inode *inode = NULL;
 	pvfs2_inode_t *pvfs2_inode = NULL;
-	int error;
 
 	gossip_debug(GOSSIP_INODE_DEBUG,
 		     "pvfs2_get_custom_inode_common: called\n"
@@ -453,10 +449,6 @@ struct inode *pvfs2_get_custom_inode_common(struct super_block *sb,
 			     pvfs2_inode,
 			     inode->i_sb);
 
-		error = pvfs2_init_iops(inode);
-		if (error)
-			goto error;
-
 		/* dir inodes start with i_nlink == 2 (for "." entry) */
 		if (S_ISLNK(inode->i_mode))
 			pvfs2_i_inc_nlink(inode);
@@ -467,6 +459,6 @@ struct inode *pvfs2_get_custom_inode_common(struct super_block *sb,
 		/* Initialize the ACLs of the new inode */
 		pvfs2_init_acl(inode, dir);
 	}
-error:
+
 	return inode;
 }
