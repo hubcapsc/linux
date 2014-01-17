@@ -686,11 +686,7 @@ int pvfs2_removexattr(struct dentry *dentry, const char *name);
 /****************************
  * defined in namei.c
  ****************************/
-struct inode *pvfs2_iget_common(struct super_block *sb,
-                                PVFS_object_ref *ref,
-                                int keep_locked);
-#define pvfs2_iget(sb, ref)        pvfs2_iget_common(sb, ref, 0)
-#define pvfs2_iget_locked(sb, ref) pvfs2_iget_common(sb, ref, 1)
+struct inode *pvfs2_iget(struct super_block *sb, PVFS_object_ref *ref);
 
 /*****************************
  * defined in file.c (shared file/dir operations)

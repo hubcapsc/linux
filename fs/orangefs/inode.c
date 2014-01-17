@@ -336,22 +336,12 @@ static int pvfs2_test_inode(struct inode *inode, void *data)
 
 /*
  * Front-end to lookup the inode-cache maintained by the VFS using the PVFS2
- * file handle instead of the inode number.
- * Problem with iget() is well-documented in that it can lead to possible
- * collissions especially for a file-system with 64 bit handles since
- * inode->i_ino is only a scalar field (32 bits). So the trick now is to
- * use iget4_locked (OR) iget5_locked if the kernel defines one and set
- * inode number to be just a hash for the handle.
+ * file handle.
+ *
  * @sb: the file system super block instance.
  * @ref: The PVFS2 object for which we are trying to locate an inode structure.
- * @keep_locked : indicates whether the inode must be simply allocated and not
- * filled in with the results from a ->getattr. i.e. if keep_locked is set to
- * 0, we do a getattr() and unlock the inode and if set to 1, we do not issue
- * a getattr() and keep it locked.
  */
-struct inode *pvfs2_iget_common(struct super_block *sb,
-				PVFS_object_ref *ref,
-				int keep_locked)
+struct inode *pvfs2_iget(struct super_block *sb, PVFS_object_ref *ref)
 {
 	struct inode *inode = NULL;
 	unsigned long hash;
