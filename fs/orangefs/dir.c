@@ -17,7 +17,7 @@ typedef struct {
 /*
  * decode routine needed by kmod to make sense of the shared page for readdirs.
  */
-static long decode_dirents(char *ptr, pvfs2_readdir_response_t * readdir)
+static long decode_dirents(char *ptr, pvfs2_readdir_response_t *readdir)
 {
 	int i;
 	pvfs2_readdir_response_t *rd = (pvfs2_readdir_response_t *) ptr;
@@ -42,7 +42,7 @@ static long decode_dirents(char *ptr, pvfs2_readdir_response_t * readdir)
 	return ((unsigned long)*pptr - (unsigned long)ptr);
 }
 
-static long readdir_handle_ctor(readdir_handle_t * rhandle, void *buf,
+static long readdir_handle_ctor(readdir_handle_t *rhandle, void *buf,
 				int buffer_index)
 {
 	long ret;
@@ -70,7 +70,7 @@ static long readdir_handle_ctor(readdir_handle_t * rhandle, void *buf,
 	return ret;
 }
 
-static void readdir_handle_dtor(readdir_handle_t * rhandle)
+static void readdir_handle_dtor(readdir_handle_t *rhandle)
 {
 	if (rhandle == NULL) {
 		return;

@@ -66,7 +66,7 @@ int op_cache_finalize(void)
 	return 0;
 }
 
-char *get_opname_string(pvfs2_kernel_op_t * new_op)
+char *get_opname_string(pvfs2_kernel_op_t *new_op)
 {
 	if (new_op) {
 		int32_t type = new_op->upcall.type;
@@ -157,8 +157,9 @@ static pvfs2_kernel_op_t *op_alloc_common(int32_t op_linger, int32_t type)
 			     llu(new_op->tag),
 			     get_opname_string(new_op));
 
-		new_op->upcall.uid = current_fsuid();
-		new_op->upcall.gid = current_fsgid();
+		new_op->upcall.uid = from_kuid(&init_user_ns, current_fsuid());
+
+		new_op->upcall.gid = from_kgid(&init_user_ns, current_fsgid());
 
 		new_op->op_linger = new_op->op_linger_tmp = op_linger;
 	} else {
@@ -177,7 +178,7 @@ pvfs2_kernel_op_t *op_alloc_trailer(int32_t type)
 	return op_alloc_common(2, type);
 }
 
-void op_release(pvfs2_kernel_op_t * pvfs2_op)
+void op_release(pvfs2_kernel_op_t *pvfs2_op)
 {
 	if (pvfs2_op) {
 		gossip_debug(GOSSIP_CACHE_DEBUG,
@@ -256,7 +257,7 @@ static void pvfs2_inode_cache_ctor(void *req)
 	init_rwsem(&pvfs2_inode->xattr_sem);
 }
 
-static inline void add_to_pinode_list(pvfs2_inode_t * pvfs2_inode)
+static inline void add_to_pinode_list(pvfs2_inode_t *pvfs2_inode)
 {
 	spin_lock(&pvfs2_inode_list_lock);
 	list_add_tail(&pvfs2_inode->list, &pvfs2_inode_list);
@@ -264,7 +265,7 @@ static inline void add_to_pinode_list(pvfs2_inode_t * pvfs2_inode)
 	return;
 }
 
-static inline void del_from_pinode_list(pvfs2_inode_t * pvfs2_inode)
+static inline void del_from_pinode_list(pvfs2_inode_t *pvfs2_inode)
 {
 	spin_lock(&pvfs2_inode_list_lock);
 	list_del_init(&pvfs2_inode->list);
@@ -376,7 +377,7 @@ pvfs2_kiocb *kiocb_alloc(void)
 	return x;
 }
 
-void kiocb_release(pvfs2_kiocb * x)
+void kiocb_release(pvfs2_kiocb *x)
 {
 	if (x)
 		kmem_cache_free(pvfs2_kiocb_cache, x);

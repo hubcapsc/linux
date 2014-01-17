@@ -524,7 +524,7 @@ void readdir_index_put(int buffer_index)
  *
  * returns 0 on success, -errno on failure
  */
-int pvfs_bufmap_copy_to_user(void __user * to, int buffer_index, size_t size)
+int pvfs_bufmap_copy_to_user(void __user *to, int buffer_index, size_t size)
 {
 	size_t ret = 0;
 	size_t amt_copied = 0;
@@ -636,7 +636,7 @@ int pvfs_bufmap_copy_to_kernel(void *to, int buffer_index, size_t size)
  * returns 0 on success, -errno on failure
  */
 int pvfs_bufmap_copy_from_user(int buffer_index,
-			       void __user * from,
+			       void __user *from,
 			       size_t size)
 {
 	size_t ret = 0;
@@ -1398,8 +1398,8 @@ int pvfs_bufmap_copy_to_kernel_iovec(int buffer_index,
  *
  * Returns number of bytes copied on success, -errno on failure.
  */
-size_t pvfs_bufmap_copy_to_user_task_iovec(struct task_struct * tsk,
-					   struct iovec * iovec,
+size_t pvfs_bufmap_copy_to_user_task_iovec(struct task_struct *tsk,
+					   struct iovec *iovec,
 					   unsigned long nr_segs,
 					   int buffer_index,
 					   size_t size_to_be_copied)

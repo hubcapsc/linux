@@ -266,7 +266,7 @@ struct inode_operations pvfs2_file_inode_operations = {
  * that will be used as a hash-index from where the handle will
  * be searched for in the VFS hash table of inodes.
  */
-static inline ino_t pvfs2_handle_hash(PVFS_object_ref * ref)
+static inline ino_t pvfs2_handle_hash(PVFS_object_ref *ref)
 {
 	if (!ref)
 		return 0;
@@ -322,7 +322,7 @@ static int pvfs2_test_inode(struct inode *inode, void *data)
  * a getattr() and keep it locked.
  */
 struct inode *pvfs2_iget_common(struct super_block *sb,
-				PVFS_object_ref * ref,
+				PVFS_object_ref *ref,
 				int keep_locked)
 {
 	struct inode *inode = NULL;

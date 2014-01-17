@@ -719,7 +719,7 @@ repeat:
 }
 
 static long bound_max_iovecs(const struct iovec *curr, unsigned long nr_segs,
-			     ssize_t * total_count)
+			     ssize_t *total_count)
 {
 	unsigned long i;
 	long max_nr_iovecs;
@@ -1564,10 +1564,10 @@ out:
  * Read data from a specified offset in a file (referenced by inode).
  * Data may be placed either in a user or kernel buffer.
  */
-ssize_t pvfs2_inode_read(struct inode * inode,
-			 char __user * buf,
+ssize_t pvfs2_inode_read(struct inode *inode,
+			 char __user *buf,
 			 size_t count,
-			 loff_t * offset,
+			 loff_t *offset,
 			 int copy_to_user,
 			 loff_t readahead_size)
 {
@@ -1594,10 +1594,10 @@ ssize_t pvfs2_inode_read(struct inode * inode,
 }
 
 /* Read data from a specified offset in a file into a user buffer.  */
-ssize_t pvfs2_file_read(struct file * file,
-			char __user * buf,
+ssize_t pvfs2_file_read(struct file *file,
+			char __user *buf,
 			size_t count,
-			loff_t * offset)
+			loff_t *offset)
 {
 	struct rw_options rw;
 	struct iovec vec;
@@ -1640,7 +1640,7 @@ ssize_t pvfs2_file_read(struct file * file,
 static ssize_t pvfs2_file_write(struct file *file,
 				const char __user * buf,
 				size_t count,
-				loff_t * offset)
+				loff_t *offset)
 {
 	struct rw_options rw;
 	struct iovec vec;
@@ -2595,12 +2595,12 @@ static int pvfs2_aio_cancel(struct kiocb *iocb)
 }
 
 static inline int
-fill_default_kiocb(pvfs2_kiocb * x,
+fill_default_kiocb(pvfs2_kiocb *x,
 		   struct task_struct *tsk,
 		   struct kiocb *iocb,
 		   int rw,
 		   int buffer_index,
-		   pvfs2_kernel_op_t * op,
+		   pvfs2_kernel_op_t *op,
 		   const struct iovec *iovec,
 		   unsigned long nr_segs,
 		   loff_t offset,
@@ -3118,7 +3118,7 @@ int pvfs2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
  * Future upgrade could support SEEK_DATA and SEEK_HOLE but would
  * require much changes to the FS
  */
-loff_t pvfs2_file_llseek(struct file * file, loff_t offset, int origin)
+loff_t pvfs2_file_llseek(struct file *file, loff_t offset, int origin)
 {
 	int ret = -EINVAL;
 	struct inode *inode = file->f_dentry->d_inode;

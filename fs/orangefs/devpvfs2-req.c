@@ -45,7 +45,7 @@ static int hash_func(uint64_t tag, int table_size)
 	return tag % ((unsigned int)table_size);
 }
 
-static void pvfs2_devreq_add_op(pvfs2_kernel_op_t * op)
+static void pvfs2_devreq_add_op(pvfs2_kernel_op_t *op)
 {
 	int index = hash_func(op->tag, hash_table_size);
 
@@ -110,8 +110,8 @@ static int pvfs2_devreq_open(struct inode *inode, struct file *file)
 }
 
 static ssize_t pvfs2_devreq_read(struct file *file,
-				 char __user * buf,
-				 size_t count, loff_t * offset)
+				 char __user *buf,
+				 size_t count, loff_t *offset)
 {
 	int ret = 0;
 	ssize_t len = 0;
@@ -264,7 +264,8 @@ static ssize_t pvfs2_devreq_read(struct file *file,
 /* Common function for writev() and aio_write() callers into the device */
 static ssize_t pvfs2_devreq_writev(struct file *file,
 				   const struct iovec *iov,
-				   unsigned long count, loff_t * offset)
+				   unsigned long count,
+				   loff_t *offset)
 {
 	pvfs2_kernel_op_t *op = NULL;
 	void *buffer = NULL;
