@@ -241,9 +241,6 @@ static void pvfs2_inode_cache_ctor(void *req)
 {
 	pvfs2_inode_t *pvfs2_inode = req;
 
-	ClearInitFlag(pvfs2_inode);
-	pvfs2_inode_initialize(pvfs2_inode);
-
 	/*
 	 * inode_init_once is from 2.6.x's inode.c; it's normally run
 	 * when an inode is allocated by the system's inode slab
@@ -323,11 +320,23 @@ pvfs2_inode_t *pvfs2_inode_alloc(void)
 				       PVFS2_CACHE_ALLOC_FLAGS);
 	if (pvfs2_inode == NULL) {
 		gossip_err("Failed to allocate pvfs2_inode\n");
-	} else {
-		ClearInitFlag(pvfs2_inode);
-		pvfs2_inode_initialize(pvfs2_inode);
-		add_to_pinode_list(pvfs2_inode);
+		return NULL;
 	}
+
+ 	/*
+	 * We want to clear everything except for rw_semaphore and the
+	 * vfs_inode.
+	 */
+	pvfs2_inode->refn.handle = PVFS_HANDLE_NULL;
+	pvfs2_inode->refn.fs_id = PVFS_FS_ID_NULL;
+	pvfs2_inode->last_failed_block_index_read = 0;
+	memset(pvfs2_inode->link_target, 0, sizeof(pvfs2_inode->link_target));
+	pvfs2_inode->error_code = 0;
+	pvfs2_inode->revalidate_failed = 0;
+	pvfs2_inode->pinode_flags = 0;
+
+	add_to_pinode_list(pvfs2_inode);
+
 	return pvfs2_inode;
 }
 

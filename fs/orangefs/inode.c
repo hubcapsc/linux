@@ -315,7 +315,6 @@ static int pvfs2_set_inode(struct inode *inode, void *data)
 	pvfs2_inode = PVFS2_I(inode);
 	if (!pvfs2_inode)
 		return 0;
-	pvfs2_inode_initialize(pvfs2_inode);
 	pvfs2_inode->refn.fs_id = ref->fs_id;
 	pvfs2_inode->refn.handle = ref->handle;
 	return 0;

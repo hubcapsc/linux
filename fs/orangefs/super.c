@@ -184,15 +184,6 @@ void pvfs2_read_inode(struct inode *inode)
 		     (int)atomic_read(&inode->i_count));
 
 	/*
-	 * at this point we know the private inode data handle/fs_id can't
-	 * be valid because we've never done a pvfs2 lookup/getattr yet.
-	 * clear it here to allow the pvfs2_inode_getattr to use the inode
-	 * number as the handle instead of whatever junk the private data
-	 * may contain.
-	 */
-	pvfs2_inode_initialize(pvfs2_inode);
-
-	/*
 	 * need to populate the freshly allocated (passed in) inode here.
 	 * this gets called if the vfs can't find this inode in the inode
 	 * cache.  we need to getattr here because d_revalidate isn't

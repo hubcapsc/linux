@@ -327,7 +327,6 @@ typedef struct
 #define P_MTIME_FLAG 1
 #define P_CTIME_FLAG 2
 #define P_MODE_FLAG  3
-#define P_INIT_FLAG  4
 
 #define ClearAtimeFlag(pinode) clear_bit(P_ATIME_FLAG, &(pinode)->pinode_flags)
 #define SetAtimeFlag(pinode)   set_bit(P_ATIME_FLAG, &(pinode)->pinode_flags)
@@ -344,10 +343,6 @@ typedef struct
 #define ClearModeFlag(pinode) clear_bit(P_MODE_FLAG, &(pinode)->pinode_flags)
 #define SetModeFlag(pinode)   set_bit(P_MODE_FLAG, &(pinode)->pinode_flags)
 #define ModeFlag(pinode)      test_bit(P_MODE_FLAG, &(pinode)->pinode_flags)
-
-#define ClearInitFlag(pinode) clear_bit(P_INIT_FLAG, &(pinode)->pinode_flags)
-#define SetInitFlag(pinode)   set_bit(P_INIT_FLAG, &(pinode)->pinode_flags)
-#define InitFlag(pinode)      test_bit(P_INIT_FLAG, &(pinode)->pinode_flags)
 
 /** mount options.  only accepted mount options are listed.
  */
@@ -760,8 +755,6 @@ int pvfs2_remove_entry(struct inode *dir,
 
 int pvfs2_truncate_inode(struct inode *inode,
                          loff_t size);
-
-void pvfs2_inode_initialize(pvfs2_inode_t *pvfs2_inode);
 
 void pvfs2_inode_finalize(pvfs2_inode_t *pvfs2_inode);
 
