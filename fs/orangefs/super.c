@@ -152,7 +152,6 @@ static struct inode *pvfs2_alloc_inode(struct super_block *sb)
 			     "pvfs2_alloc_inode: allocated %p\n",
 			     pvfs2_inode);
 		atomic_inc(&(PVFS2_SB(sb)->pvfs2_inode_alloc_count));
-		new_inode->i_flags &= ~(S_APPEND | S_IMMUTABLE | S_NOATIME);
 	}
 	return new_inode;
 }
