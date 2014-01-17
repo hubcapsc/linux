@@ -261,6 +261,34 @@ struct inode_operations pvfs2_file_inode_operations = {
 	.removexattr = generic_removexattr,
 };
 
+static int pvfs2_init_iops(struct inode *inode)
+{
+	inode->i_mapping->a_ops = &pvfs2_address_operations;
+	inode->i_mapping->backing_dev_info = &pvfs2_backing_dev_info;
+
+	switch (inode->i_mode & S_IFMT) {
+	case S_IFREG:
+		inode->i_op = &pvfs2_file_inode_operations;
+		inode->i_fop = &pvfs2_file_operations;
+		inode->i_blkbits = PAGE_CACHE_SHIFT;
+		break;
+	case S_IFLNK:
+		inode->i_op = &pvfs2_symlink_inode_operations;
+		break;
+	case S_IFDIR:
+		inode->i_op = &pvfs2_dir_inode_operations;
+		inode->i_fop = &pvfs2_dir_operations;
+		break;
+	default:
+		gossip_debug(GOSSIP_INODE_DEBUG,
+			     "%s: unsupported mode\n",
+			     __func__);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /*
  * Given a PVFS2 object identifier (fsid, handle), convert it into a ino_t type
  * that will be used as a hash-index from where the handle will
@@ -361,6 +389,7 @@ struct inode *pvfs2_get_custom_inode_common(struct super_block *sb,
 {
 	struct inode *inode = NULL;
 	pvfs2_inode_t *pvfs2_inode = NULL;
+	int error;
 
 	gossip_debug(GOSSIP_INODE_DEBUG,
 		     "pvfs2_get_custom_inode_common: called\n"
@@ -412,13 +441,10 @@ struct inode *pvfs2_get_custom_inode_common(struct super_block *sb,
 		inode->i_gid = current_fsgid();
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		inode->i_size = PAGE_CACHE_SIZE;
-		inode->i_blkbits = PAGE_CACHE_SHIFT;
 		inode->i_blocks = 0;
 		inode->i_rdev = dev;
 		inode->i_bdev = NULL;
 		inode->i_cdev = NULL;
-		inode->i_mapping->a_ops = &pvfs2_address_operations;
-		inode->i_mapping->backing_dev_info = &pvfs2_backing_dev_info;
 
 		gossip_debug(GOSSIP_INODE_DEBUG,
 			     "pvfs2_get_custom_inode: inode %p allocated\n  "
@@ -427,22 +453,14 @@ struct inode *pvfs2_get_custom_inode_common(struct super_block *sb,
 			     pvfs2_inode,
 			     inode->i_sb);
 
-		if ((mode & S_IFMT) == S_IFREG) {
-			inode->i_op = &pvfs2_file_inode_operations;
-			inode->i_fop = &pvfs2_file_operations;
-			inode->i_blkbits = PAGE_CACHE_SHIFT;
-		} else if ((mode & S_IFMT) == S_IFLNK) {
-			inode->i_op = &pvfs2_symlink_inode_operations;
-			inode->i_fop = NULL;
-		} else if ((mode & S_IFMT) == S_IFDIR) {
-			inode->i_op = &pvfs2_dir_inode_operations;
-			inode->i_fop = &pvfs2_dir_operations;
-			/* dir inodes start with i_nlink == 2 (for "." entry) */
-			pvfs2_i_inc_nlink(inode);
-		} else {
-			gossip_debug(GOSSIP_INODE_DEBUG, "pvfs2_get_custom_inode: unsupported mode\n");
+		error = pvfs2_init_iops(inode);
+		if (error)
 			goto error;
-		}
+
+		/* dir inodes start with i_nlink == 2 (for "." entry) */
+		if (S_ISLNK(inode->i_mode))
+			pvfs2_i_inc_nlink(inode);
+
 		gossip_debug(GOSSIP_ACL_DEBUG,
 			     "Initializing ACL's for inode %llu\n",
 			     llu(get_handle_from_ino(inode)));
