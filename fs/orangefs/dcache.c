@@ -63,7 +63,8 @@ static int pvfs2_d_revalidate_common(struct dentry *dentry)
 		    parent->refn.fs_id != PVFS_FS_ID_NULL) {
 			new_op->upcall.req.lookup.parent_refn = parent->refn;
 		} else {
-			gossip_lerr("Critical error: i_ino cannot be relied upon when using iget5/iget4\n"); op_release(new_op);
+			gossip_lerr("Critical error: i_ino cannot be relied upon when using iget5/iget4\n");
+			op_release(new_op);
 			goto invalid_exit;
 		}
 		strncpy(new_op->upcall.req.lookup.d_name,
@@ -172,11 +173,11 @@ static int pvfs2_d_revalidate(struct dentry *dentry, unsigned int flags)
 		return 1;
 	}
 
-	return (pvfs2_d_revalidate_common(dentry));
+	return pvfs2_d_revalidate_common(dentry);
 }
 
 /* PVFS2 implementation of VFS dentry operations */
-struct dentry_operations pvfs2_dentry_operations = {
+const struct dentry_operations pvfs2_dentry_operations = {
 	.d_revalidate = pvfs2_d_revalidate,
 	.d_delete = pvfs2_d_delete,
 };
@@ -190,17 +191,17 @@ static void __attribute__ ((unused)) print_dentry(struct dentry *entry, int ret)
 {
 	unsigned int local_count = 0;
 	if (!entry) {
-		printk("--- dentry %p: no entry, ret: %d\n", entry, ret);
+		pr_info("--- dentry %p: no entry, ret: %d\n", entry, ret);
 		return;
 	}
 
 	if (!entry->d_inode) {
-		printk("--- dentry %p: no d_inode, ret: %d\n", entry, ret);
+		pr_info("--- dentry %p: no d_inode, ret: %d\n", entry, ret);
 		return;
 	}
 
 	if (!entry->d_parent) {
-		printk("--- dentry %p: no d_parent, ret: %d\n", entry, ret);
+		pr_info("--- dentry %p: no d_parent, ret: %d\n", entry, ret);
 		return;
 	}
 
@@ -208,8 +209,7 @@ static void __attribute__ ((unused)) print_dentry(struct dentry *entry, int ret)
 	local_count = entry->d_lockref.count;
 	spin_unlock(&entry->d_lock);
 
-	printk
-	    ("--- dentry %p: d_count: %d, name: %s, parent: %p, parent name: %s, ret: %d\n",
+	pr_info("--- dentry %p: d_count: %d, name: %s, parent: %p, parent name: %s, ret: %d\n",
 	     entry, local_count, entry->d_name.name, entry->d_parent,
 	     entry->d_parent->d_name.name, ret);
 }

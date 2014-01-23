@@ -12,33 +12,24 @@
 #include "pvfs2-dev-proto.h"
 #include "pvfs2-bufmap.h"
 
-/* these functions are defined in pvfs2-utils.c */
-int PVFS_proc_kmod_mask_to_eventlog(uint64_t mask, char *debug_string);
-int PVFS_proc_mask_to_eventlog(uint64_t mask, char *debug_string);
-
-/*these variables are defined in pvfs2-proc.c*/
-extern char kernel_debug_string[PVFS2_MAX_DEBUG_STRING_LEN];
-extern char client_debug_string[PVFS2_MAX_DEBUG_STRING_LEN];
-
-/*these variables are defined in pvfs2-mod.c*/
-extern unsigned int kernel_mask_set_mod_init;
-
 /* this file implements the /dev/pvfs2-req device node */
 
-static int open_access_count = 0;
+static int open_access_count;
 
-#define DUMP_DEVICE_ERROR()                                           \
-gossip_err("*****************************************************\n");\
-gossip_err("PVFS2 Device Error:  You cannot open the device file ");  \
-gossip_err("\n/dev/%s more than once.  Please make sure that\nthere " \
-            "are no ", PVFS2_REQDEVICE_NAME);                         \
-gossip_err("instances of a program using this device\ncurrently "     \
-            "running. (You must verify this!)\n");                    \
-gossip_err("For example, you can use the lsof program as follows:\n");\
-gossip_err("'lsof | grep %s' (run this as root)\n",                   \
-            PVFS2_REQDEVICE_NAME);                                    \
-gossip_err("  open_access_count = %d\n", open_access_count);          \
-gossip_err("*****************************************************\n")
+#define DUMP_DEVICE_ERROR()                                                   \
+do {                                                                          \
+	gossip_err("*****************************************************\n");\
+	gossip_err("PVFS2 Device Error:  You cannot open the device file ");  \
+	gossip_err("\n/dev/%s more than once.  Please make sure that\nthere " \
+		   "are no ", PVFS2_REQDEVICE_NAME);                          \
+	gossip_err("instances of a program using this device\ncurrently "     \
+		   "running. (You must verify this!)\n");                     \
+	gossip_err("For example, you can use the lsof program as follows:\n");\
+	gossip_err("'lsof | grep %s' (run this as root)\n",                   \
+		   PVFS2_REQDEVICE_NAME);                                     \
+	gossip_err("  open_access_count = %d\n", open_access_count);          \
+	gossip_err("*****************************************************\n");\
+} while (0)
 
 static int hash_func(uint64_t tag, int table_size)
 {
@@ -129,37 +120,36 @@ static ssize_t pvfs2_devreq_read(struct file *file,
 		spin_lock(&pvfs2_request_list_lock);
 		list_for_each_entry_safe(op, temp, &pvfs2_request_list, list) {
 			PVFS_fs_id fsid = fsid_of_op(op);
-			/* Check if this op's fsid is known and needs remounting */
-			if (fsid != PVFS_FS_ID_NULL
-			    && fs_mount_pending(fsid) == 1) {
+			/*
+			 * Check if this op's fsid is known and needs
+			 * remounting
+			 */
+			if (fsid != PVFS_FS_ID_NULL &&
+			    fs_mount_pending(fsid) == 1) {
 				gossip_debug(GOSSIP_DEV_DEBUG,
 					     "Skipping op tag %llu %s\n",
 					     llu(op->tag),
 					     get_opname_string(op));
 				continue;
 			} else {
-			/* op does not belong to any particular fsid or already
-			 * mounted.. let it through
-			 */
+				/*
+				 * op does not belong to any particular fsid
+				 * or already mounted.. let it through
+				 */
 				cur_op = op;
 				spin_lock(&cur_op->lock);
 				list_del(&cur_op->list);
 				cur_op->op_linger_tmp--;
-				/* if there is a trailer, re-add it to
+				/*
+				 * if there is a trailer, re-add it to
 				 * the request list.
 				 */
-				if (cur_op->op_linger == 2
-				    && cur_op->op_linger_tmp == 1) {
-					if (cur_op->upcall.trailer_size <= 0
-					    || cur_op->upcall.trailer_buf ==
-					    NULL)
-						gossip_err
-						    ("BUG:trailer_size is %ld and trailer buf is %p\n",
-						     (long)cur_op->upcall.
-						     trailer_size,
-						     cur_op->upcall.
-						     trailer_buf);
-					/* readd it to the head of the list */
+				if (cur_op->op_linger == 2 &&
+				    cur_op->op_linger_tmp == 1) {
+					if (cur_op->upcall.trailer_size <= 0 ||
+					    cur_op->upcall.trailer_buf == NULL)
+						gossip_err("BUG:trailer_size is %ld and trailer buf is %p\n", (long)cur_op->upcall.trailer_size, cur_op->upcall.trailer_buf);
+					/* re-add it to the head of the list */
 					list_add(&cur_op->list,
 						 &pvfs2_request_list);
 				}
@@ -179,10 +169,13 @@ static ssize_t pvfs2_devreq_read(struct file *file,
 		if (op_state_in_progress(cur_op) || op_state_serviced(cur_op)) {
 			if (cur_op->op_linger == 1)
 				gossip_err("WARNING: Current op already queued...skipping\n");
-		} else if (cur_op->op_linger == 1
-			   || (cur_op->op_linger == 2
-			       && cur_op->op_linger_tmp == 0)) {
-			/* atomically move the operation to the htable_ops_in_progress */
+		} else if (cur_op->op_linger == 1 ||
+			   (cur_op->op_linger == 2 &&
+			    cur_op->op_linger_tmp == 0)) {
+			/*
+			 * atomically move the operation to the
+			 * htable_ops_in_progress
+			 */
 			set_op_state_inprogress(cur_op);
 			pvfs2_devreq_add_op(cur_op);
 		}
@@ -217,7 +210,7 @@ static ssize_t pvfs2_devreq_read(struct file *file,
 						  sizeof(uint64_t),
 						&cur_op->upcall,
 						sizeof(pvfs2_upcall_t));
-						}
+				    }
 				}
 			    }
 
@@ -250,8 +243,7 @@ static ssize_t pvfs2_devreq_read(struct file *file,
 			gossip_err("cur_op: %p (op_linger %d), (op_linger_tmp %d), erroneous request list?\n", cur_op, cur_op->op_linger, cur_op->op_linger_tmp);
 			len = 0;
 		}
-	} else if (file->f_flags & O_NONBLOCK)
-	{
+	} else if (file->f_flags & O_NONBLOCK) {
 		/*
 		 * if in non-blocking mode, return EAGAIN since no requests are
 		 * ready yet
@@ -375,7 +367,7 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 			 * trailer bytes.
 			 */
 			op->downcall.trailer_buf =
-			    (void *)vmalloc(op->downcall.trailer_size);
+			    vmalloc(op->downcall.trailer_size);
 			if (op->downcall.trailer_buf != NULL) {
 				gossip_debug(GOSSIP_DEV_DEBUG, "vmalloc: %p\n",
 					     op->downcall.trailer_buf);
@@ -478,7 +470,7 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 			    x->op != op ||
 			    x->bytes_to_be_copied <= 0) {
 				if (x)
-					gossip_debug(GOSSIP_DEV_DEBUG, "WARNING: pvfs2_iocb from op has invalid fields! %p, %p(%p), %d\n", x->iov, x->op, op, (int)x-> bytes_to_be_copied);
+					gossip_debug(GOSSIP_DEV_DEBUG, "WARNING: pvfs2_iocb from op has invalid fields! %p, %p(%p), %d\n", x->iov, x->op, op, (int)x->bytes_to_be_copied);
 				else
 					gossip_debug(GOSSIP_DEV_DEBUG, "WARNING: cannot retrieve the pvfs2_iocb pointer from op!\n");
 				/* Most likely means that it was cancelled! */
@@ -509,8 +501,7 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 				spin_lock(&op->lock);
 				/* we tell VFS that the op is now serviced! */
 				set_op_state_serviced(op);
-				gossip_debug(GOSSIP_DEV_DEBUG,
-					     "Setting state of %p to %d [SERVICED]\n", op, op->op_state);
+				gossip_debug(GOSSIP_DEV_DEBUG, "Setting state of %p to %d [SERVICED]\n", op, op->op_state);
 				x->bytes_copied = bytes_copied;
 				/*
 				 * call aio_complete to finish the operation
@@ -521,7 +512,7 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 				/*
 				 * also wake up any aio cancellers that may
 				 * be waiting for us to finish the op
-				 * */
+				 */
 				wake_up_interruptible(&op->io_completion_waitq);
 				spin_unlock(&op->lock);
 			}
@@ -717,7 +708,7 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 				     (struct PVFS_dev_map_desc __user *)
 				     arg,
 				     sizeof(struct PVFS_dev_map_desc));
-		return (ret ? -EIO : pvfs_bufmap_initialize(&user_desc));
+		return ret ? -EIO : pvfs_bufmap_initialize(&user_desc);
 	case PVFS_DEV_REMOUNT_ALL:
 		gossip_debug(GOSSIP_DEV_DEBUG,
 			     "pvfs2_devreq_ioctl: got PVFS_DEV_REMOUNT_ALL\n");
@@ -733,7 +724,7 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 		 */
 		ret = down_interruptible(&request_semaphore);
 		if (ret < 0)
-			return (ret);
+			return ret;
 		gossip_debug(GOSSIP_DEV_DEBUG,
 			     "pvfs2_devreq_ioctl: priority remount in progress\n");
 		list_for_each(tmp, &pvfs2_superblocks) {
@@ -762,7 +753,7 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 				     (void __user *)arg,
 				     sizeof(mask_info));
 		if (ret != 0)
-			return (-EIO);
+			return -EIO;
 
 		if (mask_info.mask_type == KERNEL_MASK) {
 			if ((mask_info.mask_value == 0)
@@ -773,24 +764,24 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 				 * it if the client-core was started without
 				 * a value for PVFS2_KMODMASK.
 				 */
-				return (0);
+				return 0;
 			}
 			ret = PVFS_proc_kmod_mask_to_eventlog(
 				mask_info.
 				mask_value,
 				kernel_debug_string);
 			gossip_debug_mask = mask_info.mask_value;
-			printk ("PVFS: kernel debug mask has been modified to \"%s\" (0x%08llx)\n", kernel_debug_string, llu(gossip_debug_mask));
+			pr_info("PVFS: kernel debug mask has been modified to \"%s\" (0x%08llx)\n", kernel_debug_string, llu(gossip_debug_mask));
 		} else if (mask_info.mask_type == CLIENT_MASK) {
 			ret = PVFS_proc_mask_to_eventlog(mask_info.mask_value,
 							 client_debug_string);
-			printk ("PVFS: client debug mask has been modified to \"%s\" (0x%08llx)\n", client_debug_string, llu(mask_info.mask_value));
+			pr_info("PVFS: client debug mask has been modified to \"%s\" (0x%08llx)\n", client_debug_string, llu(mask_info.mask_value));
 		} else {
 			gossip_lerr("Invalid mask type....\n");
-			return (-EINVAL);
+			return -EINVAL;
 		}
 
-		return (ret);
+		return ret;
 		break;
 	default:
 		return -ENOIOCTLCMD;
@@ -804,9 +795,10 @@ static long pvfs2_devreq_ioctl(struct file *file,
 	long ret;
 
 	/* Check for properly constructed commands */
-	if ((ret = check_ioctl_command(command)) < 0) {
+	ret = check_ioctl_command(command);
+	if (ret < 0)
 		return (int)ret;
-	}
+
 	return (int)dispatch_ioctl_command(command, arg);
 }
 
@@ -862,9 +854,9 @@ static long pvfs2_devreq_compat_ioctl(struct file *filp, unsigned int cmd,
 	unsigned long arg = args;
 
 	/* Check for properly constructed commands */
-	if ((ret = check_ioctl_command(cmd)) < 0) {
+	ret = check_ioctl_command(cmd);
+	if (ret < 0)
 		return ret;
-	}
 	if (cmd == PVFS_DEV_MAP) {
 		/*
 		 * convert the arguments to what we expect internally
@@ -893,7 +885,8 @@ static void pvfs2_ioctl32_cleanup(void)
 #endif /* CONFIG_COMPAT is in .config */
 
 /* the assigned character device major number */
-static int pvfs2_dev_major = 0;
+static int pvfs2_dev_major;
+
 /*
  * Initialize pvfs2 device specific state:
  * Must be called at module load time only
@@ -903,9 +896,10 @@ int pvfs2_dev_init(void)
 	int ret;
 
 	/* register the ioctl32 sub-system */
-	if ((ret = pvfs2_ioctl32_init()) < 0) {
+	ret = pvfs2_ioctl32_init();
+	if (ret < 0)
 		return ret;
-	}
+
 	/* register pvfs2-req device  */
 	pvfs2_dev_major = register_chrdev(0,
 					  PVFS2_REQDEVICE_NAME,
@@ -961,7 +955,7 @@ static unsigned int pvfs2_devreq_poll(struct file *file,
 	return poll_revent_mask;
 }
 
-struct file_operations pvfs2_devreq_file_operations = {
+const struct file_operations pvfs2_devreq_file_operations = {
 	.read = pvfs2_devreq_read,
 	.aio_write = pvfs2_devreq_aio_write,
 	.open = pvfs2_devreq_open,

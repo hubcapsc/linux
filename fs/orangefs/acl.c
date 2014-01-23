@@ -58,7 +58,7 @@ struct posix_acl *pvfs2_get_acl(struct inode *inode, int type)
 	 * pvfs2_inode_getxattr() to probe the length of the value, but
 	 * I don't do that for now.
 	 */
-	value = (char *)kmalloc(PVFS_MAX_XATTR_VALUELEN, GFP_KERNEL);
+	value = kmalloc(PVFS_MAX_XATTR_VALUELEN, GFP_KERNEL);
 	if (value == NULL) {
 		gossip_err("pvfs2_get_acl: Could not allocate value ptr\n");
 		return ERR_PTR(-ENOMEM);
@@ -81,8 +81,8 @@ struct posix_acl *pvfs2_get_acl(struct inode *inode, int type)
 			   llu(get_handle_from_ino(inode)), ret);
 		acl = ERR_PTR(ret);
 	}
-	if (value)
-		kfree(value);
+	/* kfree(NULL) is safe, so don't worry if value ever got used */
+	kfree(value);
 	return acl;
 }
 
@@ -115,17 +115,17 @@ static int pvfs2_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 			 */
 			error = posix_acl_equiv_mode(acl, &mode);
 			if (error < 0) {
-				gossip_err("pvfs2_set_acl: posix_acl_equiv_mode error %d\n", error);
+				gossip_err("%s: posix_acl_equiv_mode err: %d\n",
+					   __func__,
+					   error);
 				return error;
 			} else {
-
 				if (inode->i_mode != mode)
 					SetModeFlag(pvfs2_inode);
 				inode->i_mode = mode;
 				mark_inode_dirty_sync(inode);
-				if (error == 0) {
+				if (error == 0)
 					acl = NULL;
-				}
 			}
 		}
 		break;
@@ -136,7 +136,11 @@ static int pvfs2_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 		 * objects!
 		 */
 		if (!S_ISDIR(inode->i_mode)) {
-			gossip_debug(GOSSIP_ACL_DEBUG, "pvfs2_set_acl: setting default ACLs on non-dir object? %s\n", acl ? "disallowed" : "ok");
+			gossip_debug(GOSSIP_ACL_DEBUG,
+				"%s: setting default ACLs on non-dir object? "
+				"%s\n",
+				__func__,
+				acl ? "disallowed" : "ok");
 			return acl ? -EACCES : 0;
 		}
 		break;
@@ -149,7 +153,7 @@ static int pvfs2_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 		     llu(get_handle_from_ino(inode)), name, type);
 
 	if (acl) {
-		value = (char *)kmalloc(PVFS_MAX_XATTR_VALUELEN, GFP_KERNEL);
+		value = kmalloc(PVFS_MAX_XATTR_VALUELEN, GFP_KERNEL);
 		if (IS_ERR(value))
 			return (int)PTR_ERR(value);
 		size = posix_acl_to_xattr(&init_user_ns,
@@ -174,8 +178,8 @@ static int pvfs2_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 	error = pvfs2_inode_setxattr(inode, "", name, value, size, 0);
 
 errorout:
-	if (value)
-		kfree(value);
+	/* kfree(NULL) is safe */
+	kfree(value);
 	return error;
 }
 
@@ -204,7 +208,9 @@ static int pvfs2_xattr_get_acl(struct inode *inode,
 	}
 	error = posix_acl_to_xattr(&init_user_ns, acl, buffer, size);
 	posix_acl_release(acl);
-	gossip_debug(GOSSIP_ACL_DEBUG, "pvfs2_xattr_get_acl: posix_acl_to_xattr returned %d\n", error);
+	gossip_debug(GOSSIP_ACL_DEBUG,
+		     "pvfs2_xattr_get_acl: posix_acl_to_xattr returned %d\n",
+		     error);
 out:
 	return error;
 }
@@ -272,12 +278,17 @@ static int pvfs2_xattr_set_acl(struct inode *inode,
 		acl = posix_acl_from_xattr(&init_user_ns, value, size);
 		if (IS_ERR(acl)) {
 			error = PTR_ERR(acl);
-			gossip_err("pvfs2_xattr_set_acl: posix_acl_from_xattr returned error %d\n", error);
+			gossip_err("%s: posix_acl_from_xattr returned err %d\n",
+			__func__,
+			error);
 			goto err;
 		} else if (acl) {
 			error = posix_acl_valid(acl);
 			if (error) {
-				gossip_err("pvfs2_xattr_set_acl: posix_acl_valid returned error %d\n", error);
+				gossip_err(
+				   "%s: posix_acl_valid returned error %d\n",
+				   __func__,
+				   error);
 				goto out;
 			}
 		}
@@ -366,14 +377,17 @@ int pvfs2_init_acl(struct inode *inode, struct inode *dir)
 			acl = pvfs2_get_acl(dir, ACL_TYPE_DEFAULT);
 			if (IS_ERR(acl)) {
 				error = PTR_ERR(acl);
-				gossip_err("pvfs2_get_acl (default) failed with error %d\n", error);
+				gossip_err("pvfs2_get_acl (default) error %d\n",
+					   error);
 				return error;
 			}
 		}
 		if (!acl && dir != inode) {
 			int old_mode = inode->i_mode;
 			inode->i_mode &= ~current->fs->umask;
-			gossip_debug(GOSSIP_ACL_DEBUG, "inode->i_mode before %o and after %o\n", old_mode, inode->i_mode);
+			gossip_debug(GOSSIP_ACL_DEBUG,
+				     "inode->i_mode before %o and after %o\n",
+				     old_mode, inode->i_mode);
 			if (old_mode != inode->i_mode)
 				SetModeFlag(pvfs2_inode);
 		}
@@ -391,7 +405,10 @@ int pvfs2_init_acl(struct inode *inode, struct inode *dir)
 		}
 		error = posix_acl_create(&acl, GFP_KERNEL, &mode);
 		if (error >= 0) {
-			gossip_debug(GOSSIP_ACL_DEBUG, "posix_acl_create changed mode from %o to %o\n", inode->i_mode, mode);
+			gossip_debug(GOSSIP_ACL_DEBUG,
+				"posix_acl_create changed mode from %o to %o\n",
+				inode->i_mode,
+				mode);
 			/*
 			 * Don't do a needless ->setattr() if mode has not
 			 * changed.
@@ -407,7 +424,9 @@ int pvfs2_init_acl(struct inode *inode, struct inode *dir)
 				error = pvfs2_set_acl(inode,
 						      ACL_TYPE_ACCESS,
 						      acl);
-				gossip_debug(GOSSIP_ACL_DEBUG, "pvfs2_set_acl (access) returned %d\n", error);
+				gossip_debug(GOSSIP_ACL_DEBUG,
+					"pvfs2_set_acl (access) returned %d\n",
+					error);
 			}
 		}
 	}
@@ -453,13 +472,17 @@ int pvfs2_acl_chmod(struct inode *inode)
 	error = posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
 	if (!error) {
 		error = pvfs2_set_acl(inode, ACL_TYPE_ACCESS, acl);
-		gossip_debug(GOSSIP_ACL_DEBUG, "pvfs2_acl_chmod: pvfs2 set acl (access) returned %d\n", error);
+		gossip_debug(GOSSIP_ACL_DEBUG,
+			"pvfs2_acl_chmod: pvfs2 set acl (access) returned %d\n",
+			error);
 	}
 
 	error = posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
 	if (!error) {
 		error = pvfs2_set_acl(inode, ACL_TYPE_ACCESS, acl);
-		gossip_debug(GOSSIP_ACL_DEBUG, "pvfs2_acl_chmod: pvfs2 set acl (access) returned %d\n", error);
+		gossip_debug(GOSSIP_ACL_DEBUG,
+			"pvfs2_acl_chmod: pvfs2 set acl (access) returned %d\n",
+			error);
 	}
 
 out:

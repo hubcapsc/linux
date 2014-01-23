@@ -8,11 +8,11 @@
 #include "pvfs2-kernel.h"
 #include "pvfs2-bufmap.h"
 
-typedef struct {
+struct readdir_handle_t {
 	int buffer_index;
 	pvfs2_readdir_response_t readdir_response;
 	void *dents_buf;
-} readdir_handle_t;
+};
 
 /*
  * decode routine needed by kmod to make sense of the shared page for readdirs.
@@ -29,20 +29,19 @@ static long decode_dirents(char *ptr, pvfs2_readdir_response_t *readdir)
 	readdir->dirent_array = kmalloc(readdir->pvfs_dirent_outcount *
 					sizeof(*readdir->dirent_array),
 					GFP_KERNEL);
-	if (readdir->dirent_array == NULL) {
+	if (readdir->dirent_array == NULL)
 		return -ENOMEM;
-	}
 	*pptr += offsetof(pvfs2_readdir_response_t, dirent_array);
 	for (i = 0; i < readdir->pvfs_dirent_outcount; i++) {
 		dec_string(pptr, &readdir->dirent_array[i].d_name,
 			   &readdir->dirent_array[i].d_length);
-		readdir->dirent_array[i].handle = *(int64_t *) * pptr;
+		readdir->dirent_array[i].handle = *(int64_t *) *pptr;
 		*pptr += 8;
 	}
-	return ((unsigned long)*pptr - (unsigned long)ptr);
+	return (unsigned long)*pptr - (unsigned long)ptr;
 }
 
-static long readdir_handle_ctor(readdir_handle_t *rhandle, void *buf,
+static long readdir_handle_ctor(struct readdir_handle_t *rhandle, void *buf,
 				int buffer_index)
 {
 	long ret;
@@ -59,7 +58,8 @@ static long readdir_handle_ctor(readdir_handle_t *rhandle, void *buf,
 	}
 	rhandle->buffer_index = buffer_index;
 	rhandle->dents_buf = buf;
-	if ((ret = decode_dirents(buf, &rhandle->readdir_response)) < 0) {
+	ret = decode_dirents(buf, &rhandle->readdir_response);
+	if (ret < 0) {
 		gossip_err("Could not decode readdir from buffer %ld\n", ret);
 		readdir_index_put(rhandle->buffer_index);
 		rhandle->buffer_index = -1;
@@ -70,15 +70,15 @@ static long readdir_handle_ctor(readdir_handle_t *rhandle, void *buf,
 	return ret;
 }
 
-static void readdir_handle_dtor(readdir_handle_t *rhandle)
+static void readdir_handle_dtor(struct readdir_handle_t *rhandle)
 {
-	if (rhandle == NULL) {
+	if (rhandle == NULL)
 		return;
-	}
-	if (rhandle->readdir_response.dirent_array) {
-		kfree(rhandle->readdir_response.dirent_array);
-		rhandle->readdir_response.dirent_array = NULL;
-	}
+
+	/* kfree(NULL) is safe */
+	kfree(rhandle->readdir_response.dirent_array);
+	rhandle->readdir_response.dirent_array = NULL;
+
 	if (rhandle->buffer_index >= 0) {
 		readdir_index_put(rhandle->buffer_index);
 		rhandle->buffer_index = -1;
@@ -121,7 +121,7 @@ static int pvfs2_readdir(struct file *file, struct dir_context *ctx)
 	pvfs2_kernel_op_t *new_op = NULL;
 	pvfs2_inode_t *pvfs2_inode = PVFS2_I(dentry->d_inode);
 	int buffer_full = 0;
-	readdir_handle_t rhandle;
+	struct readdir_handle_t rhandle;
 	int i = 0;
 	int len = 0;
 	ino_t current_ino = 0;
@@ -130,7 +130,9 @@ static int pvfs2_readdir(struct file *file, struct dir_context *ctx)
 
 	gossip_ldebug(GOSSIP_DIR_DEBUG,
 		      "%s: ctx->pos:%lld, token = %llu\n",
-		      __func__,lld(ctx->pos), llu(*ptoken));
+		      __func__,
+		      lld(ctx->pos),
+		      llu(*ptoken));
 
 	pos = (PVFS_ds_position) ctx->pos;
 
@@ -138,7 +140,7 @@ static int pvfs2_readdir(struct file *file, struct dir_context *ctx)
 	if (pos == PVFS_READDIR_END) {
 		gossip_debug(GOSSIP_DIR_DEBUG,
 			     "Skipping to termination path\n");
-		return (0);
+		return 0;
 	}
 
 	gossip_debug(GOSSIP_DIR_DEBUG,
@@ -151,7 +153,7 @@ static int pvfs2_readdir(struct file *file, struct dir_context *ctx)
 
 	new_op = op_alloc(PVFS2_VFS_OP_READDIR);
 	if (!new_op)
-		return (-ENOMEM);
+		return -ENOMEM;
 
 	new_op->uses_shared_memory = 1;
 
@@ -163,8 +165,7 @@ static int pvfs2_readdir(struct file *file, struct dir_context *ctx)
 			     __func__,
 			     llu(new_op->upcall.req.readdir.refn.handle));
 	} else {
-		gossip_lerr
-		    ("Critical error: i_ino cannot be relied on when using iget4/5\n");
+		gossip_lerr("Critical error: i_ino cannot be relied on when using iget4/5\n");
 		op_release(new_op);
 		return -EINVAL;
 	}
@@ -189,7 +190,7 @@ get_new_buffer_index:
 		gossip_lerr("pvfs2_readdir: readdir_index_get() failure (%d)\n",
 			    ret);
 		op_release(new_op);
-		return (ret);
+		return ret;
 	}
 	new_op->upcall.req.readdir.buf_index = buffer_index;
 
@@ -208,7 +209,9 @@ get_new_buffer_index:
 		 * pvfs2-client-core restarting, so we must get a new
 		 * index into the shared memory.
 		 */
-		gossip_debug(GOSSIP_DIR_DEBUG, "%s: Getting new buffer_index for retry of readdir..\n", __func__);
+		gossip_debug(GOSSIP_DIR_DEBUG,
+			"%s: Getting new buffer_index for retry of readdir..\n",
+			 __func__);
 		goto get_new_buffer_index;
 	}
 
@@ -217,10 +220,10 @@ get_new_buffer_index:
 		 * pvfs2-client is down.  Readdir shared memory area has
 		 * been wiped clean.  No need to "put" back the buffer_index.
 		 */
-		gossip_err("%s: Client is down.  Aborting readdir call. \n",
-			   __func__);
+		gossip_err("%s: Client is down. Aborting readdir call.\n",
+			__func__);
 		op_release(new_op);
-		return (ret);
+		return ret;
 	}
 
 	if (ret < 0 || new_op->downcall.status != 0) {
@@ -232,14 +235,16 @@ get_new_buffer_index:
 		return ((ret < 0 ? ret : new_op->downcall.status));
 	}
 
-	if ((bytes_decoded = readdir_handle_ctor(&rhandle,
-						 new_op->downcall.trailer_buf,
-						 buffer_index)) < 0) {
+	bytes_decoded =
+		readdir_handle_ctor(&rhandle,
+				    new_op->downcall.trailer_buf,
+				    buffer_index);
+	if (bytes_decoded < 0) {
 		gossip_err("pvfs2_readdir: Could not decode trailer buffer into a readdir response %d\n", ret);
 		ret = bytes_decoded;
 		readdir_index_put(buffer_index);
 		op_release(new_op);
-		return (ret);
+		return ret;
 	}
 
 	if (bytes_decoded != new_op->downcall.trailer_size) {
@@ -247,7 +252,7 @@ get_new_buffer_index:
 		ret = -EINVAL;
 		readdir_handle_dtor(&rhandle);
 		op_release(new_op);
-		return (ret);
+		return ret;
 	}
 
 	if (pos == 0) {
@@ -256,10 +261,11 @@ get_new_buffer_index:
 			     "%s: calling dir_emit of \".\" with pos = %llu\n",
 			     __func__,
 			     llu(pos));
-		if ((ret = dir_emit(ctx, ".", 1, ino, DT_DIR)) < 0) {
+		ret = dir_emit(ctx, ".", 1, ino, DT_DIR);
+		if (ret < 0) {
 			readdir_handle_dtor(&rhandle);
 			op_release(new_op);
-			return (ret);
+			return ret;
 		}
 		ctx->pos++;
 		gossip_ldebug(GOSSIP_DIR_DEBUG,
@@ -275,10 +281,11 @@ get_new_buffer_index:
 			     "%s: calling dir_emit of \"..\" with pos = %llu\n",
 			     __func__,
 			     llu(pos));
-		if ((ret = dir_emit(ctx, "..", 2, ino, DT_DIR)) < 0) {
+		ret = dir_emit(ctx, "..", 2, ino, DT_DIR);
+		if (ret < 0) {
 			readdir_handle_dtor(&rhandle);
 			op_release(new_op);
-			return (ret);
+			return ret;
 		}
 		ctx->pos++;
 		gossip_ldebug(GOSSIP_DIR_DEBUG,
@@ -299,13 +306,12 @@ get_new_buffer_index:
 			     current_entry,
 			     len,
 			     (unsigned long)pos);
-		if ((ret = dir_emit(ctx,
-				    current_entry,
-				    len,
-				    current_ino,
-				    DT_UNKNOWN)) < 0) {
+		ret =
+		    dir_emit(ctx, current_entry, len, current_ino, DT_UNKNOWN);
+		if (ret < 0) {
 			gossip_debug(GOSSIP_DIR_DEBUG,
-				     "dir_emit() failed. ret:%d\n", ret);
+				     "dir_emit() failed. ret:%d\n",
+				     ret);
 			if (i < 2) {
 				gossip_err("dir_emit failed on one of the first two true PVFS directory entries.\n");
 				gossip_err("Duplicate entries may appear.\n");
@@ -379,11 +385,11 @@ get_new_buffer_index:
 
 	gossip_debug(GOSSIP_DIR_DEBUG, "pvfs2_readdir returning %d\n", ret);
 
-	return (ret);
-}				/*end pvfs2_readdir */
+	return ret;
+}
 
 /** PVFS2 implementation of VFS directory operations */
-struct file_operations pvfs2_dir_operations = {
+const struct file_operations pvfs2_dir_operations = {
 	.read = generic_read_dir,
 	.iterate = pvfs2_readdir,
 	.open = pvfs2_file_open,

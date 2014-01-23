@@ -193,6 +193,17 @@ enum PVFS_async_io_type {
 #define PVFS2_XATTR_NAME_TRUSTED_PREFIX "trusted."
 #define PVFS2_XATTR_NAME_DEFAULT_PREFIX ""
 
+/* these functions are defined in pvfs2-utils.c */
+int PVFS_proc_kmod_mask_to_eventlog(uint64_t mask, char *debug_string);
+int PVFS_proc_mask_to_eventlog(uint64_t mask, char *debug_string);
+
+/*these variables are defined in pvfs2-proc.c*/
+extern char kernel_debug_string[PVFS2_MAX_DEBUG_STRING_LEN];
+extern char client_debug_string[PVFS2_MAX_DEBUG_STRING_LEN];
+
+/*these variables are defined in pvfs2-mod.c*/
+extern unsigned int kernel_mask_set_mod_init;
+
 extern int pvfs2_acl_chmod(struct inode *inode);
 extern int pvfs2_init_acl(struct inode *inode, struct inode *dir);
 extern const struct xattr_handler *pvfs2_xattr_handlers[];
@@ -827,9 +838,9 @@ extern struct inode_operations pvfs2_file_inode_operations;
 extern struct file_operations pvfs2_file_operations;
 extern struct inode_operations pvfs2_symlink_inode_operations;
 extern struct inode_operations pvfs2_dir_inode_operations;
-extern struct file_operations pvfs2_dir_operations;
-extern struct dentry_operations pvfs2_dentry_operations;
-extern struct file_operations pvfs2_devreq_file_operations;
+extern const struct file_operations pvfs2_dir_operations;
+extern const struct dentry_operations pvfs2_dentry_operations;
+extern const struct file_operations pvfs2_devreq_file_operations;
 
 extern wait_queue_head_t pvfs2_bufmap_init_waitq;
 
