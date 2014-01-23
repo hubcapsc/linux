@@ -37,66 +37,66 @@ typedef int64_t PVFS_offset;
 ((__error) & (PVFS_error)(127|PVFS_ERROR_BIT|PVFS_NON_ERRNO_ERROR_BIT))
 
 /* PVFS2 error codes, compliments of asm/errno.h */
-#define PVFS_EPERM            E(1) /* Operation not permitted */
-#define PVFS_ENOENT           E(2) /* No such file or directory */
-#define PVFS_EINTR            E(3) /* Interrupted system call */
-#define PVFS_EIO              E(4) /* I/O error */
-#define PVFS_ENXIO            E(5) /* No such device or address */
-#define PVFS_EBADF            E(6) /* Bad file number */
-#define PVFS_EAGAIN           E(7) /* Try again */
-#define PVFS_ENOMEM           E(8) /* Out of memory */
-#define PVFS_EFAULT           E(9) /* Bad address */
-#define PVFS_EBUSY           E(10) /* Device or resource busy */
-#define PVFS_EEXIST          E(11) /* File exists */
-#define PVFS_ENODEV          E(12) /* No such device */
-#define PVFS_ENOTDIR         E(13) /* Not a directory */
-#define PVFS_EISDIR          E(14) /* Is a directory */
-#define PVFS_EINVAL          E(15) /* Invalid argument */
-#define PVFS_EMFILE          E(16) /* Too many open files */
-#define PVFS_EFBIG           E(17) /* File too large */
-#define PVFS_ENOSPC          E(18) /* No space left on device */
-#define PVFS_EROFS           E(19) /* Read-only file system */
-#define PVFS_EMLINK          E(20) /* Too many links */
-#define PVFS_EPIPE           E(21) /* Broken pipe */
-#define PVFS_EDEADLK         E(22) /* Resource deadlock would occur */
-#define PVFS_ENAMETOOLONG    E(23) /* File name too long */
-#define PVFS_ENOLCK          E(24) /* No record locks available */
-#define PVFS_ENOSYS          E(25) /* Function not implemented */
-#define PVFS_ENOTEMPTY       E(26) /* Directory not empty */
-#define PVFS_ELOOP           E(27) /* Too many symbolic links encountered */
-#define PVFS_EWOULDBLOCK     E(28) /* Operation would block */
-#define PVFS_ENOMSG          E(29) /* No message of desired type */
-#define PVFS_EUNATCH         E(30) /* Protocol driver not attached */
-#define PVFS_EBADR           E(31) /* Invalid request descriptor */
+#define PVFS_EPERM            E(1)	/* Operation not permitted */
+#define PVFS_ENOENT           E(2)	/* No such file or directory */
+#define PVFS_EINTR            E(3)	/* Interrupted system call */
+#define PVFS_EIO              E(4)	/* I/O error */
+#define PVFS_ENXIO            E(5)	/* No such device or address */
+#define PVFS_EBADF            E(6)	/* Bad file number */
+#define PVFS_EAGAIN           E(7)	/* Try again */
+#define PVFS_ENOMEM           E(8)	/* Out of memory */
+#define PVFS_EFAULT           E(9)	/* Bad address */
+#define PVFS_EBUSY           E(10)	/* Device or resource busy */
+#define PVFS_EEXIST          E(11)	/* File exists */
+#define PVFS_ENODEV          E(12)	/* No such device */
+#define PVFS_ENOTDIR         E(13)	/* Not a directory */
+#define PVFS_EISDIR          E(14)	/* Is a directory */
+#define PVFS_EINVAL          E(15)	/* Invalid argument */
+#define PVFS_EMFILE          E(16)	/* Too many open files */
+#define PVFS_EFBIG           E(17)	/* File too large */
+#define PVFS_ENOSPC          E(18)	/* No space left on device */
+#define PVFS_EROFS           E(19)	/* Read-only file system */
+#define PVFS_EMLINK          E(20)	/* Too many links */
+#define PVFS_EPIPE           E(21)	/* Broken pipe */
+#define PVFS_EDEADLK         E(22)	/* Resource deadlock would occur */
+#define PVFS_ENAMETOOLONG    E(23)	/* File name too long */
+#define PVFS_ENOLCK          E(24)	/* No record locks available */
+#define PVFS_ENOSYS          E(25)	/* Function not implemented */
+#define PVFS_ENOTEMPTY       E(26)	/* Directory not empty */
+#define PVFS_ELOOP           E(27)	/* Too many symbolic links encountered */
+#define PVFS_EWOULDBLOCK     E(28)	/* Operation would block */
+#define PVFS_ENOMSG          E(29)	/* No message of desired type */
+#define PVFS_EUNATCH         E(30)	/* Protocol driver not attached */
+#define PVFS_EBADR           E(31)	/* Invalid request descriptor */
 #define PVFS_EDEADLOCK       E(32)
-#define PVFS_ENODATA         E(33) /* No data available */
-#define PVFS_ETIME           E(34) /* Timer expired */
-#define PVFS_ENONET          E(35) /* Machine is not on the network */
-#define PVFS_EREMOTE         E(36) /* Object is remote */
-#define PVFS_ECOMM           E(37) /* Communication error on send */
-#define PVFS_EPROTO          E(38) /* Protocol error */
-#define PVFS_EBADMSG         E(39) /* Not a data message */
-#define PVFS_EOVERFLOW       E(40) /* Value too large for defined data type */
-#define PVFS_ERESTART        E(41) /* Interrupted system call should be restarted */
-#define PVFS_EMSGSIZE        E(42) /* Message too long */
-#define PVFS_EPROTOTYPE      E(43) /* Protocol wrong type for socket */
-#define PVFS_ENOPROTOOPT     E(44) /* Protocol not available */
-#define PVFS_EPROTONOSUPPORT E(45) /* Protocol not supported */
-#define PVFS_EOPNOTSUPP      E(46) /* Operation not supported on transport endpoint */
-#define PVFS_EADDRINUSE      E(47) /* Address already in use */
-#define PVFS_EADDRNOTAVAIL   E(48) /* Cannot assign requested address */
-#define PVFS_ENETDOWN        E(49) /* Network is down */
-#define PVFS_ENETUNREACH     E(50) /* Network is unreachable */
-#define PVFS_ENETRESET       E(51) /* Network dropped connection because of reset */
-#define PVFS_ENOBUFS         E(52) /* No buffer space available */
-#define PVFS_ETIMEDOUT       E(53) /* Connection timed out */
-#define PVFS_ECONNREFUSED    E(54) /* Connection refused */
-#define PVFS_EHOSTDOWN       E(55) /* Host is down */
-#define PVFS_EHOSTUNREACH    E(56) /* No route to host */
-#define PVFS_EALREADY        E(57) /* Operation already in progress */
-#define PVFS_EACCES          E(58) /* Access not allowed */
-#define PVFS_ECONNRESET      E(59) /* Connection reset by peer */
-#define PVFS_ERANGE          E(60) /* Math out of range or buf too small */
+#define PVFS_ENODATA         E(33)	/* No data available */
+#define PVFS_ETIME           E(34)	/* Timer expired */
+#define PVFS_ENONET          E(35)	/* Machine is not on the network */
+#define PVFS_EREMOTE         E(36)	/* Object is remote */
+#define PVFS_ECOMM           E(37)	/* Communication error on send */
+#define PVFS_EPROTO          E(38)	/* Protocol error */
+#define PVFS_EBADMSG         E(39)	/* Not a data message */
+#define PVFS_EOVERFLOW       E(40)	/* Value too large for defined data type */
+#define PVFS_ERESTART        E(41)	/* Interrupted system call should be restarted */
+#define PVFS_EMSGSIZE        E(42)	/* Message too long */
+#define PVFS_EPROTOTYPE      E(43)	/* Protocol wrong type for socket */
+#define PVFS_ENOPROTOOPT     E(44)	/* Protocol not available */
+#define PVFS_EPROTONOSUPPORT E(45)	/* Protocol not supported */
+#define PVFS_EOPNOTSUPP      E(46)	/* Operation not supported on transport endpoint */
+#define PVFS_EADDRINUSE      E(47)	/* Address already in use */
+#define PVFS_EADDRNOTAVAIL   E(48)	/* Cannot assign requested address */
+#define PVFS_ENETDOWN        E(49)	/* Network is down */
+#define PVFS_ENETUNREACH     E(50)	/* Network is unreachable */
+#define PVFS_ENETRESET       E(51)	/* Network dropped connection because of reset */
+#define PVFS_ENOBUFS         E(52)	/* No buffer space available */
+#define PVFS_ETIMEDOUT       E(53)	/* Connection timed out */
+#define PVFS_ECONNREFUSED    E(54)	/* Connection refused */
+#define PVFS_EHOSTDOWN       E(55)	/* Host is down */
+#define PVFS_EHOSTUNREACH    E(56)	/* No route to host */
+#define PVFS_EALREADY        E(57)	/* Operation already in progress */
+#define PVFS_EACCES          E(58)	/* Access not allowed */
+#define PVFS_ECONNRESET      E(59)	/* Connection reset by peer */
+#define PVFS_ERANGE          E(60)	/* Math out of range or buf too small */
 
 /***************** non-errno/pvfs2 specific error codes *****************/
 #define PVFS_ECANCEL    (1|(PVFS_NON_ERRNO_ERROR_BIT|PVFS_ERROR_BIT))
@@ -109,8 +109,8 @@ typedef int64_t PVFS_offset;
 #define PVFS_ENOTPVFS   (8|(PVFS_NON_ERRNO_ERROR_BIT|PVFS_ERROR_BIT))
 #define PVFS_ESECURITY  (9|(PVFS_NON_ERRNO_ERROR_BIT|PVFS_ERROR_BIT))
 
-
-/* NOTE: PLEASE DO NOT ARBITRARILY ADD NEW ERRNO ERROR CODES!
+/*
+ * NOTE: PLEASE DO NOT ARBITRARILY ADD NEW ERRNO ERROR CODES!
  *
  * IF YOU CHOOSE TO ADD A NEW ERROR CODE (DESPITE OUR PLEA), YOU ALSO
  * NEED TO INCREMENT PVFS_ERRNO MAX (BELOW) AND ADD A MAPPING TO A
@@ -119,13 +119,13 @@ typedef int64_t PVFS_offset;
  */
 #define PVFS_ERRNO_MAX          61
 
-#define PVFS_ERROR_BMI    (1 << 7) /* BMI-specific error */
-#define PVFS_ERROR_TROVE  (2 << 7) /* Trove-specific error */
+#define PVFS_ERROR_BMI    (1 << 7)	/* BMI-specific error */
+#define PVFS_ERROR_TROVE  (2 << 7)	/* Trove-specific error */
 #define PVFS_ERROR_FLOW   (3 << 7)
-#define PVFS_ERROR_SM     (4 << 7) /* state machine specific error */
+#define PVFS_ERROR_SM     (4 << 7)	/* state machine specific error */
 #define PVFS_ERROR_SCHED  (5 << 7)
 #define PVFS_ERROR_CLIENT (6 << 7)
-#define PVFS_ERROR_DEV    (7 << 7) /* device file interaction */
+#define PVFS_ERROR_DEV    (7 << 7)	/* device file interaction */
 
 #define PVFS_ERROR_CLASS_BITS                                          \
 (PVFS_ERROR_BMI | PVFS_ERROR_TROVE | PVFS_ERROR_FLOW | PVFS_ERROR_SM | \
@@ -259,12 +259,9 @@ PVFS_error PVFS_errno_to_error(int err)                    \
     PVFS_error e = 0;                                      \
                                                            \
     for(; e < PVFS_ERRNO_MAX; ++e)                         \
-    {                                                      \
         if(PINT_errno_mapping[e] == err)                   \
-        {                                                  \
             return e | PVFS_ERROR_BIT;                     \
-        }                                                  \
-    }                                                      \
+							   \
     return err;                                            \
 }                                                          \
 DECLARE_ERRNO_MAPPING()
@@ -329,90 +326,77 @@ DECLARE_ERRNO_MAPPING()
 #define PVFS2_ALIGN_VAR(_type, _name) _type _name
 #define PVFS_MAX_SERVER_ADDR_LEN 256
 #define PVFS_NAME_MAX            256
-/* max extended attribute name len as imposed by the VFS and exploited for the
+/*
+ * max extended attribute name len as imposed by the VFS and exploited for the
  * upcall request types.
  * NOTE: Please retain them as multiples of 8 even if you wish to change them
- * This is *NECESSARY* for supporting 32 bit user-space binaries on a 64-bit 
- * kernel. Due to implementation within DBPF, this really needs to be 
- * PVFS_NAME_MAX, which it was the same value as, but no reason to let it 
+ * This is *NECESSARY* for supporting 32 bit user-space binaries on a 64-bit
+ * kernel. Due to implementation within DBPF, this really needs to be
+ * PVFS_NAME_MAX, which it was the same value as, but no reason to let it
  * break if that changes in the future.
  */
-#define PVFS_MAX_XATTR_NAMELEN   PVFS_NAME_MAX /* Not the same as
-                                                  XATTR_NAME_MAX defined
-                                                  by <linux/xattr.h> 
-                                                */
-#define PVFS_MAX_XATTR_VALUELEN  8192 /* Not the same as XATTR_SIZE_MAX 
-                                         defined by <linux/xattr.h> 
-                                       */
-#define PVFS_MAX_XATTR_LISTLEN   16   /* Not the same as XATTR_LIST_MAX
-                                         defined by <linux/xattr.h> 
-                                       */
-/* PVFS I/O operation types, used in both system and server interfaces.
+#define PVFS_MAX_XATTR_NAMELEN   PVFS_NAME_MAX	/* Not the same as
+						 * XATTR_NAME_MAX defined
+						 * by <linux/xattr.h>
+						 */
+#define PVFS_MAX_XATTR_VALUELEN  8192	/* Not the same as XATTR_SIZE_MAX
+					 * defined by <linux/xattr.h>
+					 */
+#define PVFS_MAX_XATTR_LISTLEN   16	/* Not the same as XATTR_LIST_MAX
+					 * defined by <linux/xattr.h>
+					 */
+/*
+ * PVFS I/O operation types, used in both system and server interfaces.
  */
-enum PVFS_io_type
-{
-    PVFS_IO_READ  = 1,
-    PVFS_IO_WRITE = 2
+enum PVFS_io_type {
+	PVFS_IO_READ = 1,
+	PVFS_IO_WRITE = 2
 };
 
-/* If this enum is modified the server parameters related to the precreate pool
+/*
+ * If this enum is modified the server parameters related to the precreate pool
  * batch and low threshold sizes may need to be modified  to reflect this
  * change. Also, the PVFS_DS_TYPE_COUNT #define below must be updated
  */
-typedef enum
-{
-    PVFS_TYPE_NONE =              0,
-    PVFS_TYPE_METAFILE =    (1 << 0),
-    PVFS_TYPE_DATAFILE =    (1 << 1),
-    PVFS_TYPE_DIRECTORY =   (1 << 2),
-    PVFS_TYPE_SYMLINK =     (1 << 3),
-    PVFS_TYPE_DIRDATA =     (1 << 4),
-    PVFS_TYPE_INTERNAL =    (1 << 5)   /* for the server's private use */
+typedef enum {
+	PVFS_TYPE_NONE = 0,
+	PVFS_TYPE_METAFILE = (1 << 0),
+	PVFS_TYPE_DATAFILE = (1 << 1),
+	PVFS_TYPE_DIRECTORY = (1 << 2),
+	PVFS_TYPE_SYMLINK = (1 << 3),
+	PVFS_TYPE_DIRDATA = (1 << 4),
+	PVFS_TYPE_INTERNAL = (1 << 5)	/* for the server's private use */
 } PVFS_ds_type;
 
 typedef unsigned char *PVFS_cert_data;
 
-/* PVFS_certificate simply stores a buffer with the buffer size.
+/*
+ * PVFS_certificate simply stores a buffer with the buffer size.
  * The buffer can be converted to an OpenSSL X509 struct for use.
  */
 typedef struct PVFS_certificate PVFS_certificate;
-struct PVFS_certificate
-{
-    uint32_t buf_size;
-    PVFS_cert_data buf;
+struct PVFS_certificate {
+	uint32_t buf_size;
+	PVFS_cert_data buf;
 };
 
 typedef unsigned char *PVFS_signature;
 
-/* A credential identifies a user and is signed by the client/user
+/*
+ * A credential identifies a user and is signed by the client/user
  * private key.
  */
 typedef struct PVFS_credential PVFS_credential;
-struct PVFS_credential
-{
-    PVFS_uid userid;           /* user id */
-    uint32_t num_groups;       /* length of group_array */
-    PVFS_gid *group_array;     /* groups for which the user is a member */
-    char *issuer;              /* alias of the issuing server */
-    PVFS_time timeout;         /* seconds after epoch to time out */
-    uint32_t sig_size;         /* length of the signature in bytes */
-    PVFS_signature signature;  /* digital signature */
-    PVFS_certificate certificate; /* user certificate buffer */
+struct PVFS_credential {
+	PVFS_uid userid;	/* user id */
+	uint32_t num_groups;	/* length of group_array */
+	PVFS_gid *group_array;	/* groups for which the user is a member */
+	char *issuer;		/* alias of the issuing server */
+	PVFS_time timeout;	/* seconds after epoch to time out */
+	uint32_t sig_size;	/* length of the signature in bytes */
+	PVFS_signature signature;	/* digital signature */
+	PVFS_certificate certificate;	/* user certificate buffer */
 };
-/*
-endecode_fields_3a2a1_struct (
-    PVFS_credential,
-    skip4,,
-    skip4,,
-    PVFS_uid, userid,
-    uint32_t, num_groups,
-    PVFS_gid, group_array,
-    string, issuer,
-    PVFS_time, timeout,
-    uint32_t, sig_size,
-    PVFS_signature, signature,
-    PVFS_certificate, certificate);
-*/
 #define extra_size_PVFS_credential (PVFS_REQ_LIMIT_GROUPS    * \
                                     sizeof(PVFS_gid)         + \
                                     PVFS_REQ_LIMIT_ISSUER    + \
@@ -427,63 +411,75 @@ typedef PVFS_credential PVFS_credentials;
 
 /* This structure is used by the VFS-client interaction alone */
 typedef struct {
-    char key[PVFS_MAX_XATTR_NAMELEN];
-    int32_t  key_sz; /* int32_t for portable, fixed-size structures */
-    int32_t  val_sz;
-    char val[PVFS_MAX_XATTR_VALUELEN];
+	char key[PVFS_MAX_XATTR_NAMELEN];
+	int32_t key_sz;	/* int32_t for portable, fixed-size structures */
+	int32_t val_sz;
+	char val[PVFS_MAX_XATTR_VALUELEN];
 } PVFS_keyval_pair;
 
-/* object reference (uniquely refers to a single file, directory, or
+/*
+ * object reference (uniquely refers to a single file, directory, or
  * symlink).
  */
-typedef struct
-{
-    PVFS_handle handle;
-    PVFS_fs_id fs_id;
-    int32_t    __pad1;
+typedef struct {
+	PVFS_handle handle;
+	PVFS_fs_id fs_id;
+	int32_t __pad1;
 } PVFS_object_ref;
 
 /* pvfs2-sysint.h ***********************************************************/
-/** Describes attributes for a file, directory, or symlink. */
-struct PVFS_sys_attr_s
-{
-    PVFS_uid owner;
-    PVFS_gid group;
-    PVFS2_ALIGN_VAR(PVFS_permissions, perms);
-    PVFS_time atime;
-    PVFS_time mtime;
-    PVFS_time ctime;
-    PVFS_size size;
-    PVFS2_ALIGN_VAR(char *, link_target);/**< NOTE: caller must free if valid */
-    PVFS2_ALIGN_VAR(int32_t, dfile_count); /* Changed to int32_t so that size of structure does not change */
-    PVFS2_ALIGN_VAR(int32_t, distr_dir_servers_initial); /* Changed to int32_t so that size of structure does not change */
-    PVFS2_ALIGN_VAR(int32_t, distr_dir_servers_max); /* Changed to int32_t so that size of structure does not change */
-    PVFS2_ALIGN_VAR(int32_t, distr_dir_split_size); /* Changed to int32_t so that size of structure does not change */
-    PVFS2_ALIGN_VAR(uint32_t, mirror_copies_count);
-    PVFS2_ALIGN_VAR(char*, dist_name);   /**< NOTE: caller must free if valid */
-    PVFS2_ALIGN_VAR(char*, dist_params); /**< NOTE: caller must free if valid */
-    PVFS_size dirent_count;
-    PVFS_ds_type objtype;
-    PVFS_flags flags;
-    uint32_t mask;
-    PVFS_size blksize;
+/* Describes attributes for a file, directory, or symlink. */
+struct PVFS_sys_attr_s {
+	PVFS_uid owner;
+	PVFS_gid group;
+	PVFS2_ALIGN_VAR(PVFS_permissions, perms);
+	PVFS_time atime;
+	PVFS_time mtime;
+	PVFS_time ctime;
+	PVFS_size size;
+
+	/* NOTE: caller must free if valid */
+	PVFS2_ALIGN_VAR(char *, link_target); /* caller must free if valid */
+
+	/* Changed to int32_t so that size of structure does not change */
+	PVFS2_ALIGN_VAR(int32_t, dfile_count);
+
+	/* Changed to int32_t so that size of structure does not change */
+	PVFS2_ALIGN_VAR(int32_t, distr_dir_servers_initial);
+
+	/* Changed to int32_t so that size of structure does not change */
+	PVFS2_ALIGN_VAR(int32_t, distr_dir_servers_max);
+
+	/* Changed to int32_t so that size of structure does not change */
+	PVFS2_ALIGN_VAR(int32_t, distr_dir_split_size);
+
+	PVFS2_ALIGN_VAR(uint32_t, mirror_copies_count);
+
+	/* NOTE: caller must free if valid */
+	PVFS2_ALIGN_VAR(char *, dist_name);
+
+	/* NOTE: caller must free if valid */
+	PVFS2_ALIGN_VAR(char *, dist_params);
+
+	PVFS_size dirent_count;
+	PVFS_ds_type objtype;
+	PVFS_flags flags;
+	uint32_t mask;
+	PVFS_size blksize;
 };
 typedef struct PVFS_sys_attr_s PVFS_sys_attr;
 
 #define PVFS2_LOOKUP_LINK_NO_FOLLOW 0
 #define PVFS2_LOOKUP_LINK_FOLLOW    1
 
-
 /* pint-dev.h ***************************************************************/
 /* parameter structure used in PVFS_DEV_DEBUG ioctl command */
-typedef struct
-{
-  enum
-  {
-     KERNEL_MASK,
-     CLIENT_MASK,
-  } mask_type;
-  uint64_t mask_value;
+typedef struct {
+	enum {
+		KERNEL_MASK,
+		CLIENT_MASK,
+	} mask_type;
+	uint64_t mask_value;
 } dev_mask_info_t;
 
 /* pvfs2-util.h *************************************************************/
@@ -500,8 +496,8 @@ int32_t PVFS_util_translate_mode(int mode, int suid);
 #define ROOT_HANDLE_KEYSTR      "rh\0"
 #define SYMLINK_TARGET_KEYSTR   "st\0"
 
-#  define llu(x) (unsigned long long)(x)
-#  define lld(x) (long long)(x)
+#define llu(x) (unsigned long long)(x)
+#define lld(x) (long long)(x)
 
 /* pint-dev-shared.h ********************************************************/
 #define PVFS_DEV_MAGIC 'k'
@@ -518,36 +514,37 @@ int32_t PVFS_util_translate_mode(int mode, int suid);
 
 /* supported ioctls, codes are with respect to user-space */
 enum {
-PVFS_DEV_GET_MAGIC          = _IOW(PVFS_DEV_MAGIC , DEV_GET_MAGIC, int32_t),
-PVFS_DEV_GET_MAX_UPSIZE     = _IOW(PVFS_DEV_MAGIC , DEV_GET_MAX_UPSIZE, int32_t),
-PVFS_DEV_GET_MAX_DOWNSIZE   = _IOW(PVFS_DEV_MAGIC , DEV_GET_MAX_DOWNSIZE, int32_t),
-PVFS_DEV_MAP                =  _IO(PVFS_DEV_MAGIC , DEV_MAP),
-PVFS_DEV_REMOUNT_ALL        =  _IO(PVFS_DEV_MAGIC , DEV_REMOUNT_ALL),
-PVFS_DEV_DEBUG              =  _IOR(PVFS_DEV_MAGIC, DEV_DEBUG, int32_t),
-PVFS_DEV_MAXNR              =  DEV_MAX_NR,
+	PVFS_DEV_GET_MAGIC = _IOW(PVFS_DEV_MAGIC, DEV_GET_MAGIC, int32_t),
+	PVFS_DEV_GET_MAX_UPSIZE =
+	    _IOW(PVFS_DEV_MAGIC, DEV_GET_MAX_UPSIZE, int32_t),
+	PVFS_DEV_GET_MAX_DOWNSIZE =
+	    _IOW(PVFS_DEV_MAGIC, DEV_GET_MAX_DOWNSIZE, int32_t),
+	PVFS_DEV_MAP = _IO(PVFS_DEV_MAGIC, DEV_MAP),
+	PVFS_DEV_REMOUNT_ALL = _IO(PVFS_DEV_MAGIC, DEV_REMOUNT_ALL),
+	PVFS_DEV_DEBUG = _IOR(PVFS_DEV_MAGIC, DEV_DEBUG, int32_t),
+	PVFS_DEV_MAXNR = DEV_MAX_NR,
 };
 
-
-/* version number for use in communicating between kernel space and user
- *  * space
- *   */
+/*
+ * version number for use in communicating between kernel space and user
+ * space
+ */
 #define PVFS_KERNEL_PROTO_VERSION ((PVFS2_VERSION_MAJOR * 10000) + \
   (PVFS2_VERSION_MINOR * 100) + PVFS2_VERSION_SUB)
 
-
-/* describes memory regions to map in the PVFS_DEV_MAP ioctl.
+/*
+ * describes memory regions to map in the PVFS_DEV_MAP ioctl.
  * NOTE: See devpvfs2-req.c for 32 bit compat structure.
  * Since this structure has a variable-sized layout that is different
  * on 32 and 64 bit platforms, we need to normalize to a 64 bit layout
  * on such systems before servicing ioctl calls from user-space binaries
  * that may be 32 bit!
  */
-struct PVFS_dev_map_desc
-{
-    void     *ptr;
-    int32_t  total_size;
-    int32_t  size;
-    int32_t  count;
+struct PVFS_dev_map_desc {
+	void *ptr;
+	int32_t total_size;
+	int32_t size;
+	int32_t count;
 };
 
 /* gossip.h *****************************************************************/
@@ -561,16 +558,14 @@ extern uint64_t gossip_debug_mask;
 #define gossip_debug(mask, format, f...)                  \
 do {                                                      \
     if (gossip_debug_mask & mask)                         \
-    {                                                     \
         printk(format, ##f);                              \
-    }                                                     \
 } while(0)
 #endif /* GOSSIP_DISABLE_DEBUG */
 
 /* do file and line number printouts w/ the GNU preprocessor */
 #define gossip_ldebug(mask, format, f...)                  \
 do {                                                       \
-    gossip_debug(mask, "%s: " format, __func__ , ##f); \
+    gossip_debug(mask, "%s: " format, __func__ , ##f);     \
 } while(0)
 
 #define gossip_err printk

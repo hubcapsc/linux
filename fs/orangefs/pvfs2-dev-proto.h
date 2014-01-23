@@ -1,4 +1,3 @@
-
 /*
  * (C) 2001 Clemson University and The University of Chicago
  *
@@ -8,13 +7,14 @@
 #ifndef _PVFS2_DEV_PROTO_H
 #define _PVFS2_DEV_PROTO_H
 
-/* types and constants shared between user space and kernel space for
+/*
+ * types and constants shared between user space and kernel space for
  * device interaction using a common protocol
  */
 
-/************************************
+/*
  * valid pvfs2 kernel operation types
- ************************************/
+ */
 #define PVFS2_VFS_OP_INVALID           0xFF000000
 #define PVFS2_VFS_OP_FILE_IO           0xFF000001
 #define PVFS2_VFS_OP_LOOKUP            0xFF000002
@@ -43,16 +43,18 @@
 #define PVFS2_VFS_OP_READDIRPLUS       0xFF00EE03
 #define PVFS2_VFS_OP_FILE_IOX          0xFF00EE04
 
-/* Misc constants. Please retain them as multiples of 8!
+/*
+ * Misc constants. Please retain them as multiples of 8!
  * Otherwise 32-64 bit interactions will be messed up :)
  */
 #define PVFS2_NAME_LEN                 0x00000100
 #define PVFS2_MAX_DEBUG_STRING_LEN     0x00000400
 
-/* MAX_DIRENT_COUNT cannot be larger than PVFS_REQ_LIMIT_LISTATTR.
- * The value of PVFS_REQ_LIMIT_LISTATTR has been changed from 113 to 60 
- * to accomodate an attribute object with mirrored handles.             
- * MAX_DIRENT_COUNT is replaced by MAX_DIRENT_COUNT_READDIR and 
+/*
+ * MAX_DIRENT_COUNT cannot be larger than PVFS_REQ_LIMIT_LISTATTR.
+ * The value of PVFS_REQ_LIMIT_LISTATTR has been changed from 113 to 60
+ * to accomodate an attribute object with mirrored handles.
+ * MAX_DIRENT_COUNT is replaced by MAX_DIRENT_COUNT_READDIR and
  * MAX_DIRENT_COUNT_READDIRPLUS, since readdir doesn't trigger a listattr
  * but readdirplus might.
 */
@@ -92,16 +94,8 @@
 } while (0)
 
 struct read_write_x {
-    PVFS_offset off;
-    PVFS_size   len;
+	PVFS_offset off;
+	PVFS_size len;
 };
 
 #endif
-/*
- * Local variables:
- *  c-indent-level: 4
- *  c-basic-offset: 4
- * End:
- *
- * vim: ts=8 sts=4 sw=4 expandtab
- */
