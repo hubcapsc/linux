@@ -236,11 +236,16 @@ static ssize_t pvfs2_devreq_read(struct file *file,
 					len = -EFAULT;
 				}
 			} else {
-				gossip_err("Read buffer for trailer is too small (%ld as opposed to %ld)\n", (long)count, (long)len);
+				gossip_err("Read buffer for trailer is too small (%ld as opposed to %ld)\n",
+					(long)count,
+					(long)len);
 				len = -EIO;
 			}
 		} else {
-			gossip_err("cur_op: %p (op_linger %d), (op_linger_tmp %d), erroneous request list?\n", cur_op, cur_op->op_linger, cur_op->op_linger_tmp);
+			gossip_err("cur_op: %p (op_linger %d), (op_linger_tmp %d), erroneous request list?\n",
+				cur_op,
+				cur_op->op_linger,
+				cur_op->op_linger_tmp);
 			len = 0;
 		}
 	} else if (file->f_flags & O_NONBLOCK) {
@@ -274,7 +279,9 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 
 	/* Either there is a trailer or there isn't */
 	if (count != notrailer_count && count != (notrailer_count + 1)) {
-		gossip_err("Error: Number of iov vectors is (%ld) and notrailer count is %d\n", count, notrailer_count);
+		gossip_err("Error: Number of iov vectors is (%ld) and notrailer count is %d\n",
+			count,
+			notrailer_count);
 		return -EPROTO;
 	}
 	buffer = dev_req_alloc();
@@ -321,10 +328,8 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 		return -EPROTO;
 	}
 	if (proto_ver != PVFS_KERNEL_PROTO_VERSION) {
-		gossip_err
-		    ("Error: Device protocol version numbers do not match.\n");
-		gossip_err
-		    ("Please check that your pvfs2 module and pvfs2-client versions are consistent.\n");
+		gossip_err("Error: Device protocol version numbers do not match.\n");
+		gossip_err("Please check that your pvfs2 module and pvfs2-client versions are consistent.\n");
 		dev_req_release(buffer);
 		return -EPROTO;
 	}
@@ -470,7 +475,11 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 			    x->op != op ||
 			    x->bytes_to_be_copied <= 0) {
 				if (x)
-					gossip_debug(GOSSIP_DEV_DEBUG, "WARNING: pvfs2_iocb from op has invalid fields! %p, %p(%p), %d\n", x->iov, x->op, op, (int)x->bytes_to_be_copied);
+					gossip_debug(GOSSIP_DEV_DEBUG, "WARNING: pvfs2_iocb from op has invalid fields! %p, %p(%p), %d\n",
+						x->iov,
+						x->op,
+						op,
+						(int)x->bytes_to_be_copied);
 				else
 					gossip_debug(GOSSIP_DEV_DEBUG, "WARNING: cannot retrieve the pvfs2_iocb pointer from op!\n");
 				/* Most likely means that it was cancelled! */
@@ -501,7 +510,10 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 				spin_lock(&op->lock);
 				/* we tell VFS that the op is now serviced! */
 				set_op_state_serviced(op);
-				gossip_debug(GOSSIP_DEV_DEBUG, "Setting state of %p to %d [SERVICED]\n", op, op->op_state);
+				gossip_debug(GOSSIP_DEV_DEBUG,
+					"Setting state of %p to %d [SERVICED]\n",
+					op,
+					op->op_state);
 				x->bytes_copied = bytes_copied;
 				/*
 				 * call aio_complete to finish the operation
@@ -662,7 +674,10 @@ static inline long check_ioctl_command(unsigned int command)
 {
 	/* Check for valid ioctl codes */
 	if (_IOC_TYPE(command) != PVFS_DEV_MAGIC) {
-		gossip_err("device ioctl magic numbers don't match! Did you rebuild pvfs2-client-core/libpvfs2? [cmd %x, magic %x != %x]\n", command, _IOC_TYPE(command), PVFS_DEV_MAGIC);
+		gossip_err("device ioctl magic numbers don't match! Did you rebuild pvfs2-client-core/libpvfs2? [cmd %x, magic %x != %x]\n",
+			command,
+			_IOC_TYPE(command),
+			PVFS_DEV_MAGIC);
 		return -EINVAL;
 	}
 	/* and valid ioctl commands */
@@ -771,11 +786,15 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 				mask_value,
 				kernel_debug_string);
 			gossip_debug_mask = mask_info.mask_value;
-			pr_info("PVFS: kernel debug mask has been modified to \"%s\" (0x%08llx)\n", kernel_debug_string, llu(gossip_debug_mask));
+			pr_info("PVFS: kernel debug mask has been modified to \"%s\" (0x%08llx)\n",
+				kernel_debug_string,
+				llu(gossip_debug_mask));
 		} else if (mask_info.mask_type == CLIENT_MASK) {
 			ret = PVFS_proc_mask_to_eventlog(mask_info.mask_value,
 							 client_debug_string);
-			pr_info("PVFS: client debug mask has been modified to \"%s\" (0x%08llx)\n", client_debug_string, llu(mask_info.mask_value));
+			pr_info("PVFS: client debug mask has been modified to \"%s\" (0x%08llx)\n",
+				client_debug_string,
+				llu(mask_info.mask_value));
 		} else {
 			gossip_lerr("Invalid mask type....\n");
 			return -EINVAL;

@@ -17,19 +17,18 @@ static uint64_t next_tag_value;
 static DEFINE_SPINLOCK(next_tag_value_lock);
 
 /* the pvfs2 memory caches */
-typedef struct kmem_cache pvfs2_kmem_cache_t;
 
 /* a cache for pvfs2 upcall/downcall operations */
-static pvfs2_kmem_cache_t *op_cache = NULL;
+static struct kmem_cache *op_cache;
 
 /* a cache for device (/dev/pvfs2-req) communication */
-static pvfs2_kmem_cache_t *dev_req_cache = NULL;
+static struct kmem_cache *dev_req_cache;
 
 /* a cache for pvfs2-inode objects (i.e. pvfs2 inode private data) */
-static pvfs2_kmem_cache_t *pvfs2_inode_cache = NULL;
+static struct kmem_cache *pvfs2_inode_cache;
 
 /* a cache for pvfs2_kiocb objects (i.e pvfs2 iocb structures ) */
-static pvfs2_kmem_cache_t *pvfs2_kiocb_cache = NULL;
+static struct kmem_cache *pvfs2_kiocb_cache;
 
 static int pvfs_kmem_cache_destroy(void *x)
 {
@@ -288,8 +287,7 @@ int pvfs2_inode_cache_initialize(void)
 int pvfs2_inode_cache_finalize(void)
 {
 	if (!list_empty(&pvfs2_inode_list)) {
-		gossip_err
-		    ("pvfs2_inode_cache_finalize: WARNING: releasing unreleased pvfs2 inode objects!\n");
+		gossip_err("pvfs2_inode_cache_finalize: WARNING: releasing unreleased pvfs2 inode objects!\n");
 		while (pvfs2_inode_list.next != &pvfs2_inode_list) {
 			pvfs2_inode_t *pinode =
 			    list_entry(pvfs2_inode_list.next,
@@ -323,7 +321,7 @@ pvfs2_inode_t *pvfs2_inode_alloc(void)
 		return NULL;
 	}
 
- 	/*
+	/*
 	 * We want to clear everything except for rw_semaphore and the
 	 * vfs_inode.
 	 */
@@ -340,7 +338,7 @@ pvfs2_inode_t *pvfs2_inode_alloc(void)
 	return pvfs2_inode;
 }
 
-void pvfs2_inode_release(pvfs2_inode_t * pinode)
+void pvfs2_inode_release(pvfs2_inode_t *pinode)
 {
 	if (pinode) {
 		del_from_pinode_list(pinode);

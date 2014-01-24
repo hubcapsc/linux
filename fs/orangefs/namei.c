@@ -267,7 +267,7 @@ static int pvfs2_link(struct dentry *old_dentry,
 		      struct inode *dir,
 		      struct dentry *dentry)
 {
-	return (-EOPNOTSUPP);
+	return -EOPNOTSUPP;
 }
 
 /*
@@ -280,7 +280,7 @@ static int pvfs2_mknod(struct inode *dir,
 		       umode_t mode,
 		       dev_t rdev)
 {
-	return (-EOPNOTSUPP);
+	return -EOPNOTSUPP;
 }
 
 static int pvfs2_symlink(struct inode *dir,
@@ -325,11 +325,11 @@ static int pvfs2_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 				   &ret);
 
 	if (inode) {
-               /*
-		* NOTE: we have no good way to keep nlink consistent for
-		* directories across clients; keep constant at 1  -Phil
-                * dir->i_nlink--;
-                */
+		/*
+		 * NOTE: we have no good way to keep nlink consistent for
+		 * directories across clients; keep constant at 1  -Phil
+		 * dir->i_nlink--;
+		 */
 
 		pvfs2_inode_t *dir_pinode = PVFS2_I(dir);
 
@@ -351,11 +351,11 @@ static int pvfs2_rmdir(struct inode *dir, struct dentry *dentry)
 	if (ret == 0) {
 		pvfs2_inode_t *dir_pinode = PVFS2_I(dir);
 		pvfs2_i_drop_nlink(inode);
-                /*
+		/*
 		 * NOTE: we have no good way to keep nlink consistent for
 		 * directories across clients; keep constant at 1  -Phil
-                 * dir->i_nlink--;
-                 */
+		 * dir->i_nlink--;
+		 */
 
 		SetMtimeFlag(dir_pinode);
 		pvfs2_update_inode_time(dir);
@@ -395,8 +395,8 @@ static int pvfs2_rename(struct inode *old_dir,
 	 * across clients; keep constant at 1  -Phil
 	 */
 	if (are_directories && (new_dir->i_nlink >= PVFS2_LINK_MAX)) {
-		gossip_err("pvfs2_rename: directory %s surpassed "
-			   "PVFS2_LINK_MAX\n",
+		gossip_err("%s: directory %s surpassed PVFS2_LINK_MAX\n",
+			   __func__,
 			   new_dentry->d_name.name);
 		return -EMLINK;
 	}
@@ -445,7 +445,7 @@ static int pvfs2_rename(struct inode *old_dir,
 		PVFS2_NAME_LEN);
 
 	ret = service_operation(new_op,
-			        "pvfs2_rename",
+				"pvfs2_rename",
 				get_interruptible_flag(old_dentry->d_inode));
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
@@ -459,9 +459,8 @@ static int pvfs2_rename(struct inode *old_dir,
 		 * NOTE: we have no good way to keep nlink consistent for
 		 * directories across clients; keep constant at 1  -Phil
 		 */
-		if (are_directories) {
+		if (are_directories)
 			new_dentry->d_inode->i_nlink--;
-		}
 #endif
 	}
 #if 0

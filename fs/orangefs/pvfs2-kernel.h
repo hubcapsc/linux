@@ -194,6 +194,15 @@ enum PVFS_async_io_type {
 #define PVFS2_XATTR_NAME_DEFAULT_PREFIX ""
 
 /* these functions are defined in pvfs2-utils.c */
+uint64_t PVFS_proc_debug_eventlog_to_mask(const char *);
+uint64_t PVFS_proc_kmod_eventlog_to_mask(const char *event_logging);
+int PVFS_proc_kmod_mask_to_eventlog(uint64_t mask, char *debug_string);
+int PVFS_proc_mask_to_eventlog(uint64_t mask, char *debug_string);
+
+/* external references */
+extern char kernel_debug_string[];
+
+/* these functions are defined in pvfs2-utils.c */
 int PVFS_proc_kmod_mask_to_eventlog(uint64_t mask, char *debug_string);
 int PVFS_proc_mask_to_eventlog(uint64_t mask, char *debug_string);
 
@@ -832,10 +841,10 @@ extern spinlock_t htable_ops_in_progress_lock;
 extern int hash_table_size;
 
 extern struct file_system_type pvfs2_fs_type;
-extern struct address_space_operations pvfs2_address_operations;
+extern const struct address_space_operations pvfs2_address_operations;
 extern struct backing_dev_info pvfs2_backing_dev_info;
 extern struct inode_operations pvfs2_file_inode_operations;
-extern struct file_operations pvfs2_file_operations;
+extern const struct file_operations pvfs2_file_operations;
 extern struct inode_operations pvfs2_symlink_inode_operations;
 extern struct inode_operations pvfs2_dir_inode_operations;
 extern const struct file_operations pvfs2_dir_operations;

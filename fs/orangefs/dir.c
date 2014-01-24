@@ -240,7 +240,8 @@ get_new_buffer_index:
 				    new_op->downcall.trailer_buf,
 				    buffer_index);
 	if (bytes_decoded < 0) {
-		gossip_err("pvfs2_readdir: Could not decode trailer buffer into a readdir response %d\n", ret);
+		gossip_err("pvfs2_readdir: Could not decode trailer buffer into a readdir response %d\n",
+			ret);
 		ret = bytes_decoded;
 		readdir_index_put(buffer_index);
 		op_release(new_op);
@@ -248,7 +249,9 @@ get_new_buffer_index:
 	}
 
 	if (bytes_decoded != new_op->downcall.trailer_size) {
-		gossip_err("pvfs2_readdir: # bytes decoded (%ld) != trailer size (%ld)\n", bytes_decoded, (long)new_op->downcall.trailer_size);
+		gossip_err("pvfs2_readdir: # bytes decoded (%ld) != trailer size (%ld)\n",
+			bytes_decoded,
+			(long)new_op->downcall.trailer_size);
 		ret = -EINVAL;
 		readdir_handle_dtor(&rhandle);
 		op_release(new_op);
@@ -351,7 +354,9 @@ get_new_buffer_index:
 			pos -= (i - 1);
 			ctx->pos -= (i - 1);
 		}
-		gossip_debug(GOSSIP_DIR_DEBUG, "at least one dir_emit call failed. Setting ctx->pos to: %lld\n", lld(ctx->pos));
+		gossip_debug(GOSSIP_DIR_DEBUG,
+			"at least one dir_emit call failed. Setting ctx->pos to: %lld\n",
+			lld(ctx->pos));
 	}
 
 	/*

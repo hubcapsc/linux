@@ -18,15 +18,6 @@
 
 #define DEBUG_HELP_STRING_SIZE 4096
 
-/* these functions are defined in pvfs2-utils.c */
-uint64_t PVFS_proc_debug_eventlog_to_mask(const char *);
-uint64_t PVFS_proc_kmod_eventlog_to_mask(const char *event_logging);
-int PVFS_proc_kmod_mask_to_eventlog(uint64_t mask, char *debug_string);
-int PVFS_proc_mask_to_eventlog(uint64_t mask, char *debug_string);
-
-/* external references */
-extern char kernel_debug_string[];
-
 /*
  * global variables declared here
  */
@@ -146,8 +137,7 @@ static int __init pvfs2_init(void)
 		kernel_mask_set_mod_init = true;
 
 	/* print information message to the system log */
-	printk(KERN_INFO
-	       "pvfs2: pvfs2_init called with debug mask: \"%s\" (0x%08llx)\n",
+	pr_info("pvfs2: pvfs2_init called with debug mask: \"%s\" (0x%08llx)\n",
 	       kernel_debug_string,
 	       gossip_debug_mask);
 
@@ -200,7 +190,7 @@ static int __init pvfs2_init(void)
 	ret = bdi_init(&pvfs2_backing_dev_info);
 
 	if (ret)
-		return (ret);
+		return ret;
 
 	if (op_timeout_secs < 0)
 		op_timeout_secs = 0;
@@ -209,20 +199,25 @@ static int __init pvfs2_init(void)
 		slot_timeout_secs = 0;
 
 	/* initialize global book keeping data structures */
-	if ((ret = op_cache_initialize()) < 0)
+	ret = op_cache_initialize();
+	if (ret < 0)
 		goto err;
 
-	if ((ret = dev_req_cache_initialize()) < 0)
+	ret = dev_req_cache_initialize();
+	if (ret < 0)
 		goto cleanup_op;
 
-	if ((ret = pvfs2_inode_cache_initialize()) < 0)
+	ret = pvfs2_inode_cache_initialize();
+	if (ret < 0)
 		goto cleanup_req;
 
-	if ((ret = kiocb_cache_initialize()) < 0)
+	ret = kiocb_cache_initialize();
+	if (ret  < 0)
 		goto cleanup_inode;
 
 	/* Initialize the pvfsdev subsystem. */
-	if ((ret = pvfs2_dev_init()) < 0) {
+	ret = pvfs2_dev_init();
+	if (ret < 0) {
 		gossip_err("pvfs2: could not initialize device subsystem %d!\n",
 			   ret);
 		goto cleanup_kiocb;
@@ -243,16 +238,17 @@ static int __init pvfs2_init(void)
 	for (i = 0; i < hash_table_size; i++)
 		INIT_LIST_HEAD(&htable_ops_in_progress[i]);
 
-	if ((ret = fsid_key_table_initialize()) < 0)
+	ret = fsid_key_table_initialize();
+	if (ret < 0)
 		goto cleanup_progress_table;
 
 	pvfs2_proc_initialize();
 	ret = register_filesystem(&pvfs2_fs_type);
-
 	if (ret == 0) {
-		printk("pvfs2: module version %s loaded\n", PVFS2_VERSION);
+		pr_info("pvfs2: module version %s loaded\n", PVFS2_VERSION);
 		return 0;
 	}
+
 	pvfs2_proc_finalize();
 	fsid_key_table_finalize();
 
@@ -320,7 +316,7 @@ static void __exit pvfs2_exit(void)
 
 	bdi_destroy(&pvfs2_backing_dev_info);
 
-	printk("pvfs2: module version %s unloaded\n", PVFS2_VERSION);
+	pr_info("pvfs2: module version %s unloaded\n", PVFS2_VERSION);
 }
 
 /*

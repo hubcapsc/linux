@@ -398,7 +398,8 @@ int pvfs2_init_acl(struct inode *inode, struct inode *dir)
 		if (S_ISDIR(inode->i_mode)) {
 			error = pvfs2_set_acl(inode, ACL_TYPE_DEFAULT, acl);
 			if (error) {
-				gossip_err("pvfs2_set_acl (default) directory failed with error %d\n", error);
+				gossip_err("pvfs2_set_acl (default) directory failed with error %d\n",
+					error);
 				ClearModeFlag(pvfs2_inode);
 				goto cleanup;
 			}

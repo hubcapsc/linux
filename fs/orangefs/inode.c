@@ -76,12 +76,17 @@ static int pvfs2_readpages(struct file *file,
 	gossip_debug(GOSSIP_INODE_DEBUG, "pvfs2_readpages called\n");
 
 	for (page_idx = 0; page_idx < nr_pages; page_idx++) {
-	      struct page *page;
-	      page = list_entry(pages->prev, struct page, lru);
-	      list_del(&page->lru);
-	      if (!add_to_page_cache(page, mapping, page->index, GFP_KERNEL)) {
+		struct page *page;
+		page = list_entry(pages->prev, struct page, lru);
+		list_del(&page->lru);
+		if (!add_to_page_cache(page,
+				       mapping,
+				       page->index,
+				       GFP_KERNEL)) {
 			ret = read_one_page(page);
-			gossip_debug(GOSSIP_INODE_DEBUG, "failure adding page to cache, read_one_page returned: %d\n", ret);
+			gossip_debug(GOSSIP_INODE_DEBUG,
+				"failure adding page to cache, read_one_page returned: %d\n",
+				ret);
 	      } else {
 			page_cache_release(page);
 	      }
@@ -121,7 +126,7 @@ struct backing_dev_info pvfs2_backing_dev_info = {
 };
 
 /** PVFS2 implementation of address space operations */
-struct address_space_operations pvfs2_address_operations = {
+const struct address_space_operations pvfs2_address_operations = {
 	.readpage = pvfs2_readpage,
 	.readpages = pvfs2_readpages,
 	.invalidatepage = pvfs2_invalidatepage,
