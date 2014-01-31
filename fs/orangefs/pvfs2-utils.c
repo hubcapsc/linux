@@ -250,8 +250,8 @@ int copy_attributes_to_inode(struct inode *inode,
 			ret = 0;
 			break;
 		default:
-			gossip_err
-			    ("pvfs2:copy_attributes_to_inode: got invalid attribute type %x\n", attrs->objtype);
+			gossip_err("pvfs2:copy_attributes_to_inode: got invalid attribute type %x\n",
+				attrs->objtype);
 		}
 		gossip_debug(GOSSIP_UTILS_DEBUG,
 			     "pvfs2: copy_attributes_to_inode: setting i_mode to %o, i_size to %lu\n",
@@ -290,8 +290,7 @@ static inline int copy_attributes_from_inode(struct inode *inode,
 	umode_t tmp_mode;
 
 	if (!iattr || !inode || !attrs) {
-		gossip_err("NULL iattr (%p), inode (%p), attrs "
-			   "(%p) in copy_attributes_from_inode!\n",
+		gossip_err("NULL iattr (%p), inode (%p), attrs (%p) in copy_attributes_from_inode!\n",
 			   iattr,
 			   inode,
 			   attrs);
@@ -329,9 +328,9 @@ static inline int copy_attributes_from_inode(struct inode *inode,
 			attrs->mask |= PVFS_ATTR_SYS_MTIME_SET;
 		}
 	}
-	if (iattr->ia_valid & ATTR_CTIME) {
+	if (iattr->ia_valid & ATTR_CTIME)
 		attrs->mask |= PVFS_ATTR_SYS_CTIME;
-	}
+
 	/*
 	 * PVFS2 cannot set size with a setattr operation.  Probably not likely
 	 * to be requested through the VFS, but just in case, don't worry about
@@ -351,14 +350,14 @@ static inline int copy_attributes_from_inode(struct inode *inode,
 			} else {
 				gossip_debug(GOSSIP_UTILS_DEBUG,
 					     "User attempted to set sticky bit on non-root directory; returning EINVAL.\n");
-				return (-EINVAL);
+				return -EINVAL;
 			}
 		}
 
 		if (tmp_mode & (S_ISUID)) {
 			gossip_debug(GOSSIP_UTILS_DEBUG,
 				     "Attempting to set setuid bit (not supported); returning EINVAL.\n");
-			return (-EINVAL);
+			return -EINVAL;
 		}
 
 		convert_attribute_mode_to_pvfs_sys_attr(tmp_mode,
@@ -517,7 +516,7 @@ int pvfs2_inode_setattr(struct inode *inode, struct iattr *iattr)
 			       iattr);
 		if (ret < 0) {
 			op_release(new_op);
-			return (ret);
+			return ret;
 		}
 
 		ret = service_operation(new_op,
@@ -597,7 +596,7 @@ int pvfs2_flush_inode(struct inode *inode)
 	if (!((inode->i_flags & S_NOATIME) ||
 	      (inode->i_sb->s_flags & MS_NOATIME) ||
 	      ((inode->i_sb->s_flags & MS_NODIRATIME) &&
-	        S_ISDIR(inode->i_mode)))
+			S_ISDIR(inode->i_mode)))
 	     && atime_flag)
 		wbattr.ia_valid |= ATTR_ATIME;
 
@@ -855,8 +854,7 @@ int pvfs2_inode_setxattr(struct inode *inode,
 	if (size < 0 ||
 	    size >= PVFS_MAX_XATTR_VALUELEN ||
 	    flags < 0) {
-		gossip_err("pvfs2_inode_setxattr: bogus values of size(%d),"
-			   " flags(%d)\n",
+		gossip_err("pvfs2_inode_setxattr: bogus values of size(%d), flags(%d)\n",
 			   (int)size,
 			   flags);
 		return -EINVAL;
@@ -1078,9 +1076,9 @@ int pvfs2_inode_listxattr(struct inode *inode, char *buffer, size_t size)
 			up_read(&pvfs2_inode->xattr_sem);
 			return ret;
 		}
-		if (buffer && size > 0) {
+		if (buffer && size > 0)
 			memset(buffer, 0, size);
-		}
+
 try_again:
 		new_op->upcall.req.listxattr.refn = pvfs2_inode->refn;
 		new_op->upcall.req.listxattr.token = token;
@@ -1098,7 +1096,7 @@ try_again:
 		     * memory rather than us...
 		     */
 		    total = new_op->downcall.resp.listxattr.returned_count *
-		            PVFS_MAX_XATTR_NAMELEN;
+			    PVFS_MAX_XATTR_NAMELEN;
 		    goto done;
 		  }
 		  length = new_op->downcall.resp.listxattr.keylen;
@@ -1106,7 +1104,7 @@ try_again:
 		    goto done;
 		  } else {
 		    int key_size = 0;
-	 	    /*
+		    /*
 		     * check to see how much can be fit in the
 		     * buffer. fit only whole keys
 		     */
@@ -1114,32 +1112,32 @@ try_again:
 			 i < new_op->downcall.resp.listxattr.returned_count;
 			 i++) {
 		      if (total + new_op->downcall.resp.listxattr.lengths[i] <=
-                          size) {
+			  size) {
 			/* Since many dumb programs try to setxattr()
 			 * on our reserved xattrs this is a feeble
 			 * attempt at defeating those by not listing
 			 * them in the output of listxattr.. sigh
 			 */
 
-		        if (is_reserved_key(
-                             new_op->downcall.resp.listxattr.key + key_size,
+			if (is_reserved_key(
+			     new_op->downcall.resp.listxattr.key + key_size,
 			     new_op->downcall.resp.listxattr.lengths[i]) == 0) {
 			  gossip_debug(GOSSIP_XATTR_DEBUG,
 			      "Copying key %d -> %s\n",
 			      i,
 			      new_op->downcall.resp.listxattr.key + key_size);
 			  memcpy(buffer + total,
-			         new_op->downcall.resp.listxattr.key + key_size,
-			         new_op->downcall.resp.listxattr.lengths[i]);
+			  new_op->downcall.resp.listxattr.key + key_size,
+				 new_op->downcall.resp.listxattr.lengths[i]);
 			  total += new_op->downcall.resp.listxattr.lengths[i];
 			  count_keys++;
-		        } else {
+			} else {
 			  gossip_debug(GOSSIP_XATTR_DEBUG,
 			       "[RESERVED] key %d -> %s\n",
 			       i,
 			       new_op->downcall.resp.listxattr.key + key_size);
-		        }
-		        key_size += new_op->downcall.resp.listxattr.lengths[i];
+			}
+			key_size += new_op->downcall.resp.listxattr.lengths[i];
 		      } else {
 			goto done;
 		      }
@@ -1190,8 +1188,7 @@ static inline struct inode *pvfs2_create_file(struct inode *dir,
 	    parent->refn.fs_id != PVFS_FS_ID_NULL) {
 		new_op->upcall.req.create.parent_refn = parent->refn;
 	} else {
-		gossip_lerr("Critical error: i_ino cannot be relied on "
-			    "when using iget4/5\n");
+		gossip_lerr("Critical error: i_ino cannot be relied on when using iget4/5\n");
 		*error_code = -EINVAL;
 		op_release(new_op);
 		return NULL;
@@ -1273,8 +1270,7 @@ static inline struct inode *pvfs2_create_dir(struct inode *dir,
 	    && parent->refn.fs_id != PVFS_FS_ID_NULL) {
 		new_op->upcall.req.mkdir.parent_refn = parent->refn;
 	} else {
-		gossip_lerr
-		    ("Critical error: i_ino cannot be relied on when using iget4/5\n");
+		gossip_lerr("Critical error: i_ino cannot be relied on when using iget4/5\n");
 		*error_code = -EINVAL;
 		op_release(new_op);
 		return NULL;
@@ -1361,8 +1357,7 @@ static inline struct inode *pvfs2_create_symlink(struct inode *dir,
 	    && parent->refn.fs_id != PVFS_FS_ID_NULL) {
 		new_op->upcall.req.sym.parent_refn = parent->refn;
 	} else {
-		gossip_lerr
-		    ("Critical error: i_ino cannot be relied on when using iget4/5\n");
+		gossip_lerr("Critical error: i_ino cannot be relied on when using iget4/5\n");
 		*error_code = -EINVAL;
 		op_release(new_op);
 		return NULL;
@@ -1453,7 +1448,7 @@ struct inode *pvfs2_create_entry(struct inode *dir,
 	if (dir && dentry && error_code) {
 		if (strlen(dentry->d_name.name) > (PVFS2_NAME_LEN - 1)) {
 			*error_code = -ENAMETOOLONG;
-			return (NULL);
+			return NULL;
 		}
 
 		switch (op_type) {
@@ -1501,8 +1496,7 @@ int pvfs2_remove_entry(struct inode *dir, struct dentry *dentry)
 		    && parent->refn.fs_id != PVFS_FS_ID_NULL) {
 			new_op->upcall.req.remove.parent_refn = parent->refn;
 		} else {
-			gossip_lerr
-			    ("Critical error: i_ino cannot be relied on when using iget4/5\n");
+			gossip_lerr("Critical error: i_ino cannot be relied on when using iget4/5\n");
 			op_release(new_op);
 			return -ENOMEM;
 		}
@@ -1526,8 +1520,8 @@ int pvfs2_truncate_inode(struct inode *inode, loff_t size)
 	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
 	pvfs2_kernel_op_t *new_op = NULL;
 
-	gossip_debug(GOSSIP_UTILS_DEBUG, "pvfs2: pvfs2_truncate_inode %llu: "
-		     "Handle is %llu | fs_id %d | size is %lu\n",
+	gossip_debug(GOSSIP_UTILS_DEBUG,
+		     "pvfs2: pvfs2_truncate_inode %llu: Handle is %llu | fs_id %d | size is %lu\n",
 		     llu(get_handle_from_ino(inode)),
 		     llu(pvfs2_inode->refn.handle),
 		     pvfs2_inode->refn.fs_id,
@@ -1621,7 +1615,7 @@ int pvfs2_cancel_op_in_progress(uint64_t tag)
 		     ret);
 
 	op_release(new_op);
-	return (ret);
+	return ret;
 }
 
 /*
@@ -1738,7 +1732,7 @@ int pvfs2_normalize_to_errno(PVFS_error error_code)
 	} else if (IS_PVFS_ERROR(-error_code)) {
 		error_code = -PVFS_ERROR_TO_ERRNO(-error_code);
 	}
-	return (error_code);
+	return error_code;
 }
 
 #define NUM_MODES 11
@@ -1772,9 +1766,9 @@ int32_t PVFS_util_translate_mode(int mode, int suid)
 
 static char *pvfs2_strtok(char *s, const char *toks)
 {
-        /* original string */
+	/* original string */
 	static char *in_string_p;
-        /* starting value of in_string_p during this iteration. */
+	/* starting value of in_string_p during this iteration. */
 	char *this_string_p;
 	/* # of tokens */
 	uint32_t toks_len = strlen(toks);
@@ -1799,17 +1793,17 @@ static char *pvfs2_strtok(char *s, const char *toks)
 				/*token found => end-of-word */
 				*in_string_p = 0;
 				in_string_p++;
-				return (this_string_p);
+				return this_string_p;
 			}
 
 	if (*this_string_p == 0)
-		return (NULL);
+		return NULL;
 
-	return (this_string_p);
+	return this_string_p;
 }
 
 /*convert 64-bit debug mask into a readable string of keywords*/
-static int proc_mask_to_debug(__keyword_mask_t *mask_map,
+static int proc_mask_to_debug(struct __keyword_mask_t *mask_map,
 			      int num_mask_map,
 			      uint64_t mask,
 			      char *debug_string)
@@ -1822,19 +1816,19 @@ static int proc_mask_to_debug(__keyword_mask_t *mask_map,
 	for (i = 0; i < num_mask_map; i++) {
 		if ((index + strlen(mask_map[i].keyword)) >=
 		    PVFS2_MAX_DEBUG_STRING_LEN)
-			return (0);
+			return 0;
 
 		switch (mask_map[i].mask_val) {
 		case GOSSIP_NO_DEBUG:
 			if (mask == GOSSIP_NO_DEBUG) {
 				strcpy(debug_string, mask_map[i].keyword);
-				return (0);
+				return 0;
 			}
 			break;
 		case GOSSIP_MAX_DEBUG:
 			if (mask == GOSSIP_MAX_DEBUG) {
 				strcpy(debug_string, mask_map[i].keyword);
-				return (0);
+				return 0;
 			}
 			break;
 		default:
@@ -1860,10 +1854,10 @@ static int proc_mask_to_debug(__keyword_mask_t *mask_map,
 		}
 	}
 
-	return (0);
+	return 0;
 }
 
-static uint64_t proc_debug_to_mask(__keyword_mask_t *mask_map,
+static uint64_t proc_debug_to_mask(struct __keyword_mask_t *mask_map,
 				   int num_mask_map,
 				   const char *event_logging)
 {
@@ -1880,7 +1874,7 @@ static uint64_t proc_debug_to_mask(__keyword_mask_t *mask_map,
 		slen = strlen(event_logging);
 		s = kmalloc(slen + 1, GFP_KERNEL);
 		if (!s)
-			return (-ENOMEM);
+			return -ENOMEM;
 		memset(s, 0, slen + 1);
 		memcpy(s, event_logging, slen);
 
@@ -1938,17 +1932,17 @@ uint64_t PVFS_proc_kmod_eventlog_to_mask(const char *event_logging)
 
 int PVFS_proc_kmod_mask_to_eventlog(uint64_t mask, char *debug_string)
 {
-	return (proc_mask_to_debug(s_kmod_keyword_mask_map,
-				   num_kmod_keyword_mask_map,
-				   mask,
-				   debug_string));
+	return proc_mask_to_debug(s_kmod_keyword_mask_map,
+				  num_kmod_keyword_mask_map,
+				  mask,
+				  debug_string);
 }
 
 int PVFS_proc_mask_to_eventlog(uint64_t mask, char *debug_string)
 {
 
-	return (proc_mask_to_debug(s_keyword_mask_map,
-				   num_keyword_mask_map,
-				   mask,
-				   debug_string));
+	return proc_mask_to_debug(s_keyword_mask_map,
+				  num_keyword_mask_map,
+				  mask,
+				  debug_string);
 }

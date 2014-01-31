@@ -87,16 +87,21 @@ sizeof(uint64_t) + sizeof(pvfs2_downcall_t))
 #define MSECS_TO_JIFFIES(ms) (((ms)*HZ+999)/1000)
 #endif
 
-#define MAX_ALIGNED_DEV_REQ_UPSIZE                  \
-(MAX_DEV_REQ_UPSIZE +                               \
-((((MAX_DEV_REQ_UPSIZE / (BITS_PER_LONG_DIV_8)) *   \
-   (BITS_PER_LONG_DIV_8)) +                         \
-    (BITS_PER_LONG_DIV_8)) - MAX_DEV_REQ_UPSIZE))
-#define MAX_ALIGNED_DEV_REQ_DOWNSIZE                \
-(MAX_DEV_REQ_DOWNSIZE +                             \
-((((MAX_DEV_REQ_DOWNSIZE / (BITS_PER_LONG_DIV_8)) * \
-   (BITS_PER_LONG_DIV_8)) +                         \
-    (BITS_PER_LONG_DIV_8)) - MAX_DEV_REQ_DOWNSIZE))
+#define MAX_ALIGNED_DEV_REQ_UPSIZE				\
+		(MAX_DEV_REQ_UPSIZE +				\
+			((((MAX_DEV_REQ_UPSIZE /		\
+				(BITS_PER_LONG_DIV_8)) *	\
+				(BITS_PER_LONG_DIV_8)) +	\
+			    (BITS_PER_LONG_DIV_8)) -		\
+			MAX_DEV_REQ_UPSIZE))
+
+#define MAX_ALIGNED_DEV_REQ_DOWNSIZE				\
+		(MAX_DEV_REQ_DOWNSIZE +				\
+			((((MAX_DEV_REQ_DOWNSIZE /		\
+				(BITS_PER_LONG_DIV_8)) *	\
+				(BITS_PER_LONG_DIV_8)) +	\
+			    (BITS_PER_LONG_DIV_8)) -		\
+			MAX_DEV_REQ_DOWNSIZE))
 
 /*
  * valid pvfs2 kernel operation states
@@ -126,25 +131,25 @@ enum pvfs2_vfs_op_states {
 #define op_state_serviced(op)    ((op)->op_state & OP_VFS_STATE_SERVICED)
 #define op_state_purged(op)      ((op)->op_state & OP_VFS_STATE_PURGED)
 
-#define get_op(op) \
-    do { \
-        atomic_inc(&(op)->aio_ref_count); \
-        gossip_debug(GOSSIP_CACHE_DEBUG, \
-		     "(get) Alloced OP (%p:%llu)\n", \
-		     op, \
-		     llu((op)->tag)); \
-    } while(0)
+#define get_op(op)					\
+	do {						\
+		atomic_inc(&(op)->aio_ref_count);	\
+		gossip_debug(GOSSIP_CACHE_DEBUG,	\
+			"(get) Alloced OP (%p:%llu)\n",	\
+			op,				\
+			llu((op)->tag));		\
+	} while (0)
 
-#define put_op(op) \
-    do { \
-        if (atomic_sub_and_test(1, &(op)->aio_ref_count) == 1) { \
-            gossip_debug(GOSSIP_CACHE_DEBUG, \
-			 "(put) Releasing OP (%p:%llu)\n", \
-			 op, \
-			 llu((op)->tag)); \
-            op_release(op); \
-        } \
-    } while(0)
+#define put_op(op)							\
+	do {								\
+		if (atomic_sub_and_test(1, &(op)->aio_ref_count) == 1) {  \
+			gossip_debug(GOSSIP_CACHE_DEBUG,		\
+				"(put) Releasing OP (%p:%llu)\n",	\
+				op,					\
+				llu((op)->tag));			\
+			op_release(op);					\
+			}						\
+	} while (0)
 
 #define op_wait(op) (atomic_read(&(op)->aio_ref_count) <= 2 ? 0 : 1)
 
@@ -199,6 +204,12 @@ uint64_t PVFS_proc_kmod_eventlog_to_mask(const char *event_logging);
 int PVFS_proc_kmod_mask_to_eventlog(uint64_t mask, char *debug_string);
 int PVFS_proc_mask_to_eventlog(uint64_t mask, char *debug_string);
 
+/* these functions are defined in pvfs2-utils.c */
+uint64_t PVFS_proc_debug_eventlog_to_mask(const char *);
+uint64_t PVFS_proc_kmod_eventlog_to_mask(const char *event_logging);
+int PVFS_proc_kmod_mask_to_eventlog(uint64_t mask, char *debug_string);
+int PVFS_proc_mask_to_eventlog(uint64_t mask, char *debug_string);
+
 /* external references */
 extern char kernel_debug_string[];
 
@@ -231,7 +242,7 @@ static inline int convert_to_internal_xattr_flags(int setxattr_flags)
 		/* Attribute must exist! */
 		internal_flag = PVFS_XATTR_REPLACE;
 	} else if (setxattr_flags & XATTR_CREATE) {
-	 	/* Attribute must not exist */
+		/* Attribute must not exist */
 		internal_flag = PVFS_XATTR_CREATE;
 	}
 	return internal_flag;
@@ -264,7 +275,7 @@ int pvfs2_xattr_get_default(struct dentry *dentry,
 			    int handler_flags);
 
 /*
- * Redefine xtvec structure so that we could move helper functions out of 
+ * Redefine xtvec structure so that we could move helper functions out of
  * the define
  */
 struct xtvec {
@@ -338,9 +349,9 @@ typedef struct {
 	int revalidate_failed;
 
 	/*
- 	 * State of in-memory attributes not yet flushed to disk associated
-         * with this object
-         */
+	 * State of in-memory attributes not yet flushed to disk associated
+	 * with this object
+	 */
 	unsigned long pinode_flags;
 
 	/* All allocated pvfs2_inode_t objects are chained to a list */
@@ -371,8 +382,8 @@ typedef struct {
 /*
  * mount options. only accepted mount options are listed.
  */
-typedef struct {
- 	/*
+struct pvfs2_mount_options_t {
+	/*
 	 * intr option (if set) is inspired by the nfs intr option that
 	 * interrupts the operation in progress if a signal is received,
 	 * and ignores the signal otherwise (if not set).
@@ -393,7 +404,7 @@ typedef struct {
 	int suid;
 
 	/*
- 	 * noatime option (if set) is inspired by the nfs mount option
+	 * noatime option (if set) is inspired by the nfs mount option
 	 * that requires the file system to disable atime updates for all
 	 * files if set. NOTE: this is disabled by default.
 	 */
@@ -406,14 +417,14 @@ typedef struct {
 	 */
 	int nodiratime;
 
-} pvfs2_mount_options_t;
+};
 
 /* per superblock private pvfs2 info */
 typedef struct {
 	PVFS_handle root_handle;
 	PVFS_fs_id fs_id;
 	int id;
-	pvfs2_mount_options_t mnt_options;
+	struct pvfs2_mount_options_t mnt_options;
 	char data[PVFS2_MAX_MOUNT_OPT_LEN];
 	char devname[PVFS_MAX_SERVER_ADDR_LEN];
 	struct super_block *sb;
@@ -425,15 +436,15 @@ typedef struct {
 
 /*
  * a temporary structure used only for sb mount time that groups the
- *  mount time data provided along with a private superblock structure
- *  that is allocated before a 'kernel' superblock is allocated.
+ * mount time data provided along with a private superblock structure
+ * that is allocated before a 'kernel' superblock is allocated.
 */
-typedef struct {
+struct pvfs2_mount_sb_info_t {
 	void *data;
 	PVFS_handle root_handle;
 	PVFS_fs_id fs_id;
 	int id;
-} pvfs2_mount_sb_info_t;
+};
 
 /*
  * PVFS2 specific structure that we use for constructing an opaque handle
@@ -443,7 +454,7 @@ typedef struct {
  * that size of structure is the same and offset is also same on both 32 and 64
  * bit machines.
  */
-typedef struct {
+struct pvfs2_opaque_handle_t {
 	PVFS_handle handle;
 	PVFS_fs_id fsid;
 	int32_t __pad1;
@@ -457,70 +468,72 @@ typedef struct {
 	PVFS_size size;
 	PVFS_ds_type objtype;
 	uint32_t mask;
-} pvfs2_opaque_handle_t;
+};
 
 #ifdef __PINT_PROTO_ENCODE_OPAQUE_HANDLE
 
-#define encode_int64_t(pptr,x) do { \
-    *(int64_t*) *(pptr) = cpu_to_le64(*(x)); \
-    *(pptr) += 8; \
-} while (0)
+#define encode_int64_t(pptr, x)					\
+	do {							\
+		*(int64_t *) *(pptr) = cpu_to_le64(*(x));	\
+		*(pptr) += 8;					\
+	} while (0)
 
-#define decode_int64_t(pptr,x) do { \
-    *(x) = le64_to_cpu(*(int64_t*) *(pptr)); \
-    *(pptr) += 8; \
-} while (0)
+#define decode_int64_t(pptr, x)					\
+	do {							\
+		*(x) = le64_to_cpu(*(int64_t *) *(pptr));	\
+		*(pptr) += 8;					\
+	} while (0)
 
-#define encode_int32_t(pptr,x) do { \
-    *(int32_t*) *(pptr) = cpu_to_le32(*(x)); \
-    *(pptr) += 4; \
-} while (0)
+#define encode_int32_t(pptr, x)					\
+	do {							\
+		*(int32_t *) *(pptr) = cpu_to_le32(*(x));	\
+		*(pptr) += 4;					\
+	} while (0)
 
-#define decode_int32_t(pptr,x) do { \
-    *(x) = le32_to_cpu(*(int32_t*) *(pptr)); \
-    *(pptr) += 4; \
-} while (0)
+#define decode_int32_t(pptr, x)					\
+	do {							\
+		*(x) = le32_to_cpu(*(int32_t *) *(pptr));	\
+		*(pptr) += 4;					\
+	} while (0)
 
 /* skip 4 bytes */
-#define encode_skip4(pptr,x) do { \
-    *(pptr) += 4; \
-} while (0)
+#define encode_skip4(pptr, x) *(pptr) += 4;
 
-#define decode_skip4(pptr,x) do { \
-    *(pptr) += 4; \
-} while (0)
+#define decode_skip4(pptr, x) *(pptr) += 4;
 
-#define encode_pvfs2_opaque_handle_t(pptr,x) do {\
-    encode_int64_t(pptr, &(x)->handle);\
-    encode_int32_t(pptr, &(x)->fsid);\
-    encode_skip4(pptr,);\
-    encode_int32_t(pptr, &(x)->owner);\
-    encode_int32_t(pptr, &(x)->group);\
-    encode_int32_t(pptr, &(x)->perms);\
-    encode_skip4(pptr,);\
-    encode_int64_t(pptr, &(x)->atime);\
-    encode_int64_t(pptr, &(x)->mtime);\
-    encode_int64_t(pptr, &(x)->ctime);\
-    encode_int64_t(pptr, &(x)->size);\
-    encode_int32_t(pptr, &(x)->objtype);\
-    encode_int32_t(pptr, &(x)->mask);\
-} while (0)
+#define encode_pvfs2_opaque_handle_t(pptr, x)		\
+	do {						\
+		encode_int64_t(pptr, &(x)->handle);	\
+		encode_int32_t(pptr, &(x)->fsid);	\
+		encode_skip4(pptr,);			\
+		encode_int32_t(pptr, &(x)->owner);	\
+		encode_int32_t(pptr, &(x)->group);	\
+		encode_int32_t(pptr, &(x)->perms);	\
+		encode_skip4(pptr,);			\
+		encode_int64_t(pptr, &(x)->atime);	\
+		encode_int64_t(pptr, &(x)->mtime);	\
+		encode_int64_t(pptr, &(x)->ctime);	\
+		encode_int64_t(pptr, &(x)->size);	\
+		encode_int32_t(pptr, &(x)->objtype);	\
+		encode_int32_t(pptr, &(x)->mask);	\
+	} while (0)
 
-#define decode_pvfs2_opaque_handle_t(pptr,x) do {\
-    decode_int64_t(pptr, &(x)->handle);\
-    decode_int32_t(pptr, &(x)->fsid);\
-    decode_skip4(pptr,);\
-    decode_int32_t(pptr, &(x)->owner);\
-    decode_int32_t(pptr, &(x)->group);\
-    decode_int32_t(pptr, &(x)->perms);\
-    decode_skip4(pptr,);\
-    decode_int64_t(pptr, &(x)->atime);\
-    decode_int64_t(pptr, &(x)->mtime);\
-    decode_int64_t(pptr, &(x)->ctime);\
-    decode_int64_t(pptr, &(x)->size);\
-    decode_int32_t(pptr, &(x)->objtype);\
-    decode_int32_t(pptr, &(x)->mask);\
-} while (0)
+#define decode_pvfs2_opaque_handle_t(pptr, x)		\
+	do {						\
+		decode_int64_t(pptr, &(x)->handle);	\
+		decode_int32_t(pptr, &(x)->fsid);	\
+		decode_skip4(pptr,);			\
+		decode_int32_t(pptr, &(x)->owner);	\
+		decode_int32_t(pptr, &(x)->group);	\
+		decode_int32_t(pptr, &(x)->perms);	\
+		decode_skip4(pptr,);			\
+		decode_int64_t(pptr, &(x)->atime);	\
+		decode_int64_t(pptr, &(x)->mtime);	\
+		decode_int64_t(pptr, &(x)->ctime);	\
+		decode_int64_t(pptr, &(x)->size);	\
+		decode_int32_t(pptr, &(x)->objtype);	\
+		decode_int32_t(pptr, &(x)->mask);	\
+	} while (0)
 
 #endif
 
@@ -562,14 +575,14 @@ typedef struct {
 	int needs_cleanup;
 } pvfs2_kiocb;
 
-typedef struct pvfs2_stats {
+struct pvfs2_stats {
 	unsigned long cache_hits;
 	unsigned long cache_misses;
 	unsigned long reads;
 	unsigned long writes;
-} pvfs2_stats;
+};
 
-extern pvfs2_stats g_pvfs2_stats;
+extern struct pvfs2_stats g_pvfs2_stats;
 
 /*
   NOTE: See Documentation/filesystems/porting for information
@@ -702,11 +715,11 @@ struct inode *pvfs2_get_custom_inode_common(struct super_block *sb,
 
 /* In-core inodes are not being created on-disk */
 #define pvfs2_get_custom_core_inode(sb, dir, mode, dev, ref) \
-        pvfs2_get_custom_inode_common(sb, dir, mode, dev, ref, 0)
+		pvfs2_get_custom_inode_common(sb, dir, mode, dev, ref, 0)
 
 /* On-disk inodes are being created */
 #define pvfs2_get_custom_inode(sb, dir, mode, dev, ref) \
-        pvfs2_get_custom_inode_common(sb, dir, mode, dev, ref, 1)
+		pvfs2_get_custom_inode_common(sb, dir, mode, dev, ref, 1)
 
 int pvfs2_setattr(struct dentry *dentry, struct iattr *iattr);
 
@@ -735,7 +748,7 @@ int pvfs2_removexattr(struct dentry *dentry, const char *name);
 /*
  * defined in namei.c
  */
-struct inode *pvfs2_iget(struct super_block *sb, PVFS_object_ref * ref);
+struct inode *pvfs2_iget(struct super_block *sb, PVFS_object_ref *ref);
 
 /*
  * defined in file.c (shared file/dir operations)
@@ -762,8 +775,6 @@ int fs_mount_pending(PVFS_fs_id fsid);
 /*
  * defined in pvfs2-utils.c
  */
-int pvfs2_gen_credentials(PVFS_credentials *credentials);
-
 PVFS_fs_id fsid_of_op(pvfs2_kernel_op_t *op);
 
 int pvfs2_flush_inode(struct inode *inode);
@@ -856,46 +867,46 @@ extern wait_queue_head_t pvfs2_bufmap_init_waitq;
 /*
  * misc convenience macros
  */
-#define add_op_to_request_list(op)                           \
-do {                                                         \
-    spin_lock(&op->lock);                                    \
-    set_op_state_waiting(op);                                \
-                                                             \
-    spin_lock(&pvfs2_request_list_lock);                     \
-    list_add_tail(&op->list, &pvfs2_request_list);           \
-    spin_unlock(&pvfs2_request_list_lock);                   \
-    spin_unlock(&op->lock);                                  \
-    wake_up_interruptible(&pvfs2_request_list_waitq);        \
-} while(0)
+#define add_op_to_request_list(op)				\
+do {								\
+	spin_lock(&op->lock);					\
+	set_op_state_waiting(op);				\
+								\
+	spin_lock(&pvfs2_request_list_lock);			\
+	list_add_tail(&op->list, &pvfs2_request_list);		\
+	spin_unlock(&pvfs2_request_list_lock);			\
+	spin_unlock(&op->lock);					\
+	wake_up_interruptible(&pvfs2_request_list_waitq);	\
+} while (0)
 
-#define add_priority_op_to_request_list(op)                  \
-do {                                                         \
-    spin_lock(&op->lock);                                    \
-    set_op_state_waiting(op);                                \
-                                                             \
-    spin_lock(&pvfs2_request_list_lock);                     \
-    list_add(&op->list, &pvfs2_request_list);                \
-    spin_unlock(&pvfs2_request_list_lock);                   \
-    spin_unlock(&op->lock);                                  \
-    wake_up_interruptible(&pvfs2_request_list_waitq);        \
-} while(0)
+#define add_priority_op_to_request_list(op)				\
+	do {								\
+		spin_lock(&op->lock);					\
+		set_op_state_waiting(op);				\
+									\
+		spin_lock(&pvfs2_request_list_lock);			\
+		list_add(&op->list, &pvfs2_request_list);		\
+		spin_unlock(&pvfs2_request_list_lock);			\
+		spin_unlock(&op->lock);					\
+		wake_up_interruptible(&pvfs2_request_list_waitq);	\
+} while (0)
 
-#define remove_op_from_request_list(op)                      \
-do {                                                         \
-    struct list_head *tmp = NULL;                            \
-    struct list_head *tmp_safe = NULL;                       \
-    pvfs2_kernel_op_t *tmp_op = NULL;                        \
-                                                             \
-    spin_lock(&pvfs2_request_list_lock);                     \
-    list_for_each_safe(tmp, tmp_safe, &pvfs2_request_list) { \
-        tmp_op = list_entry(tmp, pvfs2_kernel_op_t, list);   \
-        if (tmp_op && (tmp_op == op)) {                      \
-            list_del(&tmp_op->list);                         \
-            break;                                           \
-        }                                                    \
-    }                                                        \
-    spin_unlock(&pvfs2_request_list_lock);                   \
-} while(0)
+#define remove_op_from_request_list(op)					\
+	do {								\
+		struct list_head *tmp = NULL;				\
+		struct list_head *tmp_safe = NULL;			\
+		pvfs2_kernel_op_t *tmp_op = NULL;			\
+									\
+		spin_lock(&pvfs2_request_list_lock);			\
+		list_for_each_safe(tmp, tmp_safe, &pvfs2_request_list) { \
+			tmp_op = list_entry(tmp, pvfs2_kernel_op_t, list); \
+			if (tmp_op && (tmp_op == op)) {			\
+				list_del(&tmp_op->list);		\
+				break;					\
+			}						\
+		}							\
+		spin_unlock(&pvfs2_request_list_lock);			\
+	} while (0)
 
 #define PVFS2_OP_INTERRUPTIBLE 1   /* service_operation() is interruptible */
 #define PVFS2_OP_PRIORITY      2   /* service_operation() is high priority */
@@ -934,21 +945,18 @@ int service_operation(pvfs2_kernel_op_t *op, const char *op_name, int flags);
  * note the only reason this is a macro is because both read and write
  * cases need the exact same handling code.
  */
-#define handle_io_error()                                 \
-do {                                                      \
-    if(!op_state_serviced(new_op))                        \
-    {                                                     \
-        pvfs2_cancel_op_in_progress(new_op->tag);         \
-        op_release(new_op);                               \
-    }                                                     \
-    else                                                  \
-    {                                                     \
-        wake_up_daemon_for_return(new_op);                \
-    }                                                     \
-    new_op = NULL;                                        \
-    pvfs_bufmap_put(buffer_index);                        \
-    buffer_index = -1;                                    \
-} while(0)
+#define handle_io_error()					\
+do {								\
+	if (!op_state_serviced(new_op)) {			\
+		pvfs2_cancel_op_in_progress(new_op->tag);	\
+		op_release(new_op);				\
+	} else {						\
+		wake_up_daemon_for_return(new_op);		\
+	}							\
+	new_op = NULL;						\
+	pvfs_bufmap_put(buffer_index);				\
+	buffer_index = -1;					\
+} while (0)
 
 #define get_interruptible_flag(inode) \
 	((PVFS2_SB(inode->i_sb)->mnt_options.intr ? PVFS2_OP_INTERRUPTIBLE : 0))
@@ -959,38 +967,38 @@ do {                                                      \
 #define get_suid_flag(inode) \
 	(PVFS2_SB(inode->i_sb)->mnt_options.suid)
 
-#define add_pvfs2_sb(sb) \
-do { \
-	gossip_debug(GOSSIP_SUPER_DEBUG, \
-		     "Adding SB %p to pvfs2 superblocks\n", \
-		     PVFS2_SB(sb)); \
-	spin_lock(&pvfs2_superblocks_lock); \
-	list_add_tail(&PVFS2_SB(sb)->list, &pvfs2_superblocks); \
+#define add_pvfs2_sb(sb)						\
+do {									\
+	gossip_debug(GOSSIP_SUPER_DEBUG,				\
+		     "Adding SB %p to pvfs2 superblocks\n",		\
+		     PVFS2_SB(sb));					\
+	spin_lock(&pvfs2_superblocks_lock);				\
+	list_add_tail(&PVFS2_SB(sb)->list, &pvfs2_superblocks);		\
 	spin_unlock(&pvfs2_superblocks_lock); \
-} while(0)
+} while (0)
 
-#define remove_pvfs2_sb(sb)                                          \
-do {                                                                 \
-    struct list_head *tmp = NULL;                                    \
-    struct list_head *tmp_safe = NULL;                               \
-    pvfs2_sb_info_t *pvfs2_sb = NULL;                                \
-                                                                     \
-    spin_lock(&pvfs2_superblocks_lock);                              \
-    list_for_each_safe(tmp, tmp_safe, &pvfs2_superblocks) {          \
-        pvfs2_sb = list_entry(tmp, pvfs2_sb_info_t, list);           \
-        if (pvfs2_sb && (pvfs2_sb->sb == sb)) {                      \
-            gossip_debug(GOSSIP_SUPER_DEBUG,                         \
-			 "Removing SB %p from pvfs2 superblocks\n",  \
-			 pvfs2_sb);                                  \
-            list_del(&pvfs2_sb->list);                               \
-            break;                                                   \
-        }                                                            \
-    }                                                                \
-    spin_unlock(&pvfs2_superblocks_lock);                            \
-} while(0)
+#define remove_pvfs2_sb(sb)						\
+do {									\
+	struct list_head *tmp = NULL;					\
+	struct list_head *tmp_safe = NULL;				\
+	pvfs2_sb_info_t *pvfs2_sb = NULL;				\
+									\
+	spin_lock(&pvfs2_superblocks_lock);				\
+	list_for_each_safe(tmp, tmp_safe, &pvfs2_superblocks) {		\
+		pvfs2_sb = list_entry(tmp, pvfs2_sb_info_t, list);	\
+		if (pvfs2_sb && (pvfs2_sb->sb == sb)) {			\
+			gossip_debug(GOSSIP_SUPER_DEBUG,		\
+			    "Removing SB %p from pvfs2 superblocks\n",	\
+			pvfs2_sb);					\
+			list_del(&pvfs2_sb->list);			\
+			break;						\
+		}							\
+	}								\
+	spin_unlock(&pvfs2_superblocks_lock);				\
+} while (0)
 
 #define pvfs2_update_inode_time(inode) \
-do { inode->i_mtime = inode->i_ctime = CURRENT_TIME; } while(0)
+inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 
 #define get_block_block_type sector_t
 #define pvfs2_lock_inode(inode) spin_lock(&inode->i_lock)
@@ -999,8 +1007,8 @@ do { inode->i_mtime = inode->i_ctime = CURRENT_TIME; } while(0)
 #define pvfs2_current_sigaction current->sighand->action
 #define pvfs2_recalc_sigpending recalc_sigpending
 #define pvfs2_kernel_readpage mpage_readpage
-#define pvfs2_set_page_reserved(page) do {} while(0)
-#define pvfs2_clear_page_reserved(page) do {} while(0)
+#define pvfs2_set_page_reserved(page) do {} while (0)
+#define pvfs2_clear_page_reserved(page) do {} while (0)
 
 static inline struct dentry *pvfs2_d_splice_alias(struct dentry *dentry,
 						  struct inode *inode)
@@ -1008,30 +1016,29 @@ static inline struct dentry *pvfs2_d_splice_alias(struct dentry *dentry,
 	return d_splice_alias(inode, dentry);
 }
 
-#define fill_default_sys_attrs(sys_attr,type,mode)\
-do                                                \
-{                                                 \
-    sys_attr.owner = from_kuid(&init_user_ns, current_fsuid()); \
-    sys_attr.group = from_kgid(&init_user_ns, current_fsgid()); \
-    sys_attr.size = 0;                            \
-    sys_attr.perms = PVFS_util_translate_mode(mode,0); \
-    sys_attr.objtype = type;                      \
-    sys_attr.mask = PVFS_ATTR_SYS_ALL_SETABLE;    \
-} while(0)
+#define fill_default_sys_attrs(sys_attr, type, mode)			\
+do {									\
+	sys_attr.owner = from_kuid(&init_user_ns, current_fsuid());	\
+	sys_attr.group = from_kgid(&init_user_ns, current_fsgid());	\
+	sys_attr.size = 0;						\
+	sys_attr.perms = PVFS_util_translate_mode(mode, 0);		\
+	sys_attr.objtype = type;					\
+	sys_attr.mask = PVFS_ATTR_SYS_ALL_SETABLE;			\
+} while (0)
 
 #define pvfs2_inode_lock(__i) do \
-{ mutex_lock(&(__i)->i_mutex); } while (0)
+	{ mutex_lock(&(__i)->i_mutex); } while (0)
 
 #define pvfs2_inode_unlock(__i) do \
-{ mutex_unlock(&(__i)->i_mutex); } while (0)
+	{ mutex_unlock(&(__i)->i_mutex); } while (0)
 
 static inline void pvfs2_i_size_write(struct inode *inode, loff_t i_size)
 {
-#if BITS_PER_LONG==32 && defined(CONFIG_SMP)
+#if BITS_PER_LONG == 32 && defined(CONFIG_SMP)
 	pvfs2_inode_lock(inode);
 #endif
 	i_size_write(inode, i_size);
-#if BITS_PER_LONG==32 && defined(CONFIG_SMP)
+#if BITS_PER_LONG == 32 && defined(CONFIG_SMP)
 	pvfs2_inode_unlock(inode);
 #endif
 	return;
@@ -1070,7 +1077,7 @@ static inline unsigned int diff(struct timeval *end, struct timeval *begin)
 	}
 	end->tv_sec -= begin->tv_sec;
 	end->tv_usec -= begin->tv_usec;
-	return ((end->tv_sec * 1000000) + end->tv_usec);
+	return (end->tv_sec * 1000000) + end->tv_usec;
 }
 
 #endif /* __PVFS2KERNEL_H */

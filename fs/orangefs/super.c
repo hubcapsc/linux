@@ -33,8 +33,7 @@ static int parse_mount_options(char *option_str,
 	if (!silent) {
 		if (option_str)
 			gossip_debug(GOSSIP_SUPER_DEBUG,
-				     "pvfs2: parse_mount_options called with: "
-			             " %s\n",
+				     "pvfs2: parse_mount_options called with:  %s\n",
 				     option_str);
 		else
 			/* We need a non-NULL option string */
@@ -50,14 +49,13 @@ static int parse_mount_options(char *option_str,
 		pvfs2_sb = PVFS2_SB(sb);
 		memset(&pvfs2_sb->mnt_options,
 		       0,
-		       sizeof(pvfs2_mount_options_t));
+		       sizeof(struct pvfs2_mount_options_t));
 
 		while (ptr && (*ptr != '\0')) {
 			options[num_keywords][j++] = *ptr;
 
 			if (j == PVFS2_MAX_MOUNT_OPT_LEN) {
-				gossip_err
-				    ("Cannot parse mount time options (length exceeded)\n");
+				gossip_err("Cannot parse mount time options (length exceeded)\n");
 				got_device = 0;
 				goto exit;
 			}
@@ -65,8 +63,7 @@ static int parse_mount_options(char *option_str,
 			if (*ptr == ',') {
 				options[num_keywords++][j - 1] = '\0';
 				if (num_keywords == PVFS2_MAX_NUM_OPTIONS) {
-					gossip_err
-					    ("Cannot parse mount time options (option number exceeded)\n");
+					gossip_err("Cannot parse mount time options (option number exceeded)\n");
 					got_device = 0;
 					goto exit;
 				}
@@ -128,10 +125,9 @@ static int parse_mount_options(char *option_str,
 				 * through this path; we must have gotten an
 				 * unsupported option.
 				 */
-				gossip_err("Error: mount option [%s]"
-					   " is not supported.\n",
+				gossip_err("Error: mount option [%s] is not supported.\n",
 					   options[i]);
-				return (-EINVAL);
+				return -EINVAL;
 			}
 		  }
 		}
@@ -581,7 +577,8 @@ int pvfs2_fill_sb(struct super_block *sb, void *data, int silent)
 	int ret = -EINVAL;
 	struct inode *root = NULL;
 	struct dentry *root_dentry = NULL;
-	pvfs2_mount_sb_info_t *mount_sb_info = (pvfs2_mount_sb_info_t *) data;
+	struct pvfs2_mount_sb_info_t *mount_sb_info =
+		(struct pvfs2_mount_sb_info_t *) data;
 	PVFS_object_ref root_object;
 
 	/* alloc and init our private pvfs2 sb info */
@@ -605,7 +602,7 @@ int pvfs2_fill_sb(struct super_block *sb, void *data, int silent)
 		/* mark the superblock as whether it supports acl's or not */
 		sb->s_flags =
 			((sb->s_flags & ~MS_POSIXACL) |
-		         ((PVFS2_SB(sb)->mnt_options.acl == 1) ?
+			 ((PVFS2_SB(sb)->mnt_options.acl == 1) ?
 				MS_POSIXACL :
 				0));
 		sb->s_flags =
@@ -679,7 +676,7 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
 	int ret = -EINVAL;
 	struct super_block *sb = ERR_PTR(-EINVAL);
 	pvfs2_kernel_op_t *new_op;
-	pvfs2_mount_sb_info_t mount_sb_info;
+	struct pvfs2_mount_sb_info_t mount_sb_info;
 	struct dentry *mnt_sb_d = ERR_PTR(-EINVAL);
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
@@ -767,8 +764,7 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
 			add_pvfs2_sb(sb);
 		} else {
 			ret = -EINVAL;
-			gossip_err("got Invalid superblock from mount_nodev "
-				   "(%p)\n",
+			gossip_err("got Invalid superblock from mount_nodev (%p)\n",
 				   sb);
 		}
 		op_release(new_op);
@@ -834,14 +830,12 @@ void pvfs2_kill_sb(struct super_block *sb)
 			atomic_read(&(PVFS2_SB(sb)->pvfs2_inode_dealloc_count));
 
 		if (count1 != count2)
-		  gossip_err("pvfs2_kill_sb: (WARNING) number of inode allocs "
-			     "(%d) != number of inode deallocs (%d)\n",
+		  gossip_err("pvfs2_kill_sb: (WARNING) number of inode allocs (%d) != number of inode deallocs (%d)\n",
 			     count1,
 			     count2);
 		else
 		  gossip_debug(GOSSIP_SUPER_DEBUG,
-			       "pvfs2_kill_sb: (OK) number of inode allocs "
-			       "(%d) = number of inode deallocs (%d)\n",
+			       "pvfs2_kill_sb: (OK) number of inode allocs (%d) = number of inode deallocs (%d)\n",
 			       count1,
 			       count2);
 

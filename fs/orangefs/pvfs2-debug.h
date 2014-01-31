@@ -82,10 +82,13 @@
 #define GOSSIP_RCACHE_DEBUG            ((uint64_t)1 << 60)
 #define GOSSIP_SECCACHE_DEBUG          ((uint64_t)1 << 61)
 
-#define GOSSIP_BMI_DEBUG_ALL (uint64_t)                               \
-(GOSSIP_BMI_DEBUG_TCP + GOSSIP_BMI_DEBUG_CONTROL +                    \
- GOSSIP_BMI_DEBUG_GM + GOSSIP_BMI_DEBUG_OFFSETS + GOSSIP_BMI_DEBUG_IB \
- + GOSSIP_BMI_DEBUG_MX + GOSSIP_BMI_DEBUG_PORTALS)
+#define GOSSIP_BMI_DEBUG_ALL ((uint64_t) (GOSSIP_BMI_DEBUG_TCP +	\
+					 GOSSIP_BMI_DEBUG_CONTROL +	\
+					 GOSSIP_BMI_DEBUG_GM +		\
+					 GOSSIP_BMI_DEBUG_OFFSETS +	\
+					 GOSSIP_BMI_DEBUG_IB +		\
+					 GOSSIP_BMI_DEBUG_MX +		\
+					 GOSSIP_BMI_DEBUG_PORTALS))
 
 const char *PVFS_debug_get_next_debug_keyword(int position);
 
@@ -115,15 +118,15 @@ char *PVFS_debug_mask_to_eventlog(uint64_t mask);
 char *PVFS_kmod_mask_to_eventlog(uint64_t mask);
 
 /* a private internal type */
-typedef struct {
+struct __keyword_mask_t {
 	const char *keyword;
 	uint64_t mask_val;
-} __keyword_mask_t;
+};
 
 #define __DEBUG_ALL ((uint64_t) -1)
 
 /* map all config keywords to pvfs2 debug masks here */
-static __keyword_mask_t s_keyword_mask_map[] = {
+static struct __keyword_mask_t s_keyword_mask_map[] = {
 	/* Log trove debugging info.  Same as 'trove'. */
 	{"storage", GOSSIP_TROVE_DEBUG},
 	/* Log trove debugging info.  Same as 'storage'. */
@@ -244,7 +247,7 @@ static __keyword_mask_t s_keyword_mask_map[] = {
 #undef __DEBUG_ALL
 
 /* map all kmod keywords to kmod debug masks here */
-static __keyword_mask_t s_kmod_keyword_mask_map[] = {
+static struct __keyword_mask_t s_kmod_keyword_mask_map[] = {
 	{"super", GOSSIP_SUPER_DEBUG},
 	{"inode", GOSSIP_INODE_DEBUG},
 	{"file", GOSSIP_FILE_DEBUG},
@@ -265,9 +268,9 @@ static __keyword_mask_t s_kmod_keyword_mask_map[] = {
 };
 
 static const int num_kmod_keyword_mask_map = (int)
-    (sizeof(s_kmod_keyword_mask_map) / sizeof(__keyword_mask_t));
+	(sizeof(s_kmod_keyword_mask_map) / sizeof(struct __keyword_mask_t));
 
 static const int num_keyword_mask_map = (int)
-    (sizeof(s_keyword_mask_map) / sizeof(__keyword_mask_t));
+	(sizeof(s_keyword_mask_map) / sizeof(struct __keyword_mask_t));
 
 #endif /* __PVFS2_DEBUG_H */

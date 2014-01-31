@@ -78,19 +78,19 @@
 #endif
 
 /* strings; decoding just points into existing character data */
-#define enc_string(pptr,pbuf) do { \
-    u_int32_t len = strlen(*pbuf); \
-    *(u_int32_t *) *(pptr) = (len); \
-    memcpy(*(pptr)+4, *pbuf, len+1); \
-    *(pptr) += roundup8(4 + len + 1); \
+#define enc_string(pptr, pbuf) do { \
+	u_int32_t len = strlen(*pbuf); \
+	*(u_int32_t *) *(pptr) = (len); \
+	memcpy(*(pptr)+4, *pbuf, len+1); \
+	*(pptr) += roundup8(4 + len + 1); \
 } while (0)
 
-#define dec_string(pptr,pbuf, plen) do { \
-    u_int32_t len = (*(u_int32_t *) *(pptr)); \
-    *pbuf = *(pptr) + 4; \
-    *(pptr) += roundup8(4 + len + 1); \
-    if (plen) \
-    *plen = len;\
+#define dec_string(pptr, pbuf, plen) do { \
+	u_int32_t len = (*(u_int32_t *) *(pptr)); \
+	*pbuf = *(pptr) + 4; \
+	*(pptr) += roundup8(4 + len + 1); \
+	if (plen) \
+		*plen = len;\
 } while (0)
 
 struct read_write_x {

@@ -30,17 +30,11 @@
 #define CLIENT_DEBUG "client-debug"
 #define DEBUG_HELP "debug-help"
 
-/* these functions are defined in pvfs2-utils.c */
-uint64_t PVFS_proc_debug_eventlog_to_mask(const char *);
-uint64_t PVFS_proc_kmod_eventlog_to_mask(const char *event_logging);
-int PVFS_proc_kmod_mask_to_eventlog(uint64_t mask, char *debug_string);
-int PVFS_proc_mask_to_eventlog(uint64_t mask, char *debug_string);
-
 /*
  * these strings will be initialized by invoking the PVFS_DEV_DEBUG ioctl
  * command when the client-core is started.  otherwise, these variables are
  * only set via the proc sys calls.
-*/
+ */
 char client_debug_string[PVFS2_MAX_DEBUG_STRING_LEN] = "none";
 char kernel_debug_string[PVFS2_MAX_DEBUG_STRING_LEN] = "none";
 extern char debug_help_string[];
@@ -73,7 +67,7 @@ static int pvfs2_proc_debug_mask_handler(ctl_table *ctl,
 	/* use generic proc string handling function to retrieve/set string. */
 	ret = proc_dostring(ctl, write, buffer, lenp, ppos);
 	if (ret != 0)
-		return (ret);
+		return ret;
 
 	gossip_debug(GOSSIP_PROC_DEBUG,
 		     "%s: debug string: %s\n",
@@ -105,14 +99,13 @@ static int pvfs2_proc_debug_mask_handler(ctl_table *ctl,
 		gossip_debug(GOSSIP_PROC_DEBUG,
 			     "New kernel debug string is %s.\n",
 			     kernel_debug_string);
-		printk("PVFS: kernel debug mask has been modified to "
-		       "\"%s\" (0x%08llx).\n",
+		pr_info("PVFS: kernel debug mask has been modified to \"%s\" (0x%08llx).\n",
 		       kernel_debug_string,
 		       llu(gossip_debug_mask));
 	} else if (write && !strcmp(ctl->procname, CLIENT_DEBUG)) {
 		new_op = op_alloc(PVFS2_VFS_OP_PARAM);
 		if (!new_op)
-			return (-ENOMEM);
+			return -ENOMEM;
 		strcpy(new_op->upcall.req.param.s_value, ctl->data);
 		new_op->upcall.req.param.type = PVFS2_PARAM_REQUEST_SET;
 		new_op->upcall.req.param.op =
@@ -139,16 +132,15 @@ static int pvfs2_proc_debug_mask_handler(ctl_table *ctl,
 				     client_debug_string);
 		}
 		op_release(new_op);
-		printk("PVFS: client debug mask has been modified to "
-		       "\"%s\" (0x%08llx).\n",
+		pr_info("PVFS: client debug mask has been modified to \"%s\" (0x%08llx).\n",
 		       client_debug_string,
 		       llu(new_op->downcall.resp.param.value));
 	} else if (write && !strcmp(ctl->procname, DEBUG_HELP)) {
 		/*do nothing...the user can only READ the debug help */
-		return (0);
+		return 0;
 	}
 
-	return (0);
+	return 0;
 }
 
 /*
@@ -169,23 +161,25 @@ static int pvfs2_param_proc_handler(ctl_table *ctl,
 	int ret = 0;
 	ctl_table tmp_ctl = *ctl;
 
-	/* override fields in control structure for call to generic proc handler */
+	/*
+	 * override fields in control structure for call to generic proc
+	 * handler
+	 */
 	tmp_ctl.data = &val;
 	tmp_ctl.extra1 = &extra->min;
 	tmp_ctl.extra2 = &extra->max;
 
 	/* build an op structure to send request to pvfs2-client */
 	new_op = op_alloc(PVFS2_VFS_OP_PARAM);
-	if (!new_op) {
+	if (!new_op)
 		return -ENOMEM;
-	}
 
 	if (write) {
 		/* use generic proc handling function to retrive value to set */
 		ret = proc_dointvec_minmax(&tmp_ctl, write, buffer, lenp, ppos);
 		if (ret != 0) {
 			op_release(new_op);
-			return (ret);
+			return ret;
 		}
 		gossip_debug(GOSSIP_PROC_DEBUG, "pvfs2: proc write %d\n", val);
 		new_op->upcall.req.param.value = val;
@@ -208,7 +202,7 @@ static int pvfs2_param_proc_handler(ctl_table *ctl,
 	}
 
 	op_release(new_op);
-	return (ret);
+	return ret;
 }
 
 static int pvfs2_pc_proc_handler(ctl_table *ctl,
@@ -227,7 +221,7 @@ static int pvfs2_pc_proc_handler(ctl_table *ctl,
 	if (write) {
 		/* don't allow writes to this file */
 		*lenp = 0;
-		return (-EPERM);
+		return -EPERM;
 	}
 
 	/* build an op structure to send request to pvfs2-client */
@@ -274,10 +268,10 @@ static int pvfs2_pc_proc_handler(ctl_table *ctl,
 
 	op_release(new_op);
 
-	return (ret);
+	return ret;
 }
 
-static struct ctl_table_header *fs_table_header = NULL;
+static struct ctl_table_header *fs_table_header;
 
 static struct pvfs2_param_extra acache_timeout_extra = {
 	.op = PVFS2_PARAM_REQUEST_OP_ACACHE_TIMEOUT_MSECS,
@@ -520,7 +514,7 @@ static ctl_table pvfs2_pc_table[] = {
 	{CTL_NAME(CTL_NONE)}
 };
 
-pvfs2_stats g_pvfs2_stats;
+struct pvfs2_stats g_pvfs2_stats;
 
 static ctl_table pvfs2_stats_table[] = {
 	/* shows number of hits in cache */
@@ -657,7 +651,10 @@ static ctl_table pvfs2_table[] = {
 	 .maxlen = 0,
 	 .mode = 0555,
 	 .child = pvfs2_ncache_table},
-	/* statistics maintained by the kernel module (output only below this) */
+	/*
+	 * statistics maintained by the kernel module (output only
+	 * below this)
+	 */
 	{
 	 CTL_NAME(12)
 	 .procname = "stats",
@@ -681,9 +678,8 @@ void pvfs2_proc_initialize(void)
 {
 /* CONFIG_SYSCTL is set in .config */
 #ifdef CONFIG_SYSCTL
-	if (!fs_table_header) {
+	if (!fs_table_header)
 		fs_table_header = register_sysctl_table(fs_table);
-	}
 #endif
 
 	return;

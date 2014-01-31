@@ -94,7 +94,7 @@ retry_servicing:
 			op->downcall.status = ret;
 			gossip_debug(GOSSIP_WAIT_DEBUG,
 				     "pvfs2: service_operation interrupted.\n");
-			return (ret);
+			return ret;
 		}
 	}
 
@@ -148,8 +148,7 @@ retry_servicing:
 	if (ret < 0) {
 		/* failed to get matching downcall */
 		if (ret == -ETIMEDOUT) {
-			gossip_err("pvfs2: %s"
-				   " -- wait timed out; aborting attempt.\n",
+			gossip_err("pvfs2: %s -- wait timed out; aborting attempt.\n",
 				   op_name);
 		}
 		op->downcall.status = ret;
@@ -235,14 +234,14 @@ retry_servicing:
 					   __func__,
 					   PVFS2_BUFMAP_WAIT_TIMEOUT_SECS,
 					   get_opname_string(op));
-				return (-EIO);
+				return -EIO;
 			}
 
 			/*
 			 * Return to the calling function and re-populate a
 			 * shared memory buffer.
 			 */
-			return (-EAGAIN);
+			return -EAGAIN;
 		}
 	}
 
@@ -251,16 +250,16 @@ retry_servicing:
 		     op_name,
 		     ret,
 		     op);
-	return (ret);
+	return ret;
 }
 
-void pvfs2_clean_up_interrupted_operation(pvfs2_kernel_op_t * op)
+void pvfs2_clean_up_interrupted_operation(pvfs2_kernel_op_t *op)
 {
 	/*
 	 * handle interrupted cases depending on what state we were in when
 	 * the interruption is detected.  there is a coarse grained lock
 	 * across the operation.
-         *
+	 *
 	 * NOTE: be sure not to reverse lock ordering by locking an op lock
 	 * while holding the request_list lock.  Here, we first lock the op
 	 * and then lock the appropriate list.
@@ -446,7 +445,7 @@ int wait_for_matching_downcall(pvfs2_kernel_op_t *op)
  *      cancellation upcall anyway.  the only way to exit this is to either
  *      timeout or have the cancellation be serviced properly.
  */
-int wait_for_cancellation_downcall(pvfs2_kernel_op_t * op)
+int wait_for_cancellation_downcall(pvfs2_kernel_op_t *op)
 {
 	int ret = -EINVAL;
 	DECLARE_WAITQUEUE(wait_entry, current);

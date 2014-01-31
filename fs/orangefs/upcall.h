@@ -12,7 +12,7 @@
  * 32-64 bit interaction issues between
  * client-core and device
  */
-typedef struct {
+struct pvfs2_io_request_t {
 	int32_t async_vfs_io;
 	int32_t buf_index;
 	int32_t count;
@@ -21,140 +21,140 @@ typedef struct {
 	PVFS_object_ref refn;
 	enum PVFS_io_type io_type;
 	int32_t readahead_size;
-} pvfs2_io_request_t;
+};
 
-typedef struct {
+struct pvfs2_iox_request_t {
 	int32_t buf_index;
 	int32_t count;
 	PVFS_object_ref refn;
 	enum PVFS_io_type io_type;
 	int32_t __pad1;
-} pvfs2_iox_request_t;
+};
 
-typedef struct {
+struct pvfs2_lookup_request_t {
 	int32_t sym_follow;
 	int32_t __pad1;
 	PVFS_object_ref parent_refn;
 	char d_name[PVFS2_NAME_LEN];
-} pvfs2_lookup_request_t;
+};
 
-typedef struct {
+struct pvfs2_create_request_t {
 	PVFS_object_ref parent_refn;
 	PVFS_sys_attr attributes;
 	char d_name[PVFS2_NAME_LEN];
-} pvfs2_create_request_t;
+};
 
-typedef struct {
+struct pvfs2_symlink_request_t {
 	PVFS_object_ref parent_refn;
 	PVFS_sys_attr attributes;
 	char entry_name[PVFS2_NAME_LEN];
 	char target[PVFS2_NAME_LEN];
-} pvfs2_symlink_request_t;
+};
 
-typedef struct {
+struct pvfs2_getattr_request_t {
 	PVFS_object_ref refn;
 	uint32_t mask;
 	uint32_t __pad1;
-} pvfs2_getattr_request_t;
+};
 
-typedef struct {
+struct pvfs2_setattr_request_t {
 	PVFS_object_ref refn;
 	PVFS_sys_attr attributes;
-} pvfs2_setattr_request_t;
+};
 
-typedef struct {
+struct pvfs2_remove_request_t {
 	PVFS_object_ref parent_refn;
 	char d_name[PVFS2_NAME_LEN];
-} pvfs2_remove_request_t;
+};
 
-typedef struct {
+struct pvfs2_mkdir_request_t {
 	PVFS_object_ref parent_refn;
 	PVFS_sys_attr attributes;
 	char d_name[PVFS2_NAME_LEN];
-} pvfs2_mkdir_request_t;
+};
 
-typedef struct {
+struct pvfs2_readdir_request_t {
 	PVFS_object_ref refn;
 	PVFS_ds_position token;
 	int32_t max_dirent_count;
 	int32_t buf_index;
-} pvfs2_readdir_request_t;
+};
 
-typedef struct {
+struct pvfs2_readdirplus_request_t {
 	PVFS_object_ref refn;
 	PVFS_ds_position token;
 	int32_t max_dirent_count;
 	uint32_t mask;
 	int32_t buf_index;
 	int32_t __pad1;
-} pvfs2_readdirplus_request_t;
+};
 
-typedef struct {
+struct pvfs2_rename_request_t {
 	PVFS_object_ref old_parent_refn;
 	PVFS_object_ref new_parent_refn;
 	char d_old_name[PVFS2_NAME_LEN];
 	char d_new_name[PVFS2_NAME_LEN];
-} pvfs2_rename_request_t;
+};
 
-typedef struct {
+struct pvfs2_statfs_request_t {
 	PVFS_fs_id fs_id;
 	int32_t __pad1;
-} pvfs2_statfs_request_t;
+};
 
-typedef struct {
+struct pvfs2_truncate_request_t {
 	PVFS_object_ref refn;
 	PVFS_size size;
-} pvfs2_truncate_request_t;
+};
 
-typedef struct {
+struct pvfs2_mmap_ra_cache_flush_request_t {
 	PVFS_object_ref refn;
-} pvfs2_mmap_ra_cache_flush_request_t;
+};
 
-typedef struct {
+struct pvfs2_fs_mount_request_t {
 	char pvfs2_config_server[PVFS_MAX_SERVER_ADDR_LEN];
-} pvfs2_fs_mount_request_t;
+};
 
-typedef struct {
+struct pvfs2_fs_umount_request_t {
 	int32_t id;
 	PVFS_fs_id fs_id;
 	char pvfs2_config_server[PVFS_MAX_SERVER_ADDR_LEN];
-} pvfs2_fs_umount_request_t;
+};
 
-typedef struct {
+struct pvfs2_getxattr_request_t {
 	PVFS_object_ref refn;
 	int32_t key_sz;
 	int32_t __pad1;
 	char key[PVFS_MAX_XATTR_NAMELEN];
-} pvfs2_getxattr_request_t;
+};
 
-typedef struct {
+struct pvfs2_setxattr_request_t {
 	PVFS_object_ref refn;
-	PVFS_keyval_pair keyval;
+	struct PVFS_keyval_pair keyval;
 	int32_t flags;
 	int32_t __pad1;
-} pvfs2_setxattr_request_t;
+};
 
-typedef struct {
+struct pvfs2_listxattr_request_t {
 	PVFS_object_ref refn;
 	int32_t requested_count;
 	int32_t __pad1;
 	PVFS_ds_position token;
-} pvfs2_listxattr_request_t;
+};
 
-typedef struct {
+struct pvfs2_removexattr_request_t {
 	PVFS_object_ref refn;
 	int32_t key_sz;
 	int32_t __pad1;
 	char key[PVFS_MAX_XATTR_NAMELEN];
-} pvfs2_removexattr_request_t;
+};
 
-typedef struct {
+struct pvfs2_op_cancel_t {
 	uint64_t op_tag;
-} pvfs2_op_cancel_t;
+};
 
-typedef struct {
+struct pvfs2_fsync_request_t {
 	PVFS_object_ref refn;
-} pvfs2_fsync_request_t;
+};
 
 enum pvfs2_param_request_type {
 	PVFS2_PARAM_REQUEST_SET = 1,
@@ -184,12 +184,12 @@ enum pvfs2_param_request_op {
 	PVFS2_PARAM_REQUEST_OP_CCACHE_RECLAIM_PERCENTAGE = 20
 };
 
-typedef struct {
+struct pvfs2_param_request_t {
 	enum pvfs2_param_request_type type;
 	enum pvfs2_param_request_op op;
 	int64_t value;
 	char s_value[PVFS2_MAX_DEBUG_STRING_LEN];
-} pvfs2_param_request_t;
+};
 
 enum pvfs2_perf_count_request_type {
 	PVFS2_PERF_COUNT_REQUEST_ACACHE = 1,
@@ -197,16 +197,17 @@ enum pvfs2_perf_count_request_type {
 	PVFS2_PERF_COUNT_REQUEST_STATIC_ACACHE = 3,
 };
 
-typedef struct {
+struct pvfs2_perf_count_request_t {
 	enum pvfs2_perf_count_request_type type;
 	int32_t __pad1;
-} pvfs2_perf_count_request_t;
+};
 
-typedef struct {
+struct pvfs2_fs_key_request_t {
 	PVFS_fs_id fsid;
 	int32_t __pad1;
-} pvfs2_fs_key_request_t;
+};
 
+/* typedef pvfs2_upcall_t exposed to client-core (userland) */
 typedef struct {
 	int32_t type;
 	PVFS_uid uid;
@@ -218,32 +219,32 @@ typedef struct {
 	PVFS2_ALIGN_VAR(char *, trailer_buf);
 
 	union {
-		pvfs2_io_request_t io;
-		pvfs2_iox_request_t iox;
-		pvfs2_lookup_request_t lookup;
-		pvfs2_create_request_t create;
-		pvfs2_symlink_request_t sym;
-		pvfs2_getattr_request_t getattr;
-		pvfs2_setattr_request_t setattr;
-		pvfs2_remove_request_t remove;
-		pvfs2_mkdir_request_t mkdir;
-		pvfs2_readdir_request_t readdir;
-		pvfs2_readdirplus_request_t readdirplus;
-		pvfs2_rename_request_t rename;
-		pvfs2_statfs_request_t statfs;
-		pvfs2_truncate_request_t truncate;
-		pvfs2_mmap_ra_cache_flush_request_t ra_cache_flush;
-		pvfs2_fs_mount_request_t fs_mount;
-		pvfs2_fs_umount_request_t fs_umount;
-		pvfs2_getxattr_request_t getxattr;
-		pvfs2_setxattr_request_t setxattr;
-		pvfs2_listxattr_request_t listxattr;
-		pvfs2_removexattr_request_t removexattr;
-		pvfs2_op_cancel_t cancel;
-		pvfs2_fsync_request_t fsync;
-		pvfs2_param_request_t param;
-		pvfs2_perf_count_request_t perf_count;
-		pvfs2_fs_key_request_t fs_key;
+		struct pvfs2_io_request_t io;
+		struct pvfs2_iox_request_t iox;
+		struct pvfs2_lookup_request_t lookup;
+		struct pvfs2_create_request_t create;
+		struct pvfs2_symlink_request_t sym;
+		struct pvfs2_getattr_request_t getattr;
+		struct pvfs2_setattr_request_t setattr;
+		struct pvfs2_remove_request_t remove;
+		struct pvfs2_mkdir_request_t mkdir;
+		struct pvfs2_readdir_request_t readdir;
+		struct pvfs2_readdirplus_request_t readdirplus;
+		struct pvfs2_rename_request_t rename;
+		struct pvfs2_statfs_request_t statfs;
+		struct pvfs2_truncate_request_t truncate;
+		struct pvfs2_mmap_ra_cache_flush_request_t ra_cache_flush;
+		struct pvfs2_fs_mount_request_t fs_mount;
+		struct pvfs2_fs_umount_request_t fs_umount;
+		struct pvfs2_getxattr_request_t getxattr;
+		struct pvfs2_setxattr_request_t setxattr;
+		struct pvfs2_listxattr_request_t listxattr;
+		struct pvfs2_removexattr_request_t removexattr;
+		struct pvfs2_op_cancel_t cancel;
+		struct pvfs2_fsync_request_t fsync;
+		struct pvfs2_param_request_t param;
+		struct pvfs2_perf_count_request_t perf_count;
+		struct pvfs2_fs_key_request_t fs_key;
 	} req;
 } pvfs2_upcall_t;
 

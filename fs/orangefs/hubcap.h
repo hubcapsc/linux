@@ -63,7 +63,9 @@ typedef int64_t PVFS_offset;
 #define PVFS_ENOLCK          E(24)	/* No record locks available */
 #define PVFS_ENOSYS          E(25)	/* Function not implemented */
 #define PVFS_ENOTEMPTY       E(26)	/* Directory not empty */
-#define PVFS_ELOOP           E(27)	/* Too many symbolic links encountered */
+					/*
+#define PVFS_ELOOP           E(27)	 * Too many symbolic links encountered
+					 */
 #define PVFS_EWOULDBLOCK     E(28)	/* Operation would block */
 #define PVFS_ENOMSG          E(29)	/* No message of desired type */
 #define PVFS_EUNATCH         E(30)	/* Protocol driver not attached */
@@ -76,18 +78,30 @@ typedef int64_t PVFS_offset;
 #define PVFS_ECOMM           E(37)	/* Communication error on send */
 #define PVFS_EPROTO          E(38)	/* Protocol error */
 #define PVFS_EBADMSG         E(39)	/* Not a data message */
-#define PVFS_EOVERFLOW       E(40)	/* Value too large for defined data type */
-#define PVFS_ERESTART        E(41)	/* Interrupted system call should be restarted */
+					/*
+#define PVFS_EOVERFLOW       E(40)	 * Value too large for defined data
+					 * type
+					 */
+					/*
+#define PVFS_ERESTART        E(41)	 * Interrupted system call should be
+					 * restarted
+					 */
 #define PVFS_EMSGSIZE        E(42)	/* Message too long */
 #define PVFS_EPROTOTYPE      E(43)	/* Protocol wrong type for socket */
 #define PVFS_ENOPROTOOPT     E(44)	/* Protocol not available */
 #define PVFS_EPROTONOSUPPORT E(45)	/* Protocol not supported */
-#define PVFS_EOPNOTSUPP      E(46)	/* Operation not supported on transport endpoint */
+					/*
+#define PVFS_EOPNOTSUPP      E(46)	 * Operation not supported on transport
+					 * endpoint
+					 */
 #define PVFS_EADDRINUSE      E(47)	/* Address already in use */
 #define PVFS_EADDRNOTAVAIL   E(48)	/* Cannot assign requested address */
 #define PVFS_ENETDOWN        E(49)	/* Network is down */
 #define PVFS_ENETUNREACH     E(50)	/* Network is unreachable */
-#define PVFS_ENETRESET       E(51)	/* Network dropped connection because of reset */
+					/*
+#define PVFS_ENETRESET       E(51)	 * Network dropped connection because
+					 * of reset
+					 */
 #define PVFS_ENOBUFS         E(52)	/* No buffer space available */
 #define PVFS_ETIMEDOUT       E(53)	/* Connection timed out */
 #define PVFS_ECONNREFUSED    E(54)	/* Connection refused */
@@ -127,98 +141,103 @@ typedef int64_t PVFS_offset;
 #define PVFS_ERROR_CLIENT (6 << 7)
 #define PVFS_ERROR_DEV    (7 << 7)	/* device file interaction */
 
-#define PVFS_ERROR_CLASS_BITS                                          \
-(PVFS_ERROR_BMI | PVFS_ERROR_TROVE | PVFS_ERROR_FLOW | PVFS_ERROR_SM | \
- PVFS_ERROR_SCHED | PVFS_ERROR_CLIENT | PVFS_ERROR_DEV)
+#define PVFS_ERROR_CLASS_BITS	\
+	(PVFS_ERROR_BMI    |	\
+	 PVFS_ERROR_TROVE  |	\
+	 PVFS_ERROR_FLOW   |	\
+	 PVFS_ERROR_SM     |	\
+	 PVFS_ERROR_SCHED  |	\
+	 PVFS_ERROR_CLIENT |	\
+	 PVFS_ERROR_DEV)
 
 #define DECLARE_ERRNO_MAPPING()                       \
 PVFS_error PINT_errno_mapping[PVFS_ERRNO_MAX + 1] = { \
-    0,     /* leave this one empty */                 \
-    EPERM, /* 1 */                                    \
-    ENOENT,                                           \
-    EINTR,                                            \
-    EIO,                                              \
-    ENXIO,                                            \
-    EBADF,                                            \
-    EAGAIN,                                           \
-    ENOMEM,                                           \
-    EFAULT,                                           \
-    EBUSY, /* 10 */                                   \
-    EEXIST,                                           \
-    ENODEV,                                           \
-    ENOTDIR,                                          \
-    EISDIR,                                           \
-    EINVAL,                                           \
-    EMFILE,                                           \
-    EFBIG,                                            \
-    ENOSPC,                                           \
-    EROFS,                                            \
-    EMLINK, /* 20 */                                  \
-    EPIPE,                                            \
-    EDEADLK,                                          \
-    ENAMETOOLONG,                                     \
-    ENOLCK,                                           \
-    ENOSYS,                                           \
-    ENOTEMPTY,                                        \
-    ELOOP,                                            \
-    EWOULDBLOCK,                                      \
-    ENOMSG,                                           \
-    EUNATCH, /* 30 */                                 \
-    EBADR,                                            \
-    EDEADLOCK,                                        \
-    ENODATA,                                          \
-    ETIME,                                            \
-    ENONET,                                           \
-    EREMOTE,                                          \
-    ECOMM,                                            \
-    EPROTO,                                           \
-    EBADMSG,                                          \
-    EOVERFLOW, /* 40 */                               \
-    ERESTART,                                         \
-    EMSGSIZE,                                         \
-    EPROTOTYPE,                                       \
-    ENOPROTOOPT,                                      \
-    EPROTONOSUPPORT,                                  \
-    EOPNOTSUPP,                                       \
-    EADDRINUSE,                                       \
-    EADDRNOTAVAIL,                                    \
-    ENETDOWN,                                         \
-    ENETUNREACH, /* 50 */                             \
-    ENETRESET,                                        \
-    ENOBUFS,                                          \
-    ETIMEDOUT,                                        \
-    ECONNREFUSED,                                     \
-    EHOSTDOWN,                                        \
-    EHOSTUNREACH,                                     \
-    EALREADY,                                         \
-    EACCES,                                           \
-    ECONNRESET,   /* 59 */                            \
-    ERANGE,                                           \
-    0         /* PVFS_ERRNO_MAX */                    \
+	0,     /* leave this one empty */                 \
+	EPERM, /* 1 */                                    \
+	ENOENT,                                           \
+	EINTR,                                            \
+	EIO,                                              \
+	ENXIO,                                            \
+	EBADF,                                            \
+	EAGAIN,                                           \
+	ENOMEM,                                           \
+	EFAULT,                                           \
+	EBUSY, /* 10 */                                   \
+	EEXIST,                                           \
+	ENODEV,                                           \
+	ENOTDIR,                                          \
+	EISDIR,                                           \
+	EINVAL,                                           \
+	EMFILE,                                           \
+	EFBIG,                                            \
+	ENOSPC,                                           \
+	EROFS,                                            \
+	EMLINK, /* 20 */                                  \
+	EPIPE,                                            \
+	EDEADLK,                                          \
+	ENAMETOOLONG,                                     \
+	ENOLCK,                                           \
+	ENOSYS,                                           \
+	ENOTEMPTY,                                        \
+	ELOOP,                                            \
+	EWOULDBLOCK,                                      \
+	ENOMSG,                                           \
+	EUNATCH, /* 30 */                                 \
+	EBADR,                                            \
+	EDEADLOCK,                                        \
+	ENODATA,                                          \
+	ETIME,                                            \
+	ENONET,                                           \
+	EREMOTE,                                          \
+	ECOMM,                                            \
+	EPROTO,                                           \
+	EBADMSG,                                          \
+	EOVERFLOW, /* 40 */                               \
+	ERESTART,                                         \
+	EMSGSIZE,                                         \
+	EPROTOTYPE,                                       \
+	ENOPROTOOPT,                                      \
+	EPROTONOSUPPORT,                                  \
+	EOPNOTSUPP,                                       \
+	EADDRINUSE,                                       \
+	EADDRNOTAVAIL,                                    \
+	ENETDOWN,                                         \
+	ENETUNREACH, /* 50 */                             \
+	ENETRESET,                                        \
+	ENOBUFS,                                          \
+	ETIMEDOUT,                                        \
+	ECONNREFUSED,                                     \
+	EHOSTDOWN,                                        \
+	EHOSTUNREACH,                                     \
+	EALREADY,                                         \
+	EACCES,                                           \
+	ECONNRESET,   /* 59 */                            \
+	ERANGE,                                           \
+	0         /* PVFS_ERRNO_MAX */                    \
 };                                                    \
 const char *PINT_non_errno_strerror_mapping[] = {     \
-    "Success", /* 0 */                                \
-    "Operation cancelled (possibly due to timeout)",  \
-    "Device initialization failed",                   \
-    "Detailed per-server errors are available",       \
-    "Unknown host",                                   \
-    "No address associated with name",                \
-    "Unknown server error",                           \
-    "Host name lookup failure",                       \
-    "Path contains non-PVFS elements",                \
-    "Security error",                                 \
+	"Success", /* 0 */                                \
+	"Operation cancelled (possibly due to timeout)",  \
+	"Device initialization failed",                   \
+	"Detailed per-server errors are available",       \
+	"Unknown host",                                   \
+	"No address associated with name",                \
+	"Unknown server error",                           \
+	"Host name lookup failure",                       \
+	"Path contains non-PVFS elements",                \
+	"Security error",                                 \
 };                                                    \
 PVFS_error PINT_non_errno_mapping[] = {               \
-    0,     /* leave this one empty */                 \
-    PVFS_ECANCEL,   /* 1 */                           \
-    PVFS_EDEVINIT,  /* 2 */                           \
-    PVFS_EDETAIL,   /* 3 */                           \
-    PVFS_EHOSTNTFD, /* 4 */                           \
-    PVFS_EADDRNTFD, /* 5 */                           \
-    PVFS_ENORECVR,  /* 6 */                           \
-    PVFS_ETRYAGAIN, /* 7 */                           \
-    PVFS_ENOTPVFS,  /* 8 */                           \
-    PVFS_ESECURITY, /* 9 */                           \
+	0,     /* leave this one empty */                 \
+	PVFS_ECANCEL,   /* 1 */                           \
+	PVFS_EDEVINIT,  /* 2 */                           \
+	PVFS_EDETAIL,   /* 3 */                           \
+	PVFS_EHOSTNTFD, /* 4 */                           \
+	PVFS_EADDRNTFD, /* 5 */                           \
+	PVFS_ENORECVR,  /* 6 */                           \
+	PVFS_ETRYAGAIN, /* 7 */                           \
+	PVFS_ENOTPVFS,  /* 8 */                           \
+	PVFS_ESECURITY, /* 9 */                           \
 }
 
 /*
@@ -230,40 +249,43 @@ PVFS_error PINT_non_errno_mapping[] = {               \
  *   the error code.  if the value is not a recognized error code, the
  *   passed in value will be returned unchanged.
  */
-#define DECLARE_ERRNO_MAPPING_AND_FN()                     \
-extern PVFS_error PINT_errno_mapping[];                    \
-extern PVFS_error PINT_non_errno_mapping[];                \
-extern const char *PINT_non_errno_strerror_mapping[];      \
-PVFS_error PVFS_get_errno_mapping(PVFS_error error)        \
-{                                                          \
-    PVFS_error ret = error, mask = 0;                      \
-    int32_t positive = ((error > -1) ? 1 : 0);             \
-    if (IS_PVFS_NON_ERRNO_ERROR((positive? error: -error)))\
-    {                                                      \
-    mask = (PVFS_NON_ERRNO_ERROR_BIT | PVFS_ERROR_BIT |    \
-            PVFS_ERROR_CLASS_BITS);                        \
-    ret = PVFS_NON_ERRNO_ERROR_CODE(                       \
-          ((positive ? error : abs(error))) & ~mask);      \
-    }                                                      \
-    else if (IS_PVFS_ERROR((positive? error: -error)))     \
-    {                                                      \
-    mask = (PVFS_ERROR_BIT | PVFS_ERROR_CLASS_BITS);       \
-    ret = PINT_errno_mapping[                              \
-        PVFS_ERROR_CODE(((positive ? error :               \
-                             abs(error))) & ~mask)];       \
-    }                                                      \
-    return ret;                                            \
-}                                                          \
-PVFS_error PVFS_errno_to_error(int err)                    \
-{                                                          \
-    PVFS_error e = 0;                                      \
-                                                           \
-    for(; e < PVFS_ERRNO_MAX; ++e)                         \
-        if(PINT_errno_mapping[e] == err)                   \
-            return e | PVFS_ERROR_BIT;                     \
-							   \
-    return err;                                            \
-}                                                          \
+#define DECLARE_ERRNO_MAPPING_AND_FN()					\
+extern PVFS_error PINT_errno_mapping[];					\
+extern PVFS_error PINT_non_errno_mapping[];				\
+extern const char *PINT_non_errno_strerror_mapping[];			\
+PVFS_error PVFS_get_errno_mapping(PVFS_error error)			\
+{									\
+	PVFS_error ret = error, mask = 0;				\
+	int32_t positive = ((error > -1) ? 1 : 0);			\
+	if (IS_PVFS_NON_ERRNO_ERROR((positive ? error : -error))) {	\
+		mask = (PVFS_NON_ERRNO_ERROR_BIT |			\
+			PVFS_ERROR_BIT |				\
+			PVFS_ERROR_CLASS_BITS);				\
+		ret = PVFS_NON_ERRNO_ERROR_CODE(((positive ?		\
+						     error :		\
+						     abs(error))) &	\
+						 ~mask);		\
+	}								\
+	else if (IS_PVFS_ERROR((positive ? error : -error))) {		\
+		mask = (PVFS_ERROR_BIT |				\
+			PVFS_ERROR_CLASS_BITS);				\
+		ret = PINT_errno_mapping[PVFS_ERROR_CODE(((positive ?	\
+								error :	\
+								abs(error))) & \
+							  ~mask)];	\
+	}								\
+	return ret;							\
+}									\
+PVFS_error PVFS_errno_to_error(int err)					\
+{									\
+	PVFS_error e = 0;						\
+									\
+	for (; e < PVFS_ERRNO_MAX; ++e)					\
+		if (PINT_errno_mapping[e] == err)			\
+			return e | PVFS_ERROR_BIT;			\
+									\
+	return err;							\
+}									\
 DECLARE_ERRNO_MAPPING()
 
 /* permission bits */
@@ -308,18 +330,26 @@ DECLARE_ERRNO_MAPPING()
 #define PVFS_ATTR_SYS_DIRENT_COUNT          (1 << 26)
 #define PVFS_ATTR_SYS_BLKSIZE               (1 << 28)
 #define PVFS_ATTR_SYS_MIRROR_COPIES_COUNT   (1 << 29)
-#define PVFS_ATTR_SYS_COMMON_ALL \
-(PVFS_ATTR_SYS_UID   | PVFS_ATTR_SYS_GID   | \
- PVFS_ATTR_SYS_PERM  | PVFS_ATTR_SYS_ATIME | \
- PVFS_ATTR_SYS_CTIME | PVFS_ATTR_SYS_MTIME | \
- PVFS_ATTR_SYS_TYPE)
-#define PVFS_ATTR_SYS_ALL_SETABLE \
+#define PVFS_ATTR_SYS_COMMON_ALL	\
+	(PVFS_ATTR_SYS_UID	|	\
+	 PVFS_ATTR_SYS_GID	|	\
+	 PVFS_ATTR_SYS_PERM	|	\
+	 PVFS_ATTR_SYS_ATIME	|	\
+	 PVFS_ATTR_SYS_CTIME	|	\
+	 PVFS_ATTR_SYS_MTIME	|	\
+	 PVFS_ATTR_SYS_TYPE)
+
+#define PVFS_ATTR_SYS_ALL_SETABLE		\
 (PVFS_ATTR_SYS_COMMON_ALL-PVFS_ATTR_SYS_TYPE)
-#define PVFS_ATTR_SYS_ALL_NOHINT                \
-(PVFS_ATTR_SYS_COMMON_ALL | PVFS_ATTR_SYS_SIZE | \
- PVFS_ATTR_SYS_LNK_TARGET | PVFS_ATTR_SYS_DFILE_COUNT | \
- PVFS_ATTR_SYS_MIRROR_COPIES_COUNT | \
- PVFS_ATTR_SYS_DIRENT_COUNT | PVFS_ATTR_SYS_BLKSIZE)
+
+#define PVFS_ATTR_SYS_ALL_NOHINT			\
+	(PVFS_ATTR_SYS_COMMON_ALL		|	\
+	 PVFS_ATTR_SYS_SIZE			|	\
+	 PVFS_ATTR_SYS_LNK_TARGET		|	\
+	 PVFS_ATTR_SYS_DFILE_COUNT		|	\
+	 PVFS_ATTR_SYS_MIRROR_COPIES_COUNT	|	\
+	 PVFS_ATTR_SYS_DIRENT_COUNT		|	\
+	 PVFS_ATTR_SYS_BLKSIZE)
 #define PVFS_XATTR_REPLACE 0x2
 #define PVFS_XATTR_CREATE  0x1
 /* there's a 32 bit version of PVFS2_ALIGN_VAR, do we need it here? */
@@ -368,25 +398,19 @@ typedef enum {
 	PVFS_TYPE_INTERNAL = (1 << 5)	/* for the server's private use */
 } PVFS_ds_type;
 
-typedef unsigned char *PVFS_cert_data;
-
 /*
  * PVFS_certificate simply stores a buffer with the buffer size.
  * The buffer can be converted to an OpenSSL X509 struct for use.
  */
-typedef struct PVFS_certificate PVFS_certificate;
 struct PVFS_certificate {
 	uint32_t buf_size;
-	PVFS_cert_data buf;
+	unsigned char *buf;
 };
-
-typedef unsigned char *PVFS_signature;
 
 /*
  * A credential identifies a user and is signed by the client/user
  * private key.
  */
-typedef struct PVFS_credential PVFS_credential;
 struct PVFS_credential {
 	PVFS_uid userid;	/* user id */
 	uint32_t num_groups;	/* length of group_array */
@@ -394,28 +418,22 @@ struct PVFS_credential {
 	char *issuer;		/* alias of the issuing server */
 	PVFS_time timeout;	/* seconds after epoch to time out */
 	uint32_t sig_size;	/* length of the signature in bytes */
-	PVFS_signature signature;	/* digital signature */
-	PVFS_certificate certificate;	/* user certificate buffer */
+	unsigned char *signature;	/* digital signature */
+	struct PVFS_certificate certificate;	/* user certificate buffer */
 };
-#define extra_size_PVFS_credential (PVFS_REQ_LIMIT_GROUPS    * \
-                                    sizeof(PVFS_gid)         + \
-                                    PVFS_REQ_LIMIT_ISSUER    + \
-                                    PVFS_REQ_LIMIT_SIGNATURE + \
-                                    extra_size_PVFS_certificate)
-
-/*
- * NOTE: for backwards compatibility only.
- * For all new code use PVFS_credential.
- */
-typedef PVFS_credential PVFS_credentials;
+#define extra_size_PVFS_credential (PVFS_REQ_LIMIT_GROUPS	*	\
+				    sizeof(PVFS_gid)		+	\
+				    PVFS_REQ_LIMIT_ISSUER	+	\
+				    PVFS_REQ_LIMIT_SIGNATURE	+	\
+				    extra_size_PVFS_certificate)
 
 /* This structure is used by the VFS-client interaction alone */
-typedef struct {
+struct PVFS_keyval_pair {
 	char key[PVFS_MAX_XATTR_NAMELEN];
 	int32_t key_sz;	/* int32_t for portable, fixed-size structures */
 	int32_t val_sz;
 	char val[PVFS_MAX_XATTR_VALUELEN];
-} PVFS_keyval_pair;
+};
 
 /*
  * object reference (uniquely refers to a single file, directory, or
@@ -474,16 +492,16 @@ typedef struct PVFS_sys_attr_s PVFS_sys_attr;
 
 /* pint-dev.h ***************************************************************/
 /* parameter structure used in PVFS_DEV_DEBUG ioctl command */
-typedef struct {
+struct dev_mask_info_t {
 	enum {
 		KERNEL_MASK,
 		CLIENT_MASK,
 	} mask_type;
 	uint64_t mask_value;
-} dev_mask_info_t;
+};
 
 /* pvfs2-util.h *************************************************************/
-#define PVFS_util_min(x1,x2) ((x1) > (x2))? (x2):(x1)
+#define PVFS_util_min(x1, x2) (((x1) > (x2)) ? (x2) : (x1))
 int32_t PVFS_util_translate_mode(int mode, int suid);
 
 /* pvfs2-debug.h ************************************************************/
@@ -529,8 +547,10 @@ enum {
  * version number for use in communicating between kernel space and user
  * space
  */
-#define PVFS_KERNEL_PROTO_VERSION ((PVFS2_VERSION_MAJOR * 10000) + \
-  (PVFS2_VERSION_MINOR * 100) + PVFS2_VERSION_SUB)
+#define PVFS_KERNEL_PROTO_VERSION			\
+		((PVFS2_VERSION_MAJOR * 10000)	+	\
+		 (PVFS2_VERSION_MINOR * 100)	+	\
+		 PVFS2_VERSION_SUB)
 
 /*
  * describes memory regions to map in the PVFS_DEV_MAP ioctl.
@@ -550,26 +570,25 @@ struct PVFS_dev_map_desc {
 /* gossip.h *****************************************************************/
 
 #ifdef GOSSIP_DISABLE_DEBUG
-#define gossip_debug(mask, format, f...) do {} while(0)
+#define gossip_debug(mask, format, f...) do {} while (0)
 #else
 extern uint64_t gossip_debug_mask;
 
 /* try to avoid function call overhead by checking masks in macro */
-#define gossip_debug(mask, format, f...)                  \
-do {                                                      \
-    if (gossip_debug_mask & mask)                         \
-        printk(format, ##f);                              \
-} while(0)
+#define gossip_debug(mask, format, f...)			\
+do {								\
+	if (gossip_debug_mask & mask)				\
+		printk(format, ##f);				\
+} while (0)
 #endif /* GOSSIP_DISABLE_DEBUG */
 
 /* do file and line number printouts w/ the GNU preprocessor */
-#define gossip_ldebug(mask, format, f...)                  \
-do {                                                       \
-    gossip_debug(mask, "%s: " format, __func__ , ##f);     \
-} while(0)
+#define gossip_ldebug(mask, format, f...)				\
+		gossip_debug(mask, "%s: " format, __func__ , ##f);
 
 #define gossip_err printk
-#define gossip_lerr(format, f...)                  \
-do {                                               \
-	gossip_err("%s line %d: " format, __FILE__ , __LINE__ , ##f); \
-} while(0)
+#define gossip_lerr(format, f...)					\
+		gossip_err("%s line %d: " format,			\
+			   __FILE__,					\
+			   __LINE__,					\
+			   ##f);
