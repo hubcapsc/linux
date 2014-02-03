@@ -1232,7 +1232,6 @@ static inline struct inode *pvfs2_create_file(struct inode *dir,
 			     "pvfs2_create_file: Instantiating\n *negative* "
 			     "dentry %p for %s\n", dentry, dentry->d_name.name);
 
-		d_set_d_op(dentry, &pvfs2_dentry_operations);
 		d_instantiate(dentry, inode);
 		gossip_debug(GOSSIP_UTILS_DEBUG,
 			     "Inode (Regular File) %llu -> %s\n",
@@ -1313,7 +1312,6 @@ static inline struct inode *pvfs2_create_dir(struct inode *dir,
 			     dentry,
 			     dentry->d_name.name);
 
-		d_set_d_op(dentry, &pvfs2_dentry_operations);
 		d_instantiate(dentry, inode);
 		gossip_debug(GOSSIP_UTILS_DEBUG,
 			     "Inode (Directory) %llu -> %s\n",
@@ -1407,7 +1405,6 @@ static inline struct inode *pvfs2_create_symlink(struct inode *dir,
 			     dentry,
 			     dentry->d_name.name);
 
-		d_set_d_op(dentry, &pvfs2_dentry_operations);
 		d_instantiate(dentry, inode);
 		gossip_debug(GOSSIP_UTILS_DEBUG,
 			     "Inode (Symlink) %llu -> %s\n",

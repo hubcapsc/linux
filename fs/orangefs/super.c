@@ -519,7 +519,6 @@ struct dentry *pvfs2_fh_to_dentry(struct super_block *sb,
 	if (dentry == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	d_set_d_op(dentry, &pvfs2_dentry_operations);
 	return dentry;
 }
 
@@ -626,6 +625,7 @@ int pvfs2_fill_sb(struct super_block *sb, void *data, int silent)
 	sb->s_xattr = pvfs2_xattr_handlers;
 	sb->s_magic = PVFS2_SUPER_MAGIC;
 	sb->s_op = &pvfs2_s_ops;
+	sb->s_d_op = &pvfs2_dentry_operations;
 	sb->s_type = &pvfs2_fs_type;
 
 	sb->s_blocksize = pvfs_bufmap_size_query();
@@ -661,7 +661,6 @@ int pvfs2_fill_sb(struct super_block *sb, void *data, int silent)
 		iput(root);
 		return -ENOMEM;
 	}
-	d_set_d_op(root_dentry, &pvfs2_dentry_operations);
 
 	sb->s_export_op = &pvfs2_export_ops;
 	sb->s_root = root_dentry;

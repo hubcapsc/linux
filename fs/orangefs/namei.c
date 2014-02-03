@@ -159,14 +159,6 @@ static struct dentry *pvfs2_lookup(struct inode *dir,
 				     dentry,
 				     dentry->d_name.name);
 
-			/*
-			 * make sure to set the pvfs2 specific dentry
-			 * operations for the negative dentry that we're
-			 * adding now so that a potential future lookup of
-			 * this cached negative dentry can be properly
-			 * revalidated.
-			 */
-			d_set_d_op(dentry, &pvfs2_dentry_operations);
 			d_add(dentry, inode);
 
 			op_release(new_op);
@@ -192,15 +184,11 @@ static struct dentry *pvfs2_lookup(struct inode *dir,
 			     (int)atomic_read(&inode->i_count));
 
 		/* update dentry/inode pair into dcache */
-		d_set_d_op(dentry, &pvfs2_dentry_operations);
-
 		res = pvfs2_d_splice_alias(dentry, inode);
 
 		gossip_debug(GOSSIP_NAME_DEBUG,
 			     "Lookup success (inode ct = %d)\n",
 			     (int)atomic_read(&inode->i_count));
-		if (res)
-			d_set_d_op(res, &pvfs2_dentry_operations);
 
 		op_release(new_op);
 		return res;
