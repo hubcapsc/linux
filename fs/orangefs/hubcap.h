@@ -502,7 +502,7 @@ struct dev_mask_info_t {
 
 /* pvfs2-util.h *************************************************************/
 #define PVFS_util_min(x1, x2) (((x1) > (x2)) ? (x2) : (x1))
-int32_t PVFS_util_translate_mode(int mode, int suid);
+int32_t PVFS_util_translate_mode(int mode);
 
 /* pvfs2-debug.h ************************************************************/
 #include "pvfs2-debug.h"

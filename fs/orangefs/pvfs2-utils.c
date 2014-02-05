@@ -203,8 +203,7 @@ int copy_attributes_to_inode(struct inode *inode,
 
 		if (attrs->perms & PVFS_G_SGID)
 			perm_mode |= S_ISGID;
-		/* Should we honor the suid bit of the file? */
-		if (get_suid_flag(inode) == 1 && (attrs->perms & PVFS_U_SUID))
+		if (attrs->perms & PVFS_U_SUID)
 			perm_mode |= S_ISUID;
 
 		inode->i_mode = perm_mode;
@@ -259,24 +258,6 @@ int copy_attributes_to_inode(struct inode *inode,
 			     (unsigned long)pvfs2_i_size_read(inode));
 	}
 	return ret;
-}
-
-static inline void convert_attribute_mode_to_pvfs_sys_attr(int mode,
-							   PVFS_sys_attr *attrs,
-							   int suid)
-{
-	attrs->perms = PVFS_util_translate_mode(mode, suid);
-	attrs->mask |= PVFS_ATTR_SYS_PERM;
-
-	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "mode is %o | translated perms is %o\n",
-		     mode,
-		     attrs->perms);
-
-	/*
-	 * NOTE: this function only called during setattr.  Setattr must not
-	 * mess with object type
-	 */
 }
 
 /*
@@ -360,9 +341,8 @@ static inline int copy_attributes_from_inode(struct inode *inode,
 			return -EINVAL;
 		}
 
-		convert_attribute_mode_to_pvfs_sys_attr(tmp_mode,
-							attrs,
-							get_suid_flag(inode));
+		attrs->perms = PVFS_util_translate_mode(tmp_mode);
+		attrs->mask |= PVFS_ATTR_SYS_PERM;
 	}
 
 	return 0;
@@ -1733,7 +1713,7 @@ int pvfs2_normalize_to_errno(PVFS_error error_code)
 }
 
 #define NUM_MODES 11
-int32_t PVFS_util_translate_mode(int mode, int suid)
+int32_t PVFS_util_translate_mode(int mode)
 {
 	int ret = 0;
 	int i = 0;
@@ -1753,9 +1733,6 @@ int32_t PVFS_util_translate_mode(int mode, int suid)
 	for (i = 0; i < NUM_MODES; i++)
 		if (mode & modes[i])
 			ret |= pvfs2_modes[i];
-
-	if (suid == 0 && (ret & PVFS_U_SUID))
-		ret &= ~PVFS_U_SUID;
 
 	return ret;
 }

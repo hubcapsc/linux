@@ -13,7 +13,7 @@ LIST_HEAD(pvfs2_superblocks);
 
 DEFINE_SPINLOCK(pvfs2_superblocks_lock);
 
-static char *keywords[] = { "intr", "acl", "suid", };
+static char *keywords[] = { "intr", "acl", };
 
 static int num_possible_keywords = sizeof(keywords) / sizeof(char *);
 
@@ -89,13 +89,6 @@ static int parse_mount_options(char *option_str,
 			    "pvfs2: mount option acl specified\n");
 			}
 			pvfs2_sb->mnt_options.acl = 1;
-			break;
-		      } else if (strncmp(options[i], "suid", 4) == 0) {
-			if (!silent) {
-			  gossip_debug(GOSSIP_SUPER_DEBUG,
-			    "pvfs2: mount option suid specified\n");
-			}
-			pvfs2_sb->mnt_options.suid = 1;
 			break;
 		      }
 		    }
