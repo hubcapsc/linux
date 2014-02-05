@@ -402,21 +402,6 @@ struct pvfs2_mount_options_t {
 	 * file if set. NOTE: this is disabled by default.
 	 */
 	int suid;
-
-	/*
-	 * noatime option (if set) is inspired by the nfs mount option
-	 * that requires the file system to disable atime updates for all
-	 * files if set. NOTE: this is disabled by default.
-	 */
-	int noatime;
-
-	/*
-	 * nodiratime option (if set) is inspired by the nfs mount option
-	 * that requires the file system to disable atime updates for
-	 * directories alone if set. NOTE: this is disabled by default.
-	 */
-	int nodiratime;
-
 };
 
 /* per superblock private pvfs2 info */

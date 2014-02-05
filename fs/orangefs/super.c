@@ -13,7 +13,7 @@ LIST_HEAD(pvfs2_superblocks);
 
 DEFINE_SPINLOCK(pvfs2_superblocks_lock);
 
-static char *keywords[] = { "intr", "acl", "suid", "noatime", "nodiratime" };
+static char *keywords[] = { "intr", "acl", "suid", };
 
 static int num_possible_keywords = sizeof(keywords) / sizeof(char *);
 
@@ -97,19 +97,6 @@ static int parse_mount_options(char *option_str,
 			}
 			pvfs2_sb->mnt_options.suid = 1;
 			break;
-		      } else if (strncmp(options[i], "noatime", 7) == 0) {
-			if (!silent) {
-			  gossip_debug(GOSSIP_SUPER_DEBUG,
-			    "pvfs2: mount option noatime specified\n");
-			}
-			pvfs2_sb->mnt_options.noatime = 1;
-			/* break; ? */
-		      } else if (strncmp(options[i], "nodiratime", 10) == 0) {
-			if (!silent) {
-			  gossip_debug(GOSSIP_SUPER_DEBUG,
-			    "pvfs2: mount option nodiratime specified\n");
-			}
-			pvfs2_sb->mnt_options.nodiratime = 1;
 		      }
 		    }
 		  }
@@ -345,16 +332,6 @@ static int pvfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 					 0));
 			sb->s_xattr =
 				pvfs2_xattr_handlers;
-			sb->s_flags =
-				((sb->s_flags & ~MS_NOATIME) |
-				 ((PVFS2_SB(sb)->mnt_options.noatime == 1) ?
-					MS_NOATIME :
-					0));
-			sb->s_flags =
-				((sb->s_flags & ~MS_NODIRATIME) |
-				 ((PVFS2_SB(sb)->mnt_options.nodiratime == 1) ?
-					MS_NODIRATIME :
-					0));
 		}
 
 		if (data)
@@ -404,16 +381,6 @@ int pvfs2_remount(struct super_block *sb, int *flags, char *data)
 					0));
 			sb->s_xattr =
 				pvfs2_xattr_handlers;
-			sb->s_flags =
-				((sb->s_flags & ~MS_NOATIME) |
-				 ((PVFS2_SB(sb)->mnt_options.noatime == 1) ?
-					MS_NOATIME :
-					0));
-			sb->s_flags =
-				((sb->s_flags & ~MS_NODIRATIME) |
-				 ((PVFS2_SB(sb)->mnt_options.nodiratime == 1) ?
-					MS_NODIRATIME :
-					0));
 		}
 
 		new_op = op_alloc(PVFS2_VFS_OP_FS_MOUNT);
@@ -604,21 +571,8 @@ int pvfs2_fill_sb(struct super_block *sb, void *data, int silent)
 			 ((PVFS2_SB(sb)->mnt_options.acl == 1) ?
 				MS_POSIXACL :
 				0));
-		sb->s_flags =
-			((sb->s_flags & ~MS_NOATIME) |
-			 ((PVFS2_SB(sb)->mnt_options.noatime == 1) ?
-				MS_NOATIME :
-				0));
-		sb->s_flags =
-			((sb->s_flags & ~MS_NODIRATIME) |
-			 ((PVFS2_SB(sb)->mnt_options.nodiratime == 1) ?
-				MS_NODIRATIME :
-				0));
 	} else {
-		sb->s_flags =
-			(sb->s_flags & ~(MS_POSIXACL |
-					 MS_NOATIME |
-					 MS_NODIRATIME));
+		sb->s_flags &= ~MS_POSIXACL;
 	}
 
 	/* Hang the xattr handlers off the superblock */
