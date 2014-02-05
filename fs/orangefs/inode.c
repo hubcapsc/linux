@@ -223,16 +223,6 @@ int pvfs2_getattr(struct vfsmount *mnt,
 		     dentry->d_name.name);
 
 	/*
-	 * This seems to be the only place to reliably detect mount options
-	 * parsed by the VFS layer.  Propigate them to our internal sb
-	 * structure so that we can handle lazy time updates properly.
-	 */
-	if (mnt->mnt_flags && MNT_NOATIME)
-		inode->i_sb->s_flags |= MS_NOATIME;
-	if (mnt->mnt_flags && MNT_NODIRATIME)
-		inode->i_sb->s_flags |= MS_NODIRATIME;
-
-	/*
 	 * Similar to the above comment, a getattr also expects that all
 	 * fields/attributes of the inode would be refreshed. So again, we
 	 * dont have too much of a choice but refresh all the attributes.

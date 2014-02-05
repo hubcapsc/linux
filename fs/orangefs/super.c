@@ -682,9 +682,6 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
 		}
 
 		if (sb && !IS_ERR(sb) && (PVFS2_SB(sb))) {
-			if (flags & MS_NOATIME)
-				sb->s_flags |= MS_NOATIME;
-
 			/*
 			 * on successful mount, store the devname and data
 			 * used

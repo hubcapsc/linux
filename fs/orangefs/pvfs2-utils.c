@@ -566,18 +566,7 @@ int pvfs2_flush_inode(struct inode *inode)
 		wbattr.ia_valid |= ATTR_MTIME;
 	if (ctime_flag)
 		wbattr.ia_valid |= ATTR_CTIME;
-	/*
-	 * We do not need to honor atime flushes if
-	 * a) object has a noatime marker
-	 * b) object is a directory and has a nodiratime marker on the fs
-	 * c) entire file system is mounted with noatime option
-	 */
-
-	if (!((inode->i_flags & S_NOATIME) ||
-	      (inode->i_sb->s_flags & MS_NOATIME) ||
-	      ((inode->i_sb->s_flags & MS_NODIRATIME) &&
-			S_ISDIR(inode->i_mode)))
-	     && atime_flag)
+	if (atime_flag)
 		wbattr.ia_valid |= ATTR_ATIME;
 
 	if (mode_flag) {

@@ -375,16 +375,6 @@ get_new_buffer_index:
 		     llu(*ptoken),
 		     lld(ctx->pos));
 
-	if (ret == 0) {
-		gossip_debug(GOSSIP_DIR_DEBUG,
-			     "pvfs2_readdir about to update_atime %p\n",
-			     dentry->d_inode);
-
-		SetAtimeFlag(pvfs2_inode);
-		dentry->d_inode->i_atime = CURRENT_TIME;
-		mark_inode_dirty_sync(dentry->d_inode);
-	}
-
 	readdir_handle_dtor(&rhandle);
 	op_release(new_op);
 

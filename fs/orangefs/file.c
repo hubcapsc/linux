@@ -1535,13 +1535,12 @@ out:
 	}
 	if (ret > 0 && inode != NULL && pvfs2_inode != NULL) {
 		if (rw->type == IO_READV) {
-			SetAtimeFlag(pvfs2_inode);
-			inode->i_atime = CURRENT_TIME;
+			file_accessed(rw->file);
 		} else {
 			SetMtimeFlag(pvfs2_inode);
 			inode->i_mtime = CURRENT_TIME;
+			mark_inode_dirty_sync(inode);
 		}
-		mark_inode_dirty_sync(inode);
 	}
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
@@ -1954,13 +1953,12 @@ static ssize_t pvfs2_aio_retry(struct kiocb *iocb)
 			struct inode *inode = iocb->ki_filp->f_mapping->host;
 			pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
 			if (x->rw == PVFS_IO_READ) {
-				SetAtimeFlag(pvfs2_inode);
-				inode->i_atime = CURRENT_TIME;
+				file_accessed(iocb->ki_filp);
 			} else {
 				SetMtimeFlag(pvfs2_inode);
 				inode->i_mtime = CURRENT_TIME;
+				mark_inode_dirty_sync(inode);
 			}
-			mark_inode_dirty_sync(inode);
 		}
 		/*
 		 * Now we can happily free up the op,
