@@ -750,13 +750,6 @@ int pvfs2_removexattr(struct dentry *dentry, const char *name);
  */
 struct inode *pvfs2_iget(struct super_block *sb, PVFS_object_ref *ref);
 
-/*
- * defined in file.c (shared file/dir operations)
- */
-int pvfs2_file_open(struct inode *inode, struct file *file);
-
-int pvfs2_file_release(struct inode *inode, struct file *file);
-
 ssize_t pvfs2_inode_read(struct inode *inode,
 			 char *buf,
 			 size_t count,

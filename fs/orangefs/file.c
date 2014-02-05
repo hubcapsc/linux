@@ -53,29 +53,8 @@ do {							\
 	wake_up_interruptible(&op->io_completion_waitq);\
 } while (0)
 
-int pvfs2_dir_open(struct inode *inode, struct file *file)
-{
-	PVFS_ds_position *ptoken;
-
-	file->private_data = kmalloc(sizeof(PVFS_ds_position), GFP_KERNEL);
-	if (!file->private_data)
-		return -ENOMEM;
-
-	ptoken = file->private_data;
-	*ptoken = PVFS_READDIR_START;
-
-	return 0;
-}
-
-int pvfs2_dir_close(struct inode *inode, struct file *file)
-{
-	kfree(file->private_data);
-	return 0;
-}
-
-
 /* Called when a process requests to open a file.  */
-int pvfs2_file_open(struct inode *inode, struct file *file)
+static int pvfs2_file_open(struct inode *inode, struct file *file)
 {
 	int ret = -EINVAL;
 
@@ -84,47 +63,43 @@ int pvfs2_file_open(struct inode *inode, struct file *file)
 		     file->f_dentry->d_name.name,
 		     llu(get_handle_from_ino(inode)));
 
-	if (S_ISDIR(inode->i_mode)) {
-		ret = pvfs2_dir_open(inode, file);
-	} else {
+	/*
+	   if the file's being opened for append mode, set the file pos
+	   to the end of the file when we retrieve the size (which we
+	   must forcefully do here in this case, afaict atm)
+	 */
+	if (file->f_flags & O_APPEND) {
 		/*
-		   if the file's being opened for append mode, set the file pos
-		   to the end of the file when we retrieve the size (which we
-		   must forcefully do here in this case, afaict atm)
+		 * When we do a getattr in response to an open
+		 * with O_APPEND, all we are interested in is the
+		 * file size. Hence we will set the mask to only
+		 * the size and nothing else. Hopefully, this will
+		 * help us in reducing the number of getattr's
 		 */
-		if (file->f_flags & O_APPEND) {
-			/*
-			 * When we do a getattr in response to an open
-			 * with O_APPEND, all we are interested in is the
-			 * file size. Hence we will set the mask to only
-			 * the size and nothing else. Hopefully, this will
-			 * help us in reducing the number of getattr's
-			 */
-			ret = pvfs2_inode_getattr(inode, PVFS_ATTR_SYS_SIZE);
-			if (ret == 0) {
-				file->f_pos = pvfs2_i_size_read(inode);
-				gossip_debug(GOSSIP_FILE_DEBUG, "f_pos = %ld\n",
-					     (unsigned long)file->f_pos);
-			} else {
-				gossip_debug(GOSSIP_FILE_DEBUG,
-					     "%s:%s:%d call make bad inode\n",
-					     __FILE__,
-					     __func__,
-					     __LINE__);
-				pvfs2_make_bad_inode(inode);
-				gossip_debug(GOSSIP_FILE_DEBUG,
-					     "pvfs2_file_open error ret:%d:\n",
-					     ret);
-				return ret;
-			}
+		ret = pvfs2_inode_getattr(inode, PVFS_ATTR_SYS_SIZE);
+		if (ret == 0) {
+			file->f_pos = pvfs2_i_size_read(inode);
+			gossip_debug(GOSSIP_FILE_DEBUG, "f_pos = %ld\n",
+				     (unsigned long)file->f_pos);
+		} else {
+			gossip_debug(GOSSIP_FILE_DEBUG,
+				     "%s:%s:%d call make bad inode\n",
+				     __FILE__,
+				     __func__,
+				     __LINE__);
+			pvfs2_make_bad_inode(inode);
+			gossip_debug(GOSSIP_FILE_DEBUG,
+				     "pvfs2_file_open error ret:%d:\n",
+				     ret);
+			return ret;
 		}
-
-		/*
-		   fs/open.c: returns 0 after enforcing large file support if
-		   running on a 32 bit system w/o O_LARGFILE flag.
-		 */
-		ret = generic_file_open(inode, file);
 	}
+
+	/*
+	   fs/open.c: returns 0 after enforcing large file support if
+	   running on a 32 bit system w/o O_LARGFILE flag.
+	 */
+	ret = generic_file_open(inode, file);
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
 		     "pvfs2_file_open returning normally: %d\n",
@@ -2601,8 +2576,6 @@ int pvfs2_file_release(struct inode *inode, struct file *file)
 		     file->f_dentry->d_name.name);
 
 	pvfs2_flush_inode(inode);
-	if (S_ISDIR(inode->i_mode))
-		return pvfs2_dir_close(inode, file);
 
 	/*
 	   remove all associated inode pages from the page cache and mmap

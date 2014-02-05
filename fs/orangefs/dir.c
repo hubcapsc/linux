@@ -393,10 +393,30 @@ get_new_buffer_index:
 	return ret;
 }
 
+static int pvfs2_dir_open(struct inode *inode, struct file *file)
+{
+	PVFS_ds_position *ptoken;
+
+	file->private_data = kmalloc(sizeof(PVFS_ds_position), GFP_KERNEL);
+	if (!file->private_data)
+		return -ENOMEM;
+
+	ptoken = file->private_data;
+	*ptoken = PVFS_READDIR_START;
+	return 0;
+}
+
+static int pvfs2_dir_release(struct inode *inode, struct file *file)
+{
+	pvfs2_flush_inode(inode);
+	kfree(file->private_data);
+	return 0;
+}
+
 /** PVFS2 implementation of VFS directory operations */
 const struct file_operations pvfs2_dir_operations = {
 	.read = generic_read_dir,
 	.iterate = pvfs2_readdir,
-	.open = pvfs2_file_open,
-	.release = pvfs2_file_release,
+	.open = pvfs2_dir_open,
+	.release = pvfs2_dir_release,
 };
