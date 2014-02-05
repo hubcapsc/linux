@@ -323,8 +323,6 @@ static int pvfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 				 ((PVFS2_SB(sb)->mnt_options.acl == 1) ?
 					 MS_POSIXACL :
 					 0));
-			sb->s_xattr =
-				pvfs2_xattr_handlers;
 		}
 
 		if (data)
@@ -372,8 +370,6 @@ int pvfs2_remount(struct super_block *sb, int *flags, char *data)
 				 ((PVFS2_SB(sb)->mnt_options.acl == 1) ?
 					MS_POSIXACL :
 					0));
-			sb->s_xattr =
-				pvfs2_xattr_handlers;
 		}
 
 		new_op = op_alloc(PVFS2_VFS_OP_FS_MOUNT);
