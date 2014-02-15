@@ -133,15 +133,15 @@ const struct address_space_operations pvfs2_address_operations = {
 	.releasepage = pvfs2_releasepage
 };
 
-/*
- * Change size of an object referenced by inode
- */
-void pvfs2_truncate(struct inode *inode)
+static int pvfs2_setattr_size(struct inode *inode, struct iattr *iattr)
 {
 	loff_t orig_size = pvfs2_i_size_read(inode);
 
+	truncate_setsize(inode, iattr->ia_size);
+
 	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
-		return;
+		return -EPERM;
+
 	gossip_debug(GOSSIP_INODE_DEBUG,
 		     "pvfs2: pvfs2_truncate called on inode %llu "
 		     "with size %ld\n",
@@ -159,6 +159,8 @@ void pvfs2_truncate(struct inode *inode)
 		inode->i_mtime = CURRENT_TIME;
 		mark_inode_dirty_sync(inode);
 	}
+
+	return 0;
 }
 
 /*
@@ -174,35 +176,29 @@ int pvfs2_setattr(struct dentry *dentry, struct iattr *iattr)
 		     dentry->d_name.name);
 
 	ret = inode_change_ok(inode, iattr);
-	if (ret == 0) {
+	if (ret)
+		goto out;
 
-		if ((iattr->ia_valid & ATTR_SIZE) &&
-		    iattr->ia_size != i_size_read(inode)) {
-			ret = inode_newsize_ok(inode, iattr->ia_size);
-			gossip_debug(GOSSIP_INODE_DEBUG,
-				     "pvfs2_setattr: inode_newsize_ok returned "
-				     "%d\n",
-				     ret);
-			if (!ret) {
-				truncate_setsize(inode, iattr->ia_size);
-				pvfs2_truncate(inode);
-			}
-			if (ret)
-				return ret;
-		}
-
-		setattr_copy(inode, iattr);
-		mark_inode_dirty(inode);
-
-		ret = pvfs2_inode_setattr(inode, iattr);
-		gossip_debug(GOSSIP_INODE_DEBUG,
-			     "pvfs2_setattr: inode_setattr returned %d\n",
-			     ret);
-
-		if (!ret && (iattr->ia_valid & ATTR_MODE))
-			/* change mod on a file that has ACLs */
-			ret = pvfs2_acl_chmod(inode);
+	if ((iattr->ia_valid & ATTR_SIZE) &&
+	    iattr->ia_size != i_size_read(inode)) {
+		ret = pvfs2_setattr_size(inode, iattr);
+		if (ret)
+			goto out;
 	}
+
+	setattr_copy(inode, iattr);
+	mark_inode_dirty(inode);
+
+	ret = pvfs2_inode_setattr(inode, iattr);
+	gossip_debug(GOSSIP_INODE_DEBUG,
+		     "pvfs2_setattr: inode_setattr returned %d\n",
+		     ret);
+
+	if (!ret && (iattr->ia_valid & ATTR_MODE))
+		/* change mod on a file that has ACLs */
+		ret = pvfs2_acl_chmod(inode);
+
+out:
 	gossip_debug(GOSSIP_INODE_DEBUG, "pvfs2_setattr: returning %d\n", ret);
 	return ret;
 }
