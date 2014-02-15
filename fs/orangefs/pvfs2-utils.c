@@ -99,164 +99,164 @@ static void pvfs2_set_inode_flags(struct inode *inode, PVFS_sys_attr *attrs)
 }
 
 /* NOTE: symname is ignored unless the inode is a sym link */
-int copy_attributes_to_inode(struct inode *inode,
+static int copy_attributes_to_inode(struct inode *inode,
 			     PVFS_sys_attr *attrs,
 			     char *symname)
 {
 	int ret = -1;
 	int perm_mode = 0;
-	pvfs2_inode_t *pvfs2_inode = NULL;
+	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
 	loff_t inode_size = 0;
 	loff_t rounded_up_size = 0;
 
-	if (inode && attrs) {
-		pvfs2_inode = PVFS2_I(inode);
 
-		/*
-		   arbitrarily set the inode block size; FIXME: we need to
-		   resolve the difference between the reported inode blocksize
-		   and the PAGE_CACHE_SIZE, since our block count will always
-		   be wrong.
+	/*
+	   arbitrarily set the inode block size; FIXME: we need to
+	   resolve the difference between the reported inode blocksize
+	   and the PAGE_CACHE_SIZE, since our block count will always
+	   be wrong.
 
-		   For now, we're setting the block count to be the proper
-		   number assuming the block size is 512 bytes, and the size is
-		   rounded up to the nearest 4K.  This is apparently required
-		   to get proper size reports from the 'du' shell utility.
+	   For now, we're setting the block count to be the proper
+	   number assuming the block size is 512 bytes, and the size is
+	   rounded up to the nearest 4K.  This is apparently required
+	   to get proper size reports from the 'du' shell utility.
 
-		   changing the inode->i_blkbits to something other than
-		   PAGE_CACHE_SHIFT breaks mmap/execution as we depend on that.
-		 */
-		gossip_debug(GOSSIP_UTILS_DEBUG,
-			     "attrs->mask = %x (objtype = %s)\n",
-			     attrs->mask,
-			     attrs->objtype == PVFS_TYPE_METAFILE ?
-				"file" :
-				attrs->objtype == PVFS_TYPE_DIRECTORY ?
-					"directory" :
-					attrs->objtype == PVFS_TYPE_SYMLINK ?
-						"symlink" :
-						"invalid/unknown");
+	   changing the inode->i_blkbits to something other than
+	   PAGE_CACHE_SHIFT breaks mmap/execution as we depend on that.
+	 */
+	gossip_debug(GOSSIP_UTILS_DEBUG,
+		     "attrs->mask = %x (objtype = %s)\n",
+		     attrs->mask,
+		     attrs->objtype == PVFS_TYPE_METAFILE ? "file" :
+		     attrs->objtype == PVFS_TYPE_DIRECTORY ? "directory" :
+		     attrs->objtype == PVFS_TYPE_SYMLINK ? "symlink" :
+			"invalid/unknown");
 
-		if (attrs->objtype == PVFS_TYPE_METAFILE) {
-			pvfs2_set_inode_flags(inode, attrs);
-			if (attrs->mask & PVFS_ATTR_SYS_SIZE) {
-				inode_size = (loff_t) attrs->size;
-				rounded_up_size =
-				    (inode_size + (4096 - (inode_size % 4096)));
+	switch (attrs->objtype) {
+	case PVFS_TYPE_METAFILE:
+		pvfs2_set_inode_flags(inode, attrs);
+		if (attrs->mask & PVFS_ATTR_SYS_SIZE) {
+			inode_size = (loff_t) attrs->size;
+			rounded_up_size =
+			    (inode_size + (4096 - (inode_size % 4096)));
 
-				pvfs2_lock_inode(inode);
-				inode->i_bytes = inode_size;
-				inode->i_blocks =
-				    (unsigned long)(rounded_up_size / 512);
-				pvfs2_unlock_inode(inode);
-
-				/*
-				 * NOTE: make sure all the places we're called
-				 * from have the inode->i_sem lock. We're fine
-				 * in 99% of the cases since we're mostly
-				 * called from a lookup.
-				 */
-				inode->i_size = inode_size;
-			}
-		} else if ((attrs->objtype == PVFS_TYPE_SYMLINK) &&
-			   (symname != NULL)) {
-			inode->i_size = (loff_t) strlen(symname);
-		} else {
 			pvfs2_lock_inode(inode);
-			inode->i_bytes = PAGE_CACHE_SIZE;
+			inode->i_bytes = inode_size;
 			inode->i_blocks =
-			    (unsigned long)(PAGE_CACHE_SIZE / 512);
+			    (unsigned long)(rounded_up_size / 512);
 			pvfs2_unlock_inode(inode);
 
-			inode->i_size = PAGE_CACHE_SIZE;
-		}
-
-		inode->i_uid = make_kuid(&init_user_ns, attrs->owner);
-		inode->i_gid = make_kgid(&init_user_ns, attrs->group);
-		inode->i_atime.tv_sec = (time_t) attrs->atime;
-		inode->i_mtime.tv_sec = (time_t) attrs->mtime;
-		inode->i_ctime.tv_sec = (time_t) attrs->ctime;
-		inode->i_atime.tv_nsec = 0;
-		inode->i_mtime.tv_nsec = 0;
-		inode->i_ctime.tv_nsec = 0;
-
-		if (attrs->perms & PVFS_O_EXECUTE)
-			perm_mode |= S_IXOTH;
-		if (attrs->perms & PVFS_O_WRITE)
-			perm_mode |= S_IWOTH;
-		if (attrs->perms & PVFS_O_READ)
-			perm_mode |= S_IROTH;
-
-		if (attrs->perms & PVFS_G_EXECUTE)
-			perm_mode |= S_IXGRP;
-		if (attrs->perms & PVFS_G_WRITE)
-			perm_mode |= S_IWGRP;
-		if (attrs->perms & PVFS_G_READ)
-			perm_mode |= S_IRGRP;
-
-		if (attrs->perms & PVFS_U_EXECUTE)
-			perm_mode |= S_IXUSR;
-		if (attrs->perms & PVFS_U_WRITE)
-			perm_mode |= S_IWUSR;
-		if (attrs->perms & PVFS_U_READ)
-			perm_mode |= S_IRUSR;
-
-		if (attrs->perms & PVFS_G_SGID)
-			perm_mode |= S_ISGID;
-		if (attrs->perms & PVFS_U_SUID)
-			perm_mode |= S_ISUID;
-
-		inode->i_mode = perm_mode;
-
-		if (is_root_handle(inode)) {
-			/* special case: mark the root inode as sticky */
-			inode->i_mode |= S_ISVTX;
-			gossip_debug(GOSSIP_UTILS_DEBUG,
-				     "Marking inode %llu as sticky\n",
-				     llu(get_handle_from_ino(inode)));
-		}
-
-		switch (attrs->objtype) {
-		case PVFS_TYPE_METAFILE:
-			inode->i_mode |= S_IFREG;
-			ret = 0;
-			break;
-		case PVFS_TYPE_DIRECTORY:
-			inode->i_mode |= S_IFDIR;
-			/* NOTE: we have no good way to keep nlink consistent
-			 * for directories across clients; keep constant at 1.
-			 * Why 1?  If we go with 2, then find(1) gets confused
-			 * and won't work properly withouth the -noleaf option
+			/*
+			 * NOTE: make sure all the places we're called
+			 * from have the inode->i_sem lock. We're fine
+			 * in 99% of the cases since we're mostly
+			 * called from a lookup.
 			 */
-			set_nlink(inode, 1);
-			ret = 0;
+			inode->i_size = inode_size;
+		}
+		break;
+	case PVFS_TYPE_SYMLINK:
+		if (symname != NULL) {
+			inode->i_size = (loff_t) strlen(symname);
 			break;
-		case PVFS_TYPE_SYMLINK:
-			inode->i_mode |= S_IFLNK;
+		}
+		/*FALLTHRU*/
+	default:
+		pvfs2_lock_inode(inode);
+		inode->i_bytes = PAGE_CACHE_SIZE;
+		inode->i_blocks = (unsigned long)(PAGE_CACHE_SIZE / 512);
+		pvfs2_unlock_inode(inode);
 
-			/* copy link target to inode private data */
-			if (pvfs2_inode && symname) {
-				strncpy(pvfs2_inode->link_target,
-					symname,
-					PVFS_NAME_MAX);
-				gossip_debug(GOSSIP_UTILS_DEBUG,
-					     "Copied attr link target %s\n",
-					     pvfs2_inode->link_target);
-			}
+		inode->i_size = PAGE_CACHE_SIZE;
+		break;
+	}
+
+	inode->i_uid = make_kuid(&init_user_ns, attrs->owner);
+	inode->i_gid = make_kgid(&init_user_ns, attrs->group);
+	inode->i_atime.tv_sec = (time_t) attrs->atime;
+	inode->i_mtime.tv_sec = (time_t) attrs->mtime;
+	inode->i_ctime.tv_sec = (time_t) attrs->ctime;
+	inode->i_atime.tv_nsec = 0;
+	inode->i_mtime.tv_nsec = 0;
+	inode->i_ctime.tv_nsec = 0;
+
+	if (attrs->perms & PVFS_O_EXECUTE)
+		perm_mode |= S_IXOTH;
+	if (attrs->perms & PVFS_O_WRITE)
+		perm_mode |= S_IWOTH;
+	if (attrs->perms & PVFS_O_READ)
+		perm_mode |= S_IROTH;
+
+	if (attrs->perms & PVFS_G_EXECUTE)
+		perm_mode |= S_IXGRP;
+	if (attrs->perms & PVFS_G_WRITE)
+		perm_mode |= S_IWGRP;
+	if (attrs->perms & PVFS_G_READ)
+		perm_mode |= S_IRGRP;
+
+	if (attrs->perms & PVFS_U_EXECUTE)
+		perm_mode |= S_IXUSR;
+	if (attrs->perms & PVFS_U_WRITE)
+		perm_mode |= S_IWUSR;
+	if (attrs->perms & PVFS_U_READ)
+		perm_mode |= S_IRUSR;
+
+	if (attrs->perms & PVFS_G_SGID)
+		perm_mode |= S_ISGID;
+	if (attrs->perms & PVFS_U_SUID)
+		perm_mode |= S_ISUID;
+
+	inode->i_mode = perm_mode;
+
+	if (is_root_handle(inode)) {
+		/* special case: mark the root inode as sticky */
+		inode->i_mode |= S_ISVTX;
+		gossip_debug(GOSSIP_UTILS_DEBUG,
+			     "Marking inode %llu as sticky\n",
+			     llu(get_handle_from_ino(inode)));
+	}
+
+	switch (attrs->objtype) {
+	case PVFS_TYPE_METAFILE:
+		inode->i_mode |= S_IFREG;
+		ret = 0;
+		break;
+	case PVFS_TYPE_DIRECTORY:
+		inode->i_mode |= S_IFDIR;
+		/* NOTE: we have no good way to keep nlink consistent
+		 * for directories across clients; keep constant at 1.
+		 * Why 1?  If we go with 2, then find(1) gets confused
+		 * and won't work properly withouth the -noleaf option
+		 */
+		set_nlink(inode, 1);
+		ret = 0;
+		break;
+	case PVFS_TYPE_SYMLINK:
+		inode->i_mode |= S_IFLNK;
+
+		/* copy link target to inode private data */
+		if (pvfs2_inode && symname) {
+			strncpy(pvfs2_inode->link_target,
+				symname,
+				PVFS_NAME_MAX);
 			gossip_debug(GOSSIP_UTILS_DEBUG,
-				     "symlink mode %o\n",
-				     inode->i_mode);
-			ret = 0;
-			break;
-		default:
-			gossip_err("pvfs2:copy_attributes_to_inode: got invalid attribute type %x\n",
-				attrs->objtype);
+				     "Copied attr link target %s\n",
+				     pvfs2_inode->link_target);
 		}
 		gossip_debug(GOSSIP_UTILS_DEBUG,
-			     "pvfs2: copy_attributes_to_inode: setting i_mode to %o, i_size to %lu\n",
-			     inode->i_mode,
-			     (unsigned long)i_size_read(inode));
+			     "symlink mode %o\n",
+			     inode->i_mode);
+		ret = 0;
+		break;
+	default:
+		gossip_err("pvfs2:copy_attributes_to_inode: got invalid attribute type %x\n",
+			attrs->objtype);
 	}
+
+	gossip_debug(GOSSIP_UTILS_DEBUG,
+		     "pvfs2: copy_attributes_to_inode: setting i_mode to %o, i_size to %lu\n",
+		     inode->i_mode,
+		     (unsigned long)i_size_read(inode));
 	return ret;
 }
 
@@ -354,113 +354,63 @@ static inline int copy_attributes_from_inode(struct inode *inode,
  */
 int pvfs2_inode_getattr(struct inode *inode, uint32_t getattr_mask)
 {
+	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
+	pvfs2_kernel_op_t *new_op;
 	int ret = -EINVAL;
-	pvfs2_kernel_op_t *new_op = NULL;
-	pvfs2_inode_t *pvfs2_inode = NULL;
 
-	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "pvfs2_inode_getattr: called on inode %llu\n",
-		     llu(get_handle_from_ino(inode)));
+	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: called on inode %llu\n",
+		     __func__, llu(get_handle_from_ino(inode)));
 
-	if (inode) {
-		pvfs2_inode = PVFS2_I(inode);
-		if (!pvfs2_inode) {
-			gossip_debug(GOSSIP_UTILS_DEBUG,
-				     "%s:%s:%d "
-				     "failed to resolve to pvfs2_inode\n",
-				     __FILE__,
-				     __func__,
-				     __LINE__);
-			return ret;
-		}
+	new_op = op_alloc(PVFS2_VFS_OP_GETATTR);
+	if (!new_op)
+		return -ENOMEM;
+	new_op->upcall.req.getattr.refn = pvfs2_inode->refn;
+	new_op->upcall.req.getattr.mask = getattr_mask;
 
-		/*
-		 * in the case of being called from s_op->read_inode, the
-		 * pvfs2_inode private data hasn't been initialized yet, so we
-		 * need to use the inode number as the handle and query the
-		 * superblock for the fs_id.  Further, we assign that private
-		 * data here.
-		 *
-		 * that call flow looks like:
-		 * lookup --> iget --> read_inode --> here
-		 *
-		 * In the case we are doing an iget4 or an iget5_locked, there
-		 * is no call made to read_inode so we actually have valid
-		 * fields in pvfs2_inode->refn
-		 *
-		 * if the inode were already in the inode cache, it looks like:
-		 * lookup --> revalidate --> here
-		 */
-		if (pvfs2_inode->refn.handle == PVFS_HANDLE_NULL) {
-			gossip_lerr("Critical error: Invalid handle despite using iget4/iget5\n");
-			return -EINVAL;
-		}
-		if (pvfs2_inode->refn.fs_id == PVFS_FS_ID_NULL) {
-			gossip_lerr("Critical error: Invalid fsid despite using iget4/iget5\n");
-			return -EINVAL;
-		}
+	ret = service_operation(new_op, __func__,
+				get_interruptible_flag(inode));
+	if (ret != 0)
+		goto out;
 
-		/*
-		 * post a getattr request here; make dentry valid if getattr
-		 * passes
-		 */
-		new_op = op_alloc(PVFS2_VFS_OP_GETATTR);
-		if (!new_op)
-			return -ENOMEM;
-		new_op->upcall.req.getattr.refn = pvfs2_inode->refn;
-		new_op->upcall.req.getattr.mask = getattr_mask;
-
-		ret = service_operation(new_op,
-					"pvfs2_inode_getattr",
-					get_interruptible_flag(inode));
-
-		/* check what kind of goodies we got */
-		if (ret == 0) {
-			if (copy_attributes_to_inode(inode,
-				&new_op->downcall.resp.getattr.attributes,
-				new_op->downcall.resp.getattr.link_target)) {
-					gossip_err("pvfs2_inode_getattr: failed to copy attributes\n");
-					ret = -ENOENT;
-					goto copy_attr_failure;
-			}
-
-			/*
-			 * store blksize in pvfs2 specific part of inode
-			 * structure; we are only going to use this to report
-			 * to stat to make sure it doesn't perturb any inode
-			 * related code paths
-			 */
-			if (new_op->downcall.resp.getattr.attributes.objtype
-			    == PVFS_TYPE_METAFILE)
-				pvfs2_inode->blksize =
-				    new_op->
-				       downcall.resp.getattr.attributes.blksize;
-			else
-				/*
-				 * mimic behavior of generic_fillattr() for
-				 * other types
-				 */
-				pvfs2_inode->blksize = (1 << inode->i_blkbits);
-
-		}
-
-copy_attr_failure:
-		gossip_debug(GOSSIP_UTILS_DEBUG,
-			     "Getattr on handle %llu, "
-			     "fsid %d\n  (inode ct = %d) returned %d\n",
-			     llu(pvfs2_inode->refn.handle),
-			     pvfs2_inode->refn.fs_id,
-			     (int)atomic_read(&inode->i_count),
-			     ret);
-		/*
-		 * store error code in the inode so that we can retrieve
-		 * it later if needed
-		 */
-		if (ret < 0)
-			pvfs2_inode->error_code = ret;
-
-		op_release(new_op);
+	if (copy_attributes_to_inode(inode,
+			&new_op->downcall.resp.getattr.attributes,
+			new_op->downcall.resp.getattr.link_target)) {
+		gossip_err("%s: failed to copy attributes\n", __func__);
+		ret = -ENOENT;
+		goto out;
 	}
+
+	/*
+	 * Store blksize in pvfs2 specific part of inode structure; we are
+	 * only going to use this to report to stat to make sure it doesn't
+	 * perturb any inode related code paths.
+	 */
+	if (new_op->downcall.resp.getattr.attributes.objtype ==
+			PVFS_TYPE_METAFILE) {
+		pvfs2_inode->blksize =
+			new_op->downcall.resp.getattr.attributes.blksize;
+	} else {
+		/* mimic behavior of generic_fillattr() for other types. */
+		pvfs2_inode->blksize = (1 << inode->i_blkbits);
+
+	}
+
+out:
+	gossip_debug(GOSSIP_UTILS_DEBUG,
+		     "Getattr on handle %llu, "
+		     "fsid %d\n  (inode ct = %d) returned %d\n",
+		     llu(pvfs2_inode->refn.handle),
+		     pvfs2_inode->refn.fs_id,
+		     (int)atomic_read(&inode->i_count),
+		     ret);
+	/*
+	 * store error code in the inode so that we can retrieve
+	 * it later if needed
+	 */
+	if (ret < 0)
+		pvfs2_inode->error_code = ret;
+
+	op_release(new_op);
 	return ret;
 }
 

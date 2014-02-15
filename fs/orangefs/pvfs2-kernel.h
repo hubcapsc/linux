@@ -750,10 +750,6 @@ PVFS_fs_id fsid_of_op(pvfs2_kernel_op_t *op);
 
 int pvfs2_flush_inode(struct inode *inode);
 
-int copy_attributes_to_inode(struct inode *inode,
-			     PVFS_sys_attr *attrs,
-			     char *symname);
-
 ssize_t pvfs2_inode_getxattr(struct inode *inode,
 			     const char *prefix,
 			     const char *name,
