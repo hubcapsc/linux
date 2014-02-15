@@ -244,10 +244,8 @@ int pvfs_bufmap_initialize(struct PVFS_dev_map_desc *user_desc)
 	 * since setting the page as reserved has problems in 2.6 these pages
 	 * need to be mlock() in the user space side.
 	 */
-	for (i = 0; i < bufmap_page_count; i++) {
+	for (i = 0; i < bufmap_page_count; i++)
 		flush_dcache_page(bufmap_page_array[i]);
-		pvfs2_set_page_reserved(bufmap_page_array[i]);
-	}
 
 	/* build a list of available descriptors */
 	for (offset = 0, i = 0; i < pvfs2_bufmap_desc_count; i++) {
@@ -315,10 +313,8 @@ void pvfs_bufmap_finalize(void)
 		return;
 	}
 
-	for (i = 0; i < bufmap_page_count; i++) {
-		pvfs2_clear_page_reserved(bufmap_page_array[i]);
+	for (i = 0; i < bufmap_page_count; i++)
 		page_cache_release(bufmap_page_array[i]);
-	}
 	kfree(bufmap_page_array);
 
 	bufmap_init = 0;

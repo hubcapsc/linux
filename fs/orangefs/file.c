@@ -78,7 +78,7 @@ static int pvfs2_file_open(struct inode *inode, struct file *file)
 		 */
 		ret = pvfs2_inode_getattr(inode, PVFS_ATTR_SYS_SIZE);
 		if (ret == 0) {
-			file->f_pos = pvfs2_i_size_read(inode);
+			file->f_pos = i_size_read(inode);
 			gossip_debug(GOSSIP_FILE_DEBUG, "f_pos = %ld\n",
 				     (unsigned long)file->f_pos);
 		} else {
@@ -882,7 +882,7 @@ static int locate_file_pages(struct rw_options *rw, size_t total_size)
 		gossip_lerr("invalid options\n");
 		return -EINVAL;
 	}
-	isize = pvfs2_i_size_read(rw->inode);
+	isize = i_size_read(rw->inode);
 	rw->copy_dest_type = COPY_DEST_PAGES;
 	/* start with an empty page list */
 	INIT_LIST_HEAD(&rw->dest.pages.page_list);
@@ -1220,7 +1220,7 @@ static ssize_t wait_for_cached_io(struct rw_options *old_rw,
 		return -EOPNOTSUPP;
 	}
 	offset = *(rw.off.io.offset);
-	isize = pvfs2_i_size_read(rw.inode);
+	isize = i_size_read(rw.inode);
 	/* If our file offset was greater than file size, we should return 0 */
 	if (offset >= isize)
 		return 0;
@@ -1350,7 +1350,7 @@ static ssize_t do_readv_writev(struct rw_options *rw)
 			gossip_err("%s: Invalid file pointer\n", rw->fnstr);
 			goto out;
 		}
-		if (file->f_pos > pvfs2_i_size_read(inode))
+		if (file->f_pos > i_size_read(inode))
 			pvfs2_i_size_write(inode, file->f_pos);
 		/*
 		 * perform generic linux kernel tests for sanity of write

@@ -135,7 +135,7 @@ const struct address_space_operations pvfs2_address_operations = {
 
 static int pvfs2_setattr_size(struct inode *inode, struct iattr *iattr)
 {
-	loff_t orig_size = pvfs2_i_size_read(inode);
+	loff_t orig_size = i_size_read(inode);
 
 	truncate_setsize(inode, iattr->ia_size);
 
@@ -153,7 +153,7 @@ static int pvfs2_setattr_size(struct inode *inode, struct iattr *iattr)
 	 * although the mtime updates are propagated lazily!
 	 */
 	if (pvfs2_truncate_inode(inode, inode->i_size) == 0
-	    && (orig_size != pvfs2_i_size_read(inode))) {
+	    && (orig_size != i_size_read(inode))) {
 		pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
 		SetMtimeFlag(pvfs2_inode);
 		inode->i_mtime = CURRENT_TIME;
@@ -431,7 +431,7 @@ struct inode *pvfs2_get_custom_inode_common(struct super_block *sb,
 
 		/* dir inodes start with i_nlink == 2 (for "." entry) */
 		if (S_ISLNK(inode->i_mode))
-			pvfs2_i_inc_nlink(inode);
+			inc_nlink(inode);
 
 		gossip_debug(GOSSIP_ACL_DEBUG,
 			     "Initializing ACL's for inode %llu\n",

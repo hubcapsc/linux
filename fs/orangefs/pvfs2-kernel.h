@@ -968,21 +968,10 @@ do {									\
 #define pvfs2_update_inode_time(inode) \
 inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 
-#define get_block_block_type sector_t
 #define pvfs2_lock_inode(inode) spin_lock(&inode->i_lock)
 #define pvfs2_unlock_inode(inode) spin_unlock(&inode->i_lock)
 #define pvfs2_current_signal_lock current->sighand->siglock
 #define pvfs2_current_sigaction current->sighand->action
-#define pvfs2_recalc_sigpending recalc_sigpending
-#define pvfs2_kernel_readpage mpage_readpage
-#define pvfs2_set_page_reserved(page) do {} while (0)
-#define pvfs2_clear_page_reserved(page) do {} while (0)
-
-static inline struct dentry *pvfs2_d_splice_alias(struct dentry *dentry,
-						  struct inode *inode)
-{
-	return d_splice_alias(inode, dentry);
-}
 
 #define fill_default_sys_attrs(sys_attr, type, mode)			\
 do {									\
@@ -1010,31 +999,6 @@ static inline void pvfs2_i_size_write(struct inode *inode, loff_t i_size)
 	pvfs2_inode_unlock(inode);
 #endif
 	return;
-}
-
-static inline loff_t pvfs2_i_size_read(struct inode *inode)
-{
-	return i_size_read(inode);
-}
-
-static inline void pvfs2_i_set_nlink(struct inode *inode, unsigned int nlink)
-{
-	set_nlink(inode, nlink);
-}
-
-static inline void pvfs2_i_inc_nlink(struct inode *inode)
-{
-	inc_nlink(inode);
-}
-
-static inline void pvfs2_i_drop_nlink(struct inode *inode)
-{
-	drop_nlink(inode);
-}
-
-static inline void pvfs2_i_clear_nlink(struct inode *inode)
-{
-	clear_nlink(inode);
 }
 
 static inline unsigned int diff(struct timeval *end, struct timeval *begin)

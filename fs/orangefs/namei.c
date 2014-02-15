@@ -184,7 +184,7 @@ static struct dentry *pvfs2_lookup(struct inode *dir,
 			     (int)atomic_read(&inode->i_count));
 
 		/* update dentry/inode pair into dcache */
-		res = pvfs2_d_splice_alias(dentry, inode);
+		res = d_splice_alias(inode, dentry);
 
 		gossip_debug(GOSSIP_NAME_DEBUG,
 			     "Lookup success (inode ct = %d)\n",
@@ -237,7 +237,7 @@ static int pvfs2_unlink(struct inode *dir, struct dentry *dentry)
 	ret = pvfs2_remove_entry(dir, dentry);
 	if (ret == 0) {
 		pvfs2_inode_t *dir_pinode = PVFS2_I(dir);
-		pvfs2_i_drop_nlink(inode);
+		drop_nlink(inode);
 
 		SetMtimeFlag(dir_pinode);
 		pvfs2_update_inode_time(dir);

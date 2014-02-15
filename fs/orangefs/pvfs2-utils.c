@@ -228,7 +228,7 @@ int copy_attributes_to_inode(struct inode *inode,
 			 * Why 1?  If we go with 2, then find(1) gets confused
 			 * and won't work properly withouth the -noleaf option
 			 */
-			pvfs2_i_set_nlink(inode, 1);
+			set_nlink(inode, 1);
 			ret = 0;
 			break;
 		case PVFS_TYPE_SYMLINK:
@@ -255,7 +255,7 @@ int copy_attributes_to_inode(struct inode *inode,
 		gossip_debug(GOSSIP_UTILS_DEBUG,
 			     "pvfs2: copy_attributes_to_inode: setting i_mode to %o, i_size to %lu\n",
 			     inode->i_mode,
-			     (unsigned long)pvfs2_i_size_read(inode));
+			     (unsigned long)i_size_read(inode));
 	}
 	return ret;
 }
@@ -1647,7 +1647,7 @@ void mask_blocked_signals(sigset_t *orig_sigset)
 	spin_lock_irqsave(&pvfs2_current_signal_lock, irqflags);
 	*orig_sigset = current->blocked;
 	siginitsetinv(&current->blocked, sigallow & ~orig_sigset->sig[0]);
-	pvfs2_recalc_sigpending();
+	recalc_sigpending();
 	spin_unlock_irqrestore(&pvfs2_current_signal_lock, irqflags);
 }
 
@@ -1658,7 +1658,7 @@ void unmask_blocked_signals(sigset_t *orig_sigset)
 
 	spin_lock_irqsave(&pvfs2_current_signal_lock, irqflags);
 	current->blocked = *orig_sigset;
-	pvfs2_recalc_sigpending();
+	recalc_sigpending();
 	spin_unlock_irqrestore(&pvfs2_current_signal_lock, irqflags);
 }
 
