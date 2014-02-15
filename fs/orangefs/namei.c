@@ -85,16 +85,14 @@ out:
  * Attempt to resolve an object name (dentry->d_name), parent handle, and
  * fsid into a handle for the object.
  */
-static struct dentry *pvfs2_lookup(struct inode *dir,
-				   struct dentry *dentry,
+static struct dentry *pvfs2_lookup(struct inode *dir, struct dentry *dentry,
 				   unsigned int flags)
 {
+	pvfs2_inode_t *parent = PVFS2_I(dir);
+	pvfs2_kernel_op_t *new_op;
+	struct inode *inode;
+	struct dentry *res;
 	int ret = -EINVAL;
-	struct inode *inode = NULL;
-	pvfs2_kernel_op_t *new_op = NULL;
-	pvfs2_inode_t *parent = NULL;
-	pvfs2_inode_t *found_pvfs2_inode = NULL;
-	struct super_block *sb = NULL;
 
 	/*
 	 * in theory we could skip a lookup here (if the intent is to
@@ -104,9 +102,8 @@ static struct dentry *pvfs2_lookup(struct inode *dir,
 	 * -EEXIST on O_EXCL opens, which is broken if we skip this lookup
 	 * in the create path)
 	 */
-	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "pvfs2_lookup called on %s\n",
-		     dentry->d_name.name);
+	gossip_debug(GOSSIP_NAME_DEBUG, "%s called on %s\n",
+		     __func__, dentry->d_name.name);
 
 	if (dentry->d_name.len > (PVFS2_NAME_LEN - 1))
 		return ERR_PTR(-ENAMETOOLONG);
@@ -117,56 +114,24 @@ static struct dentry *pvfs2_lookup(struct inode *dir,
 
 	new_op->upcall.req.lookup.sym_follow = flags & LOOKUP_FOLLOW;
 
-	if (dir) {
-		sb = dir->i_sb;
-		parent = PVFS2_I(dir);
-		if (parent &&
-		    parent->refn.handle != PVFS_HANDLE_NULL &&
-		    parent->refn.fs_id != PVFS_FS_ID_NULL) {
-			gossip_debug(GOSSIP_NAME_DEBUG,
-				     "%s:%s:%d using parent %llu\n",
-				     __FILE__,
-				     __func__,
-				     __LINE__,
-				     llu(parent->refn.handle));
-			new_op->upcall.req.lookup.parent_refn = parent->refn;
-		} else {
-			gossip_lerr("Critical error: i_ino cannot be relied on when using iget5/iget4\n");
-			op_release(new_op);
-			return ERR_PTR(-EINVAL);
-			new_op->upcall.req.lookup.parent_refn.handle =
-			    get_handle_from_ino(dir);
-			new_op->upcall.req.lookup.parent_refn.fs_id =
-			    PVFS2_SB(sb)->fs_id;
-		}
-	} else {
-		/*
-		 * if no parent at all was provided, use the root
-		 * handle and file system id stored in the super
-		 * block for the specified dentry's inode
-		 */
-		sb = dentry->d_inode->i_sb;
-		new_op->upcall.req.lookup.parent_refn.handle =
-		    PVFS2_SB(sb)->root_handle;
-		new_op->upcall.req.lookup.parent_refn.fs_id =
-		    PVFS2_SB(sb)->fs_id;
-	}
-	strncpy(new_op->upcall.req.lookup.d_name,
-		dentry->d_name.name,
+	gossip_debug(GOSSIP_NAME_DEBUG, "%s:%s:%d using parent %llu\n",
+		     __FILE__, __func__, __LINE__, llu(parent->refn.handle));
+	new_op->upcall.req.lookup.parent_refn = parent->refn;
+
+	strncpy(new_op->upcall.req.lookup.d_name, dentry->d_name.name,
 		PVFS2_NAME_LEN);
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "pvfs2_lookup: doing lookup on %s\n"
+		     "%s: doing lookup on %s\n"
 		     "  under %llu,%d (follow=%s)\n",
+		     __func__,
 		     new_op->upcall.req.lookup.d_name,
 		     llu(new_op->upcall.req.lookup.parent_refn.handle),
 		     new_op->upcall.req.lookup.parent_refn.fs_id,
 		     ((new_op->upcall.req.lookup.sym_follow ==
 		       PVFS2_LOOKUP_LINK_FOLLOW) ? "yes" : "no"));
 
-	ret = service_operation(new_op,
-				"pvfs2_lookup",
-				get_interruptible_flag(dir));
+	ret = service_operation(new_op, __func__, get_interruptible_flag(dir));
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "Lookup Got %llu, fsid %d (ret=%d)\n",
@@ -195,40 +160,30 @@ static struct dentry *pvfs2_lookup(struct inode *dir,
 				     dentry,
 				     dentry->d_name.name);
 
-			d_add(dentry, inode);
-
-			op_release(new_op);
-			return NULL;
+			d_add(dentry, NULL);
+			res = NULL;
+			goto out;
 		}
 
-		op_release(new_op);
 		/* must be a non-recoverable error */
-		return ERR_PTR(ret);
+		res = ERR_PTR(ret);
+		goto out;
 	}
 
-	inode = pvfs2_iget(sb, &new_op->downcall.resp.lookup.refn);
-	if (inode && !is_bad_inode(inode)) {
-		struct dentry *res;
+	inode = pvfs2_iget(dir->i_sb, &new_op->downcall.resp.lookup.refn);
+	if (!inode) {
+		/*
+		 * no error was returned from service_operation, but the inode
+		 * from pvfs2_iget was null...just return EACCESS
+		 */
+		gossip_debug(GOSSIP_NAME_DEBUG, "Returning -EACCES for NULL inode\n");
+		res = ERR_PTR(-EACCES);
+		goto out;
+	}
 
-		gossip_debug(GOSSIP_NAME_DEBUG,
-			     "%s:%s:%d "
-			     "Found good inode [%lu] with count [%d]\n",
-			     __FILE__,
-			     __func__,
-			     __LINE__,
-			     inode->i_ino,
-			     (int)atomic_read(&inode->i_count));
+	if (is_bad_inode(inode)) {
+		pvfs2_inode_t *found_pvfs2_inode = PVFS2_I(inode);
 
-		/* update dentry/inode pair into dcache */
-		res = d_splice_alias(inode, dentry);
-
-		gossip_debug(GOSSIP_NAME_DEBUG,
-			     "Lookup success (inode ct = %d)\n",
-			     (int)atomic_read(&inode->i_count));
-
-		op_release(new_op);
-		return res;
-	} else if (inode && is_bad_inode(inode)) {
 		gossip_debug(GOSSIP_NAME_DEBUG,
 			     "%s:%s:%d Found bad inode [%lu] with count [%d]. "
 			     "Returning error [%d]",
@@ -238,26 +193,38 @@ static struct dentry *pvfs2_lookup(struct inode *dir,
 			     inode->i_ino,
 			     (int)atomic_read(&inode->i_count),
 			     ret);
-		ret = -EACCES;
-		found_pvfs2_inode = PVFS2_I(inode);
+
 		/*
 		 * look for an error code, possibly set by pvfs2_read_inode(),
 		 * otherwise we have to guess EACCES
 		 */
 		if (found_pvfs2_inode->error_code)
 			ret = found_pvfs2_inode->error_code;
+		else
+			ret = -EACCES;
 		iput(inode);
-		op_release(new_op);
-		return ERR_PTR(ret);
+		res = ERR_PTR(ret);
+		goto out;
 	}
+		
+	gossip_debug(GOSSIP_NAME_DEBUG,
+		     "%s:%s:%d "
+		     "Found good inode [%lu] with count [%d]\n",
+		     __FILE__,
+		     __func__,
+		     __LINE__,
+		     inode->i_ino,
+		     (int)atomic_read(&inode->i_count));
 
-	/*
-	 * no error was returned from service_operation, but the inode
-	 * from pvfs2_iget was null...just return EACCESS
-	 */
+	/* update dentry/inode pair into dcache */
+	res = d_splice_alias(inode, dentry);
+
+	gossip_debug(GOSSIP_NAME_DEBUG,
+		     "Lookup success (inode ct = %d)\n",
+		     (int)atomic_read(&inode->i_count));
+out:
 	op_release(new_op);
-	gossip_debug(GOSSIP_NAME_DEBUG, "Returning -EACCES for NULL inode\n");
-	return ERR_PTR(-EACCES);
+	return res;
 }
 
 /* return 0 on success; non-zero otherwise */
