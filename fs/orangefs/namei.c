@@ -19,29 +19,65 @@ static int pvfs2_create(struct inode *dir,
 			umode_t mode,
 			bool exclusive)
 {
-	int ret = -EINVAL;
-	struct inode *inode = NULL;
+	pvfs2_inode_t *parent = PVFS2_I(dir);
+	pvfs2_kernel_op_t *new_op;
+	struct inode *inode;
+	int ret;
 
-	gossip_debug(GOSSIP_NAME_DEBUG, "pvfs2_create: called\n");
+	gossip_debug(GOSSIP_NAME_DEBUG, "%s: called\n", __func__);
 
-	inode = pvfs2_create_entry(dir,
-				   dentry,
-				   NULL,
-				   mode,
-				   PVFS2_VFS_OP_CREATE,
-				   &ret);
+	new_op = op_alloc(PVFS2_VFS_OP_CREATE);
+	if (!new_op)
+		return -ENOMEM;
 
-	if (inode) {
-		pvfs2_inode_t *dir_pinode = PVFS2_I(dir);
+	new_op->upcall.req.create.parent_refn = parent->refn;
 
-		SetMtimeFlag(dir_pinode);
-		pvfs2_update_inode_time(dir);
-		mark_inode_dirty_sync(dir);
+	fill_default_sys_attrs(new_op->upcall.req.create.attributes,
+			       PVFS_TYPE_METAFILE, mode);
 
-		ret = 0;
+	strncpy(new_op->upcall.req.create.d_name,
+		dentry->d_name.name, PVFS2_NAME_LEN);
+
+	ret = service_operation(new_op, __func__, get_interruptible_flag(dir));
+
+	gossip_debug(GOSSIP_UTILS_DEBUG,
+		     "Create Got PVFS2 handle %llu on fsid %d (ret=%d)\n",
+		     llu(new_op->downcall.resp.create.refn.handle),
+		     new_op->downcall.resp.create.refn.fs_id, ret);
+
+	if (ret < 0) {
+		gossip_debug(GOSSIP_UTILS_DEBUG,
+			     "%s: failed with error code %d\n",
+			     __func__, ret);
+		goto out;
 	}
 
-	gossip_debug(GOSSIP_NAME_DEBUG, "pvfs2_create: returning %d\n", ret);
+	inode = pvfs2_get_custom_inode(dir->i_sb, dir, S_IFREG | mode, 0,
+					new_op->downcall.resp.create.refn);
+	if (!inode) {
+		gossip_err("*** Failed to allocate pvfs2 file inode\n");
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	gossip_debug(GOSSIP_UTILS_DEBUG,
+		     "Assigned file inode new number of %llu\n",
+		     llu(get_handle_from_ino(inode)));
+
+	d_instantiate(dentry, inode);
+
+	gossip_debug(GOSSIP_UTILS_DEBUG,
+		     "Inode (Regular File) %llu -> %s\n",
+		     llu(get_handle_from_ino(inode)),
+		     dentry->d_name.name);
+
+	SetMtimeFlag(parent);
+	pvfs2_update_inode_time(dir);
+	mark_inode_dirty_sync(dir);
+	ret = 0;
+out:
+	op_release(new_op);
+	gossip_debug(GOSSIP_NAME_DEBUG, "%s: returning %d\n", __func__, ret);
 	return ret;
 }
 
@@ -275,58 +311,135 @@ static int pvfs2_symlink(struct inode *dir,
 			 struct dentry *dentry,
 			 const char *symname)
 {
-	int ret = -EINVAL;
+	pvfs2_inode_t *parent = PVFS2_I(dir);
+	pvfs2_kernel_op_t *new_op;
+	struct inode *inode;
 	int mode = 755;
-	struct inode *inode = NULL;
+	int ret;
 
-	gossip_debug(GOSSIP_NAME_DEBUG, "pvfs2_symlink: called\n");
+	gossip_debug(GOSSIP_NAME_DEBUG, "%s: called\n", __func__);
 
-	inode = pvfs2_create_entry(dir,
-				   dentry,
-				   symname,
-				   mode,
-				   PVFS2_VFS_OP_SYMLINK,
-				   &ret);
+	if (!symname)
+		return -EINVAL;
 
-	if (inode) {
-		pvfs2_inode_t *dir_pinode = PVFS2_I(dir);
+	new_op = op_alloc(PVFS2_VFS_OP_SYMLINK);
+	if (!new_op)
+		return -ENOMEM;
 
-		SetMtimeFlag(dir_pinode);
-		pvfs2_update_inode_time(dir);
-		mark_inode_dirty_sync(dir);
+	new_op->upcall.req.sym.parent_refn = parent->refn;
 
-		ret = 0;
+	fill_default_sys_attrs(new_op->upcall.req.sym.attributes,
+			       PVFS_TYPE_SYMLINK,
+			       mode);
+
+	strncpy(new_op->upcall.req.sym.entry_name,
+		dentry->d_name.name,
+		PVFS2_NAME_LEN);
+	strncpy(new_op->upcall.req.sym.target, symname, PVFS2_NAME_LEN);
+
+	ret = service_operation(new_op, __func__, get_interruptible_flag(dir));
+
+	gossip_debug(GOSSIP_UTILS_DEBUG,
+		     "Symlink Got PVFS2 handle %llu on fsid %d (ret=%d)\n",
+		     llu(new_op->downcall.resp.sym.refn.handle),
+		     new_op->downcall.resp.sym.refn.fs_id, ret);
+
+	if (ret < 0) {
+		gossip_debug(GOSSIP_UTILS_DEBUG,
+			    "%s: failed with error code %d\n",
+			    __func__, ret);
+		goto out;
 	}
+
+	inode = pvfs2_get_custom_inode(dir->i_sb, dir, S_IFLNK | mode, 0,
+					new_op->downcall.resp.sym.refn);
+	if (!inode) {
+		gossip_err
+		    ("*** Failed to allocate pvfs2 symlink inode\n");
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	gossip_debug(GOSSIP_UTILS_DEBUG,
+		     "Assigned symlink inode new number of %llu\n",
+		     llu(get_handle_from_ino(inode)));
+
+	d_instantiate(dentry, inode);
+
+	gossip_debug(GOSSIP_UTILS_DEBUG,
+		     "Inode (Symlink) %llu -> %s\n",
+		     llu(get_handle_from_ino(inode)),
+		     dentry->d_name.name);
+
+	SetMtimeFlag(parent);
+	pvfs2_update_inode_time(dir);
+	mark_inode_dirty_sync(dir);
+	ret = 0;
+out:
+	op_release(new_op);
 	return ret;
 }
 
 static int pvfs2_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
-	int ret = -EINVAL;
-	struct inode *inode = NULL;
+	pvfs2_inode_t *parent = PVFS2_I(dir);
+	pvfs2_kernel_op_t *new_op;
+	struct inode *inode;
+	int ret;
 
-	inode = pvfs2_create_entry(dir,
-				   dentry,
-				   NULL,
-				   mode,
-				   PVFS2_VFS_OP_MKDIR,
-				   &ret);
+	new_op = op_alloc(PVFS2_VFS_OP_MKDIR);
+	if (!new_op)
+		return -ENOMEM;
 
-	if (inode) {
-		/*
-		 * NOTE: we have no good way to keep nlink consistent for
-		 * directories across clients; keep constant at 1  -Phil
-		 * dir->i_nlink--;
-		 */
+	new_op->upcall.req.mkdir.parent_refn = parent->refn;
 
-		pvfs2_inode_t *dir_pinode = PVFS2_I(dir);
+	fill_default_sys_attrs(new_op->upcall.req.mkdir.attributes,
+			       PVFS_TYPE_DIRECTORY, mode);
 
-		SetMtimeFlag(dir_pinode);
-		pvfs2_update_inode_time(dir);
-		mark_inode_dirty_sync(dir);
+	strncpy(new_op->upcall.req.mkdir.d_name,
+		dentry->d_name.name, PVFS2_NAME_LEN);
 
-		ret = 0;
+	ret = service_operation(new_op, __func__, get_interruptible_flag(dir));
+
+	gossip_debug(GOSSIP_UTILS_DEBUG,
+		     "Mkdir Got PVFS2 handle %llu on fsid %d\n",
+		     llu(new_op->downcall.resp.mkdir.refn.handle),
+		     new_op->downcall.resp.mkdir.refn.fs_id);
+
+	if (ret < 0) {
+		gossip_debug(GOSSIP_UTILS_DEBUG,
+			     "%s: failed with error code %d\n",
+			     __func__, ret);
+		goto out;
 	}
+
+	inode = pvfs2_get_custom_inode(dir->i_sb, dir, S_IFDIR | mode, 0,
+					new_op->downcall.resp.mkdir.refn);
+	if (!inode) {
+		gossip_err("*** Failed to allocate pvfs2 dir inode\n");
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	gossip_debug(GOSSIP_UTILS_DEBUG,
+		     "Assigned dir inode new number of %llu\n",
+		     llu(get_handle_from_ino(inode)));
+
+	d_instantiate(dentry, inode);
+	gossip_debug(GOSSIP_UTILS_DEBUG,
+		     "Inode (Directory) %llu -> %s\n",
+		     llu(get_handle_from_ino(inode)),
+		     dentry->d_name.name);
+
+	/*
+	 * NOTE: we have no good way to keep nlink consistent for directories
+	 * across clients; keep constant at 1.
+	 */
+	SetMtimeFlag(parent);
+	pvfs2_update_inode_time(dir);
+	mark_inode_dirty_sync(dir);
+out:
+	op_release(new_op);
 	return ret;
 }
 

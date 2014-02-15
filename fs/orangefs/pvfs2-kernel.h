@@ -778,13 +778,6 @@ int pvfs2_inode_getattr(struct inode *inode, uint32_t mask);
 
 int pvfs2_inode_setattr(struct inode *inode, struct iattr *iattr);
 
-struct inode *pvfs2_create_entry(struct inode *dir,
-				 struct dentry *dentry,
-				 const char *symname,
-				 int mode,
-				 int op_type,
-				 int *error_code);
-
 int pvfs2_remove_entry(struct inode *dir, struct dentry *dentry);
 
 int pvfs2_truncate_inode(struct inode *inode, loff_t size);
