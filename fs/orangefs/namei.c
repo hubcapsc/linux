@@ -330,28 +330,6 @@ static int pvfs2_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	return ret;
 }
 
-static int pvfs2_rmdir(struct inode *dir, struct dentry *dentry)
-{
-	int ret = -ENOTEMPTY;
-	struct inode *inode = dentry->d_inode;
-
-	ret = pvfs2_unlink(dir, dentry);
-	if (ret == 0) {
-		pvfs2_inode_t *dir_pinode = PVFS2_I(dir);
-		pvfs2_i_drop_nlink(inode);
-		/*
-		 * NOTE: we have no good way to keep nlink consistent for
-		 * directories across clients; keep constant at 1  -Phil
-		 * dir->i_nlink--;
-		 */
-
-		SetMtimeFlag(dir_pinode);
-		pvfs2_update_inode_time(dir);
-		mark_inode_dirty_sync(dir);
-	}
-	return ret;
-}
-
 static int pvfs2_rename(struct inode *old_dir,
 			struct dentry *old_dentry,
 			struct inode *new_dir,
@@ -476,7 +454,7 @@ struct inode_operations pvfs2_dir_inode_operations = {
 	.unlink = pvfs2_unlink,
 	.symlink = pvfs2_symlink,
 	.mkdir = pvfs2_mkdir,
-	.rmdir = pvfs2_rmdir,
+	.rmdir = pvfs2_unlink,
 	.mknod = pvfs2_mknod,
 	.rename = pvfs2_rename,
 	.setattr = pvfs2_setattr,
