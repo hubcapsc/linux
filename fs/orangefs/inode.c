@@ -143,7 +143,7 @@ static int pvfs2_setattr_size(struct inode *inode, struct iattr *iattr)
 		return -EPERM;
 
 	gossip_debug(GOSSIP_INODE_DEBUG,
-		     "pvfs2: pvfs2_truncate called on inode %llu "
+		     "pvfs2: pvfs2_setattr_size called on inode %llu "
 		     "with size %ld\n",
 		     llu(get_handle_from_ino(inode)),
 		     (long)orig_size);
