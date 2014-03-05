@@ -508,12 +508,6 @@ int32_t PVFS_util_translate_mode(int mode);
 #include "pvfs2-debug.h"
 
 /* pvfs2-internal.h *********************************************************/
-#define DIRECTORY_ENTRY_KEYSTR  "de\0"
-#define DATAFILE_HANDLES_KEYSTR "dh\0"
-#define METAFILE_DIST_KEYSTR    "md\0"
-#define ROOT_HANDLE_KEYSTR      "rh\0"
-#define SYMLINK_TARGET_KEYSTR   "st\0"
-
 #define llu(x) (unsigned long long)(x)
 #define lld(x) (long long)(x)
 

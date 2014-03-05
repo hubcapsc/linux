@@ -544,71 +544,25 @@ int pvfs2_flush_inode(struct inode *inode)
 	return ret;
 }
 
-/* metafile distribution */
-#define DIST_KEY    "system.pvfs2." METAFILE_DIST_KEYSTR
-
-/* datafile handles */
-#define DFILE_KEY   "system.pvfs2." DATAFILE_HANDLES_KEYSTR
-
-/* symlink */
-#define SYMLINK_KEY "system.pvfs2." SYMLINK_TARGET_KEYSTR
-
-/* root handle */
-#define ROOT_KEY    "system.pvfs2." ROOT_HANDLE_KEYSTR
-
-/* directory entry key */
-#define DIRENT_KEY  "system.pvfs2." DIRECTORY_ENTRY_KEYSTR
-
-/* Extended attributes helper functions */
-static char *xattr_non_zero_terminated[] = {
-	DFILE_KEY,
-	DIST_KEY,
-	ROOT_KEY,
-};
-
-/* Extended attributes helper functions */
-
-/*
- * this function returns:
- *   0 if the val corresponding to name is known to be
- *     not terminated with an explicit \0.
- *   1 if the val corresponding to name is known to be \0 terminated.
- */
-static int xattr_zero_terminated(const char *name)
-{
-	int i;
-	static int xattr_count =
-	    sizeof(xattr_non_zero_terminated) / sizeof(char *);
-	for (i = 0; i < xattr_count; i++)
-		if (strcmp(name, xattr_non_zero_terminated[i]) == 0)
-			return 0;
-	return 1;
-}
-
-static char *xattr_resvd_keys[] = {
-	DFILE_KEY,
-	DIST_KEY,
-	DIRENT_KEY,
-	SYMLINK_KEY,
-	ROOT_KEY,
-};
-
+#define SYSTEM_PVFS2_KEY "system.pvfs2."
+#define SYSTEM_PVFS2_KEY_LEN 13
 /*
  * this function returns
  *   0 if the key corresponding to name is not meant to be printed as part
  *     of a listxattr.
  *   1 if the key corresponding to name is meant to be returned as part of
  *     a listxattr.
- * Currently xattr_resvd_keys[] is the array that holds the reserved entries.
+ * The ones that start SYSTEM_PVFS2_KEY are the ones to avoid printing.
  */
 static int is_reserved_key(const char *key, size_t size)
 {
-	int i;
-	static int resv_count = sizeof(xattr_resvd_keys) / sizeof(char *);
-	for (i = 0; i < resv_count; i++)
-		if (strncmp(key, xattr_resvd_keys[i], size) == 0)
-			return 1;
-	return 0;
+
+	if (size < SYSTEM_PVFS2_KEY_LEN)
+		return 1;
+
+	return strncmp(key, SYSTEM_PVFS2_KEY, SYSTEM_PVFS2_KEY_LEN) ?
+		 1 :
+		 0 ;
 }
 
 /*
@@ -690,21 +644,7 @@ ssize_t pvfs2_inode_getxattr(struct inode *inode,
 		if (ret == 0) {
 			ssize_t new_length;
 			length = new_op->downcall.resp.getxattr.val_sz;
-
-			/*
-			 * if the xattr corresponding to name was not
-			 * terminated with a \0 then we return the entire
-			 * response length.
-			 */
-			if (xattr_zero_terminated(name) == 0)
-				new_length = length;
-			else
-			/*
-			 * if it was terminated by a \0 then we return 1
-			 * less for the getfattr programs to play nicely
-			 * with displaying it.
-			 */
-				new_length = length - 1;
+			new_length = length;
 
 			/*
 			 * Just return the length of the queried attribute
