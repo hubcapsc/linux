@@ -581,15 +581,8 @@ int pvfs2_fill_sb(struct super_block *sb, void *data, int silent)
 		     "get inode %llu, fsid %d\n",
 		     root_object.handle,
 		     root_object.fs_id);
-	/*
-	 * alloc and initialize our root directory inode. be explicit
-	 * about sticky bit
-	 */
-	root = pvfs2_get_custom_core_inode(sb,
-					   NULL,
-					   (S_IFDIR | 0755 | S_ISVTX),
-					   0,
-					   root_object);
+
+	root = pvfs2_iget(sb, &root_object);
 	if (!root)
 		return -ENOMEM;
 
