@@ -485,11 +485,6 @@ static inline pvfs2_sb_info_t *PVFS2_SB(struct super_block *sb)
 	return (pvfs2_sb_info_t *) sb->s_fs_info;
 }
 
-static inline PVFS_handle ino_to_pvfs2_handle(ino_t ino)
-{
-	return (PVFS_handle) ino;
-}
-
 static inline ino_t pvfs2_handle_to_ino(PVFS_handle handle)
 {
 	ino_t ino;
