@@ -429,10 +429,6 @@ struct inode *pvfs2_get_custom_inode_common(struct super_block *sb,
 			     pvfs2_inode,
 			     inode->i_sb);
 
-		/* dir inodes start with i_nlink == 2 (for "." entry) */
-		if (S_ISLNK(inode->i_mode))
-			inc_nlink(inode);
-
 		gossip_debug(GOSSIP_ACL_DEBUG,
 			     "Initializing ACL's for inode %llu\n",
 			     llu(get_handle_from_ino(inode)));
