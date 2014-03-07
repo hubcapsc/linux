@@ -409,74 +409,24 @@ static int pvfs2_rename(struct inode *old_dir,
 			struct inode *new_dir,
 			struct dentry *new_dentry)
 {
-	int ret = -EINVAL;
-	int are_directories = 0;
-	unsigned int local_count = 0;
-	pvfs2_inode_t *pvfs2_old_parent_inode = PVFS2_I(old_dir);
-	pvfs2_inode_t *pvfs2_new_parent_inode = PVFS2_I(new_dir);
-	pvfs2_kernel_op_t *new_op = NULL;
-	struct super_block *sb = NULL;
+	pvfs2_kernel_op_t *new_op;
+	int ret;
 
-	spin_lock(&new_dentry->d_lock);
-	local_count = d_count(new_dentry);
-	spin_unlock(&new_dentry->d_lock);
 	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "pvfs2_rename: called (%s/%s => %s/%s) ct=%d\n",
 		     old_dentry->d_parent->d_name.name,
 		     old_dentry->d_name.name,
 		     new_dentry->d_parent->d_name.name,
 		     new_dentry->d_name.name,
-		     local_count);
-
-	are_directories = S_ISDIR(old_dentry->d_inode->i_mode);
-#if 0
-	/*
-	 * NOTE: we have no good way to keep nlink consistent for directories
-	 * across clients; keep constant at 1  -Phil
-	 */
-	if (are_directories && (new_dir->i_nlink >= PVFS2_LINK_MAX)) {
-		gossip_err("%s: directory %s surpassed PVFS2_LINK_MAX\n",
-			   __func__,
-			   new_dentry->d_name.name);
-		return -EMLINK;
-	}
-#endif
+		     d_count(new_dentry));
 
 	new_op = op_alloc(PVFS2_VFS_OP_RENAME);
 	if (!new_op)
-		return ret;
+		return -EINVAL;
 
-	/*
-	 * if no handle/fs_id is available in the parent,
-	 * use the root handle/fs_id as specified by the
-	 * inode's corresponding superblock
-	 */
-	if (pvfs2_old_parent_inode &&
-	    pvfs2_old_parent_inode->refn.handle != PVFS_HANDLE_NULL &&
-	    pvfs2_old_parent_inode->refn.fs_id != PVFS_FS_ID_NULL) {
-		new_op->upcall.req.rename.old_parent_refn =
-		    pvfs2_old_parent_inode->refn;
-	} else {
-		sb = old_dir->i_sb;
-		new_op->upcall.req.rename.old_parent_refn.handle =
-		    PVFS2_SB(sb)->root_handle;
-		new_op->upcall.req.rename.old_parent_refn.fs_id =
-		    PVFS2_SB(sb)->fs_id;
-	}
+	new_op->upcall.req.rename.old_parent_refn = PVFS2_I(old_dir)->refn;
+	new_op->upcall.req.rename.new_parent_refn = PVFS2_I(new_dir)->refn;
 
-	/* do the same for the new parent */
-	if (pvfs2_new_parent_inode &&
-	    pvfs2_new_parent_inode->refn.handle != PVFS_HANDLE_NULL &&
-	    pvfs2_new_parent_inode->refn.fs_id != PVFS_FS_ID_NULL) {
-		new_op->upcall.req.rename.new_parent_refn =
-		    pvfs2_new_parent_inode->refn;
-	} else {
-		sb = new_dir->i_sb;
-		new_op->upcall.req.rename.new_parent_refn.handle =
-		    PVFS2_SB(sb)->root_handle;
-		new_op->upcall.req.rename.new_parent_refn.fs_id =
-		    PVFS2_SB(sb)->fs_id;
-	}
 	strncpy(new_op->upcall.req.rename.d_old_name,
 		old_dentry->d_name.name,
 		PVFS2_NAME_LEN);
@@ -492,30 +442,10 @@ static int pvfs2_rename(struct inode *old_dir,
 		     "pvfs2_rename: got downcall status %d\n",
 		     ret);
 
-	if (new_dentry->d_inode) {
+	if (new_dentry->d_inode)
 		new_dentry->d_inode->i_ctime = CURRENT_TIME;
-#if 0
-		/*
-		 * NOTE: we have no good way to keep nlink consistent for
-		 * directories across clients; keep constant at 1  -Phil
-		 */
-		if (are_directories)
-			new_dentry->d_inode->i_nlink--;
-#endif
-	}
-#if 0
-	/*
-	 * NOTE: we have no good way to keep nlink consistent for directories
-	 * across clients; keep constant at 1  -Phil
-	 */
-	else if (are_directories) {
-		new_dir->i_nlink++;
-		old_dir->i_nlink--;
-	}
-#endif
 
 	op_release(new_op);
-
 	return ret;
 }
 
