@@ -52,8 +52,8 @@ static int pvfs2_create(struct inode *dir,
 		goto out;
 	}
 
-	inode = pvfs2_get_custom_inode(dir->i_sb, dir, S_IFREG | mode, 0,
-					new_op->downcall.resp.create.refn);
+	inode = pvfs2_new_inode(dir->i_sb, dir, S_IFREG | mode, 0,
+				&new_op->downcall.resp.create.refn);
 	if (!inode) {
 		gossip_err("*** Failed to allocate pvfs2 file inode\n");
 		ret = -ENOMEM;
@@ -65,6 +65,7 @@ static int pvfs2_create(struct inode *dir,
 		     llu(get_handle_from_ino(inode)));
 
 	d_instantiate(dentry, inode);
+	unlock_new_inode(inode);
 
 	gossip_debug(GOSSIP_UTILS_DEBUG,
 		     "Inode (Regular File) %llu -> %s\n",
@@ -318,8 +319,8 @@ static int pvfs2_symlink(struct inode *dir,
 		goto out;
 	}
 
-	inode = pvfs2_get_custom_inode(dir->i_sb, dir, S_IFLNK | mode, 0,
-					new_op->downcall.resp.sym.refn);
+	inode = pvfs2_new_inode(dir->i_sb, dir, S_IFLNK | mode, 0,
+				&new_op->downcall.resp.sym.refn);
 	if (!inode) {
 		gossip_err
 		    ("*** Failed to allocate pvfs2 symlink inode\n");
@@ -332,6 +333,7 @@ static int pvfs2_symlink(struct inode *dir,
 		     llu(get_handle_from_ino(inode)));
 
 	d_instantiate(dentry, inode);
+	unlock_new_inode(inode);
 
 	gossip_debug(GOSSIP_UTILS_DEBUG,
 		     "Inode (Symlink) %llu -> %s\n",
@@ -380,8 +382,8 @@ static int pvfs2_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 		goto out;
 	}
 
-	inode = pvfs2_get_custom_inode(dir->i_sb, dir, S_IFDIR | mode, 0,
-					new_op->downcall.resp.mkdir.refn);
+	inode = pvfs2_new_inode(dir->i_sb, dir, S_IFDIR | mode, 0,
+				&new_op->downcall.resp.mkdir.refn);
 	if (!inode) {
 		gossip_err("*** Failed to allocate pvfs2 dir inode\n");
 		ret = -ENOMEM;
@@ -393,6 +395,8 @@ static int pvfs2_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 		     llu(get_handle_from_ino(inode)));
 
 	d_instantiate(dentry, inode);
+	unlock_new_inode(inode);
+
 	gossip_debug(GOSSIP_UTILS_DEBUG,
 		     "Inode (Directory) %llu -> %s\n",
 		     llu(get_handle_from_ino(inode)),

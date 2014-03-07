@@ -358,10 +358,9 @@ struct xattr_handler pvfs2_xattr_acl_default_handler = {
 };
 
 /*
- * initialize the ACLs of a new inode. This needs to be called from
- * pvfs2_get_custom_inode. Note that for the root of the PVFS2 file system,
- * dir will be NULL! For all others dir will be non-NULL, however, inode
- * cannot be NULL! Returns 0 on success and -ve number on failure.
+ * Initialize the ACLs of a new inode.
+ *
+ * Returns 0 on success and -ve number on failure.
  */
 int pvfs2_init_acl(struct inode *inode, struct inode *dir)
 {
@@ -369,8 +368,6 @@ int pvfs2_init_acl(struct inode *inode, struct inode *dir)
 	int error = 0;
 	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
 
-	if (dir == NULL)
-		dir = inode;
 	ClearModeFlag(pvfs2_inode);
 	if (!S_ISLNK(inode->i_mode)) {
 		if (get_acl_flag(inode) == 1) {

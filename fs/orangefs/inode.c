@@ -354,87 +354,48 @@ struct inode *pvfs2_iget(struct super_block *sb, PVFS_object_ref *ref)
 }
 
 /*
- * Allocates a Linux inode structure with additional PVFS2-specific
- *  private data (I think -- RobR).
+ * Allocate an inode for a newly created file and insert it into the inode hash.
  */
-struct inode *pvfs2_get_custom_inode_common(struct super_block *sb,
-					    struct inode *dir,
-					    int mode,
-					    dev_t dev,
-					    PVFS_object_ref object,
-					    int from_create)
+struct inode *pvfs2_new_inode(struct super_block *sb, struct inode *dir,
+		int mode, dev_t dev, PVFS_object_ref *ref)
 {
-	struct inode *inode = NULL;
-	pvfs2_inode_t *pvfs2_inode = NULL;
+	unsigned long hash = pvfs2_handle_hash(ref);
+	struct inode *inode;
 
 	gossip_debug(GOSSIP_INODE_DEBUG,
 		     "pvfs2_get_custom_inode_common: called\n"
-		     "(sb is %p | MAJOR(dev)=%u | MINOR(dev)=%u)\n",
+		     "(sb is %p | MAJOR(dev)=%u | MINOR(dev)=%u mode=%o)\n",
 		     sb,
 		     MAJOR(dev),
-		     MINOR(dev));
+		     MINOR(dev),
+		     mode);
 
-	inode = pvfs2_iget(sb, &object);
-	if (inode) {
-		/* initialize pvfs2 specific private data */
-		pvfs2_inode = PVFS2_I(inode);
-		if (!pvfs2_inode) {
-			iput(inode);
-			gossip_err("pvfs2_get_custom_inode: PRIVATE DATA NOT ALLOCATED\n");
-			return NULL;
-		}
+	inode = new_inode(sb);
+	if (!inode)
+		return NULL;
 
-		/*
-		 * Since we are using the same function to create a new
-		 * on-disk object as well as to create an in-memory object,
-		 * the mode of the object needs to be set carefully. If we
-		 * are called from a function that is creating a new on-disk
-		 * object, set its mode here since the caller is providing
-		 * it. Else let it be since the getattr should fill it up
-		 * properly.
-		 */
-		if (from_create) {
-			/*
-			 * the exception is when we are creating a directory
-			 * that needs to inherit the setgid bit.  That much
-			 * we need to preserve from the getattr's view of
-			 * the mode.
-			 */
-			if (inode->i_mode & S_ISGID) {
-				gossip_debug(GOSSIP_INODE_DEBUG, "pvfs2_get_custom_inode_commmon: setting SGID bit.\n");
-				inode->i_mode = mode | S_ISGID;
-			} else {
-				inode->i_mode = mode;
-			}
-		}
-		gossip_debug(GOSSIP_INODE_DEBUG,
-			     "pvfs2_get_custom_inode_common: inode: %p, "
-			     "inode->i_mode %o\n",
-			     inode,
-			     inode->i_mode);
-		inode->i_mapping->host = inode;
-		inode->i_uid = current_fsuid();
-		inode->i_gid = current_fsgid();
-		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-		inode->i_size = PAGE_CACHE_SIZE;
-		inode->i_blocks = 0;
-		inode->i_rdev = dev;
-		inode->i_bdev = NULL;
-		inode->i_cdev = NULL;
+	pvfs2_set_inode(inode, ref);
+	inode->i_ino = hash;	/* needed for stat etc */
+	pvfs2_read_inode(inode);
+	pvfs2_init_iops(inode);
 
-		gossip_debug(GOSSIP_INODE_DEBUG,
-			     "pvfs2_get_custom_inode: inode %p allocated\n  "
-			     "(pvfs2_inode is %p | sb is %p)\n",
-			     inode,
-			     pvfs2_inode,
-			     inode->i_sb);
+	inode->i_mode = mode;
+	inode->i_uid = current_fsuid();
+	inode->i_gid = current_fsgid();
+	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	inode->i_size = PAGE_CACHE_SIZE;
+	inode->i_rdev = dev;
 
-		gossip_debug(GOSSIP_ACL_DEBUG,
-			     "Initializing ACL's for inode %llu\n",
-			     llu(get_handle_from_ino(inode)));
-		/* Initialize the ACLs of the new inode */
-		pvfs2_init_acl(inode, dir);
+	if (insert_inode_locked4(inode, hash, pvfs2_test_inode, ref) < 0) {
+		printk("insert_inode_locked4 failed\n");
+		iput(inode);
+		return NULL;
 	}
+
+	gossip_debug(GOSSIP_ACL_DEBUG,
+		     "Initializing ACL's for inode %llu\n",
+		     llu(get_handle_from_ino(inode)));
+	pvfs2_init_acl(inode, dir);
 
 	return inode;
 }
