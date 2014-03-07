@@ -1019,48 +1019,6 @@ done:
 	return ret;
 }
 
-int pvfs2_remove_entry(struct inode *dir, struct dentry *dentry)
-{
-	int ret = -EINVAL;
-	pvfs2_kernel_op_t *new_op = NULL;
-	pvfs2_inode_t *parent = PVFS2_I(dir);
-	struct inode *inode = dentry->d_inode;
-
-	if (inode && parent && dentry) {
-		gossip_debug(GOSSIP_UTILS_DEBUG,
-			     "pvfs2_remove_entry: called on %s\n"
-			     "  (inode %llu): Parent is %llu | fs_id %d\n",
-			     dentry->d_name.name,
-			     llu(get_handle_from_ino(inode)),
-			     llu(parent->refn.handle),
-			     parent->refn.fs_id);
-
-		new_op = op_alloc(PVFS2_VFS_OP_REMOVE);
-		if (!new_op)
-			return -ENOMEM;
-
-		if (parent && parent->refn.handle != PVFS_HANDLE_NULL
-		    && parent->refn.fs_id != PVFS_FS_ID_NULL) {
-			new_op->upcall.req.remove.parent_refn = parent->refn;
-		} else {
-			gossip_lerr("Critical error: i_ino cannot be relied on when using iget4/5\n");
-			op_release(new_op);
-			return -ENOMEM;
-		}
-		strncpy(new_op->upcall.req.remove.d_name,
-			dentry->d_name.name,
-			PVFS2_NAME_LEN);
-
-		ret = service_operation(new_op,
-					"pvfs2_remove_entry",
-					get_interruptible_flag(inode));
-
-		/* when request is serviced properly, free req op struct */
-		op_release(new_op);
-	}
-	return ret;
-}
-
 int pvfs2_truncate_inode(struct inode *inode, loff_t size)
 {
 	int ret = -EINVAL;

@@ -202,19 +202,38 @@ out:
 /* return 0 on success; non-zero otherwise */
 static int pvfs2_unlink(struct inode *dir, struct dentry *dentry)
 {
-	int ret = -ENOENT;
 	struct inode *inode = dentry->d_inode;
+	pvfs2_inode_t *parent = PVFS2_I(dir);
+	pvfs2_kernel_op_t *new_op;
+	int ret;
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "pvfs2_unlink: pvfs2_unlink called on %s\n",
-		     dentry->d_name.name);
+		     "%s: called on %s\n"
+		     "  (inode %llu): Parent is %llu | fs_id %d\n",
+		     __func__,
+		     dentry->d_name.name,
+		     llu(get_handle_from_ino(inode)),
+		     llu(parent->refn.handle),
+		     parent->refn.fs_id);
 
-	ret = pvfs2_remove_entry(dir, dentry);
-	if (ret == 0) {
-		pvfs2_inode_t *dir_pinode = PVFS2_I(dir);
+	new_op = op_alloc(PVFS2_VFS_OP_REMOVE);
+	if (!new_op)
+		return -ENOMEM;
+
+	new_op->upcall.req.remove.parent_refn = parent->refn;
+	strncpy(new_op->upcall.req.remove.d_name, dentry->d_name.name,
+		PVFS2_NAME_LEN);
+
+	ret = service_operation(new_op, "pvfs2_unlink",
+				get_interruptible_flag(inode));
+
+	/* when request is serviced properly, free req op struct */
+	op_release(new_op);
+
+	if (!ret) {
 		drop_nlink(inode);
 
-		SetMtimeFlag(dir_pinode);
+		SetMtimeFlag(parent);
 		pvfs2_update_inode_time(dir);
 		mark_inode_dirty_sync(dir);
 	}
