@@ -3,7 +3,6 @@
  *
  * See COPYING in top-level directory.
  */
-#define  __PINT_PROTO_ENCODE_OPAQUE_HANDLE
 #include "hubcap.h"
 #include "pvfs2-kernel.h"
 #include "pvfs2-dev-proto.h"
