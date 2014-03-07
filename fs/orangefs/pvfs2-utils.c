@@ -402,12 +402,6 @@ out:
 		     pvfs2_inode->refn.fs_id,
 		     (int)atomic_read(&inode->i_count),
 		     ret);
-	/*
-	 * store error code in the inode so that we can retrieve
-	 * it later if needed
-	 */
-	if (ret < 0)
-		pvfs2_inode->error_code = ret;
 
 	op_release(new_op);
 	return ret;
@@ -1179,7 +1173,6 @@ void pvfs2_inode_finalize(pvfs2_inode_t *pvfs2_inode)
 	pvfs2_inode->refn.handle = PVFS_HANDLE_NULL;
 	pvfs2_inode->refn.fs_id = PVFS_FS_ID_NULL;
 	pvfs2_inode->last_failed_block_index_read = 0;
-	pvfs2_inode->error_code = 0;
 }
 
 void pvfs2_op_initialize(pvfs2_kernel_op_t *op)

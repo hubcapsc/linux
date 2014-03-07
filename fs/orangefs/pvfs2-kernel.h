@@ -345,7 +345,6 @@ typedef struct {
 
 	struct inode vfs_inode;
 	sector_t last_failed_block_index_read;
-	int error_code;
 	int revalidate_failed;
 
 	/*
@@ -575,8 +574,6 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
 			   int flags,
 			   const char *devname,
 			   void *data);
-
-void pvfs2_read_inode(struct inode *inode);
 
 void pvfs2_kill_sb(struct super_block *sb);
 int pvfs2_remount(struct super_block *sb, int *flags, char *data);

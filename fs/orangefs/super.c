@@ -149,38 +149,6 @@ static void pvfs2_destroy_inode(struct inode *inode)
 	}
 }
 
-void pvfs2_read_inode(struct inode *inode)
-{
-	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
-
-	gossip_debug(GOSSIP_SUPER_DEBUG,
-		     "pvfs2_read_inode: %p (inode = %llu | ct = %d)\n",
-		     pvfs2_inode,
-		     llu(get_handle_from_ino(inode)),
-		     (int)atomic_read(&inode->i_count));
-
-	/*
-	 * need to populate the freshly allocated (passed in) inode here.
-	 * this gets called if the vfs can't find this inode in the inode
-	 * cache.  we need to getattr here because d_revalidate isn't
-	 * called after a successful dentry lookup if the inode is not
-	 * present in the inode cache already.  so this is our chance.
-	 */
-	if (pvfs2_inode_getattr(inode, PVFS_ATTR_SYS_ALL_NOHINT) != 0) {
-		/* assume an I/O error and mark the inode as bad */
-		gossip_debug(GOSSIP_SUPER_DEBUG,
-			     "%s:%s:%d calling make bad inode - [%p]"
-			     " (inode = %llu | ct = %d)\n",
-			     __FILE__,
-			     __func__,
-			     __LINE__,
-			     pvfs2_inode,
-			     llu(get_handle_from_ino(inode)),
-			     (int)atomic_read(&inode->i_count));
-		pvfs2_make_bad_inode(inode);
-	}
-}
-
 /*
  * NOTE: information filled in here is typically reflected in the
  * output of the system command 'df'
@@ -455,8 +423,6 @@ struct dentry *pvfs2_fh_to_dentry(struct super_block *sb,
 				  int fh_type)
 {
 	PVFS_object_ref refn;
-	struct inode *inode;
-	struct dentry *dentry;
 
 	if (fh_len < 3 || fh_type > 2)
 		return NULL;
@@ -469,13 +435,7 @@ struct dentry *pvfs2_fh_to_dentry(struct super_block *sb,
 		     refn.handle,
 		     refn.fs_id);
 
-	inode = pvfs2_iget(sb, &refn);
-
-	dentry = d_obtain_alias(inode);
-	if (dentry == NULL)
-		return ERR_PTR(-ENOMEM);
-
-	return dentry;
+	return d_obtain_alias(pvfs2_iget(sb, &refn));
 }
 
 int pvfs2_encode_fh(struct inode *inode,
@@ -583,8 +543,8 @@ int pvfs2_fill_sb(struct super_block *sb, void *data, int silent)
 		     root_object.fs_id);
 
 	root = pvfs2_iget(sb, &root_object);
-	if (!root)
-		return -ENOMEM;
+	if (IS_ERR(root))
+		return PTR_ERR(root);
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
 		     "Allocated root inode [%p] with mode %x\n",

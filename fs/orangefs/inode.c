@@ -335,15 +335,23 @@ struct inode *pvfs2_iget(struct super_block *sb, PVFS_object_ref *ref)
 {
 	struct inode *inode = NULL;
 	unsigned long hash;
+	int error;
 
 	hash = pvfs2_handle_hash(ref);
 	inode = iget5_locked(sb, hash, pvfs2_test_inode, pvfs2_set_inode, ref);
-	if (inode && (inode->i_state & I_NEW)) {
-		inode->i_ino = hash;	/* needed for stat etc */
-		pvfs2_read_inode(inode);
-		pvfs2_init_iops(inode);
-		unlock_new_inode(inode);
+	if (!inode && !(inode->i_state & I_NEW))
+		return inode;
+
+	error = pvfs2_inode_getattr(inode, PVFS_ATTR_SYS_ALL_NOHINT);
+	if (error) {
+		iput(inode);
+		return ERR_PTR(error);
 	}
+
+	inode->i_ino = hash;	/* needed for stat etc */
+	pvfs2_init_iops(inode);
+	unlock_new_inode(inode);
+
 	gossip_debug(GOSSIP_INODE_DEBUG,
 		     "iget handle %llu, fsid %d hash %ld i_ino %lu\n",
 		     ref->handle,
@@ -361,6 +369,7 @@ struct inode *pvfs2_new_inode(struct super_block *sb, struct inode *dir,
 {
 	unsigned long hash = pvfs2_handle_hash(ref);
 	struct inode *inode;
+	int error;
 
 	gossip_debug(GOSSIP_INODE_DEBUG,
 		     "pvfs2_get_custom_inode_common: called\n"
@@ -376,7 +385,11 @@ struct inode *pvfs2_new_inode(struct super_block *sb, struct inode *dir,
 
 	pvfs2_set_inode(inode, ref);
 	inode->i_ino = hash;	/* needed for stat etc */
-	pvfs2_read_inode(inode);
+
+	error = pvfs2_inode_getattr(inode, PVFS_ATTR_SYS_ALL_NOHINT);
+	if (error)
+		goto out_iput;
+
 	pvfs2_init_iops(inode);
 
 	inode->i_mode = mode;
@@ -386,16 +399,17 @@ struct inode *pvfs2_new_inode(struct super_block *sb, struct inode *dir,
 	inode->i_size = PAGE_CACHE_SIZE;
 	inode->i_rdev = dev;
 
-	if (insert_inode_locked4(inode, hash, pvfs2_test_inode, ref) < 0) {
-		printk("insert_inode_locked4 failed\n");
-		iput(inode);
-		return NULL;
-	}
+	error = insert_inode_locked4(inode, hash, pvfs2_test_inode, ref);
+	if (error < 0)
+		goto out_iput;
 
 	gossip_debug(GOSSIP_ACL_DEBUG,
 		     "Initializing ACL's for inode %llu\n",
 		     llu(get_handle_from_ino(inode)));
 	pvfs2_init_acl(inode, dir);
-
 	return inode;
+
+out_iput:
+	iput(inode);
+	return ERR_PTR(error);
 }

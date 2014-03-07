@@ -54,9 +54,9 @@ static int pvfs2_create(struct inode *dir,
 
 	inode = pvfs2_new_inode(dir->i_sb, dir, S_IFREG | mode, 0,
 				&new_op->downcall.resp.create.refn);
-	if (!inode) {
+	if (IS_ERR(inode)) {
 		gossip_err("*** Failed to allocate pvfs2 file inode\n");
-		ret = -ENOMEM;
+		ret = PTR_ERR(inode);
 		goto out;
 	}
 
@@ -172,42 +172,13 @@ static struct dentry *pvfs2_lookup(struct inode *dir, struct dentry *dentry,
 	}
 
 	inode = pvfs2_iget(dir->i_sb, &new_op->downcall.resp.lookup.refn);
-	if (!inode) {
-		/*
-		 * no error was returned from service_operation, but the inode
-		 * from pvfs2_iget was null...just return EACCESS
-		 */
-		gossip_debug(GOSSIP_NAME_DEBUG, "Returning -EACCES for NULL inode\n");
-		res = ERR_PTR(-EACCES);
-		goto out;
-	}
-
-	if (is_bad_inode(inode)) {
-		pvfs2_inode_t *found_pvfs2_inode = PVFS2_I(inode);
-
+	if (IS_ERR(inode)) {
 		gossip_debug(GOSSIP_NAME_DEBUG,
-			     "%s:%s:%d Found bad inode [%lu] with count [%d]. "
-			     "Returning error [%d]",
-			     __FILE__,
-			     __func__,
-			     __LINE__,
-			     inode->i_ino,
-			     (int)atomic_read(&inode->i_count),
-			     ret);
-
-		/*
-		 * look for an error code, possibly set by pvfs2_read_inode(),
-		 * otherwise we have to guess EACCES
-		 */
-		if (found_pvfs2_inode->error_code)
-			ret = found_pvfs2_inode->error_code;
-		else
-			ret = -EACCES;
-		iput(inode);
-		res = ERR_PTR(ret);
+			"error %ld from iget\n", PTR_ERR(inode));
+		res = ERR_CAST(inode);
 		goto out;
 	}
-		
+
 	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "%s:%s:%d "
 		     "Found good inode [%lu] with count [%d]\n",
@@ -321,10 +292,10 @@ static int pvfs2_symlink(struct inode *dir,
 
 	inode = pvfs2_new_inode(dir->i_sb, dir, S_IFLNK | mode, 0,
 				&new_op->downcall.resp.sym.refn);
-	if (!inode) {
+	if (IS_ERR(inode)) {
 		gossip_err
 		    ("*** Failed to allocate pvfs2 symlink inode\n");
-		ret = -ENOMEM;
+		ret = PTR_ERR(inode);
 		goto out;
 	}
 
@@ -384,9 +355,9 @@ static int pvfs2_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 
 	inode = pvfs2_new_inode(dir->i_sb, dir, S_IFDIR | mode, 0,
 				&new_op->downcall.resp.mkdir.refn);
-	if (!inode) {
+	if (IS_ERR(inode)) {
 		gossip_err("*** Failed to allocate pvfs2 dir inode\n");
-		ret = -ENOMEM;
+		ret = PTR_ERR(inode);
 		goto out;
 	}
 
