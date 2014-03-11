@@ -15,12 +15,8 @@
 #include <linux/pagemap.h>
 
 enum io_type {
-	IO_READ = 0,
-	IO_WRITE = 1,
 	IO_READV = 0,
 	IO_WRITEV = 1,
-	IO_READX = 0,
-	IO_WRITEX = 1,
 };
 
 struct rw_options;
@@ -33,17 +29,6 @@ static ssize_t wait_for_cached_io(struct rw_options *old_rw,
 static ssize_t wait_for_direct_io(struct rw_options *rw,
 				  struct iovec *vec,
 				  unsigned long nr_segs, size_t total_size);
-
-static ssize_t wait_for_iox(struct rw_options *rw,
-			    struct iovec *vec,
-			    unsigned long nr_segs,
-			    struct xtvec *xtvec,
-			    unsigned long xtnr_segs, size_t total_size);
-
-/* RESET_FILE_POS is a configure option: --enable-reset-file-pos */
-#ifdef RESET_FILE_POS
-static ssize_t do_readv_writev_wrapper(struct rw_options *rw);
-#endif
 
 #define wake_up_daemon_for_return(op)			\
 do {							\
@@ -150,18 +135,11 @@ struct rw_options {
 			struct list_head page_list;
 		} pages;
 	} dest;
-	union {
-		/* Contiguous file I/O operations use a single offset */
-		struct {
-			loff_t *offset;
-			loff_t offset_before_request;
-		} io;
-		/* Non-contiguous file I/O operations use a vector of offsets */
-		struct {
-			struct xtvec *xtvec;
-			unsigned long xtnr_segs;
-		} iox;
-	} off;
+	/* file I/O operations */
+	struct {
+		loff_t *offset;
+		loff_t offset_before_request;
+	} io;
 };
 
 /*
@@ -444,7 +422,7 @@ populate_shared_memory:
 	new_op->uses_shared_memory = 1;
 	new_op->upcall.req.io.buf_index = buffer_index;
 	new_op->upcall.req.io.count = total_size;
-	new_op->upcall.req.io.offset = *(rw->off.io.offset);
+	new_op->upcall.req.io.offset = *(rw->io.offset);
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
 		     "%s/%s(%llu): copy_to_user %d nr_segs %lu, offset: %llu total_size: %zd\n",
@@ -453,7 +431,7 @@ populate_shared_memory:
 		     llu(rw->pvfs2_inode->refn.handle),
 		     rw->copy_to_user_addresses,
 		     nr_segs,
-		     llu(*(rw->off.io.offset)),
+		     llu(*(rw->io.offset)),
 		     total_size);
 
 	/*
@@ -878,7 +856,7 @@ static int locate_file_pages(struct rw_options *rw, size_t total_size)
 	int ret = 0;
 	struct page *page;
 
-	if (!rw || !rw->inode || !rw->off.io.offset || !rw->inode->i_mapping) {
+	if (!rw || !rw->inode || !rw->io.offset || !rw->inode->i_mapping) {
 		gossip_lerr("invalid options\n");
 		return -EINVAL;
 	}
@@ -887,7 +865,7 @@ static int locate_file_pages(struct rw_options *rw, size_t total_size)
 	/* start with an empty page list */
 	INIT_LIST_HEAD(&rw->dest.pages.page_list);
 	mapping = rw->inode->i_mapping;
-	offset = *(rw->off.io.offset);
+	offset = *(rw->io.offset);
 	/* Return if the file size was 0 */
 	if (isize == 0) {
 		rw->dest.pages.nr_pages = 0;
@@ -1040,157 +1018,40 @@ cleanup:
 }
 
 /*
- * Given an array of pages and a count of such pages, this function
- * returns an error if the parameters/pages are invalid/similar.
- * 0 if the pages are not contiguous on the file.
- * 1 if the pages are contiguous on file.
- */
-static int are_contiguous(int nr_pages, struct page **page_array)
-{
-	int i;
-	pgoff_t fpoffset;
-	if (!page_array || nr_pages <= 0) {
-		gossip_err("Bogus parameters %d, page_array: %p\n",
-			   nr_pages,
-			   page_array);
-		return -EINVAL;
-	}
-	if (!page_array[0]) {
-		gossip_err("Bogus parameters %p\n", page_array[0]);
-		return -EINVAL;
-	}
-	fpoffset = page_array[0]->index;
-	for (i = 1; i < nr_pages; i++) {
-		if (!page_array[i])
-			return -EINVAL;
-		if (page_array[i]->index == fpoffset) {
-			gossip_err("2 pages have the same file offset (index 0 and %d)\n",
-				i);
-			return -EINVAL;
-		}
-		/* not contiguous on file */
-		if (page_array[i]->index != fpoffset + i) {
-			gossip_debug(GOSSIP_FILE_DEBUG,
-				     "offset at index %d is non-contiguous\n",
-				     i);
-			return 0;
-		}
-	}
-	/* Cool. they are all contiguous */
-	return 1;
-}
-
-/*
  * Issue any I/O for regions not found in the cache
- * NOTE: Try to be smart about whether to issue non-contiguous I/O
- * or contiguous I/O.
  */
 static ssize_t wait_for_missing_io(struct rw_options *rw)
 {
 	ssize_t err = 0;
+	struct iovec *uncached_vec = NULL;
+	size_t total_requested_io;
 
-	if (rw->dest.pages.nr_issue_pages) {
-		int contig_on_file = 0;
-		long total_size =
-			rw->dest.pages.nr_issue_pages << PAGE_CACHE_SHIFT;
+	total_requested_io =
+	    (rw->dest.pages.nr_issue_pages << PAGE_CACHE_SHIFT);
+	uncached_vec = kzalloc(rw->dest.pages.nr_issue_pages *
+		       sizeof(*uncached_vec),
+		       PVFS2_BUFMAP_GFP_FLAGS);
 
-		gossip_debug(GOSSIP_FILE_DEBUG,
-			     "Number of pages for I/O issue %ld,"
-			     " total_size: %ld\n",
-			     rw->dest.pages.nr_issue_pages,
-			     total_size);
-		/*
-		 * scan through the issue pages array and see if we can
-		 * submit a direct contiguous request first.
-		 */
-		contig_on_file = are_contiguous(rw->dest.pages.nr_issue_pages,
-						rw->dest.pages.issue_pages);
-		/* Any errors? */
-		if (contig_on_file < 0) {
-			err = contig_on_file;
-			goto out;
-		} else {
-			/* contiguous or non-contiguous on file */
-			struct iovec *uncached_vec = NULL;
-			struct xtvec *uncached_xtvec = NULL;
-			int i;
-			size_t total_requested_io;
-
-			total_requested_io =
-			    (rw->dest.pages.nr_issue_pages << PAGE_CACHE_SHIFT);
-			uncached_vec =
-			    kzalloc(rw->dest.pages.nr_issue_pages *
-				    sizeof(*uncached_vec),
-				    PVFS2_BUFMAP_GFP_FLAGS);
-			if (!uncached_vec) {
-				gossip_err
-				    ("out of memory allocating uncached_vec\n");
-				err = -ENOMEM;
-				goto out;
-			}
-			if (!contig_on_file) {
-				uncached_xtvec =
-				    kzalloc(rw->dest.pages.nr_issue_pages *
-					    sizeof(*uncached_xtvec),
-					    PVFS2_BUFMAP_GFP_FLAGS);
-				if (!uncached_xtvec) {
-					gossip_err("out of memory allocating uncached_xtvec\n");
-					kfree(uncached_vec);
-					err = -ENOMEM;
-					goto out;
-				}
-			}
-			for (i = 0; i < rw->dest.pages.nr_issue_pages; i++) {
-				uncached_vec[i].iov_base =
-				    rw->dest.pages.issue_pages[i];
-				uncached_vec[i].iov_len = PAGE_CACHE_SIZE;
-				if (!contig_on_file) {
-					uncached_xtvec[i].xtv_off =
-					    (rw->dest.pages.issue_pages[i]->
-					     index << PAGE_CACHE_SHIFT);
-					uncached_xtvec[i].xtv_len =
-					    PAGE_CACHE_SIZE;
-					gossip_debug(GOSSIP_FILE_DEBUG,
-					  "(%d) xtv_off = %zd, "
-					  "xtv_len = %zd\n",
-					  i,
-					  (size_t) uncached_xtvec[i].xtv_off,
-					  uncached_xtvec[i].xtv_len);
-				}
-			}
-			/* if all page cache pages are contiguous on file */
-			if (contig_on_file) {
-				/* issue a simple direct contiguous I/O call */
-				err = wait_for_direct_io(rw,
-						 uncached_vec,
-						 rw->dest.pages.nr_issue_pages,
-						 total_requested_io);
-			} else {
-				/*
-				 * else issue a complicated non-contig
-				 * I/O call.
-				 */
-				err = wait_for_iox(rw,
-					   uncached_vec,
-					   rw->dest.pages.nr_issue_pages,
-					   uncached_xtvec,
-					   rw->dest.pages.nr_issue_pages,
-					   total_requested_io);
-				kfree(uncached_xtvec);
-			}
-			kfree(uncached_vec);
-			if (err < 0) {
-				gossip_err("failed with error %zd\n",
-					   (size_t) err);
-				goto out;
-			}
-			gossip_debug(GOSSIP_FILE_DEBUG,
-				     "wait_for_missing_io: "
-				     "transferred %zd, requested %zd\n",
-				     (size_t) err,
-				     total_requested_io);
-		}
+	if (!uncached_vec) {
+		gossip_err("out of memory allocating uncached_vec\n");
+		err = -ENOMEM;
+		goto out;
 	}
+
+	/* issue a simple direct contiguous I/O call */
+	err = wait_for_direct_io(rw,
+				 uncached_vec,
+				 rw->dest.pages.nr_issue_pages,
+				 total_requested_io);
+	kfree(uncached_vec);
+	if (err < 0) {
+		gossip_err("failed with error %zd\n", (size_t) err);
+		goto out;
+	}
+	gossip_debug(GOSSIP_FILE_DEBUG,
+		     "wait_for_missing_io: transferred %zd, requested %zd\n",
+		     (size_t) err,
+		     total_requested_io);
 out:
 	return err;
 }
@@ -1219,7 +1080,7 @@ static ssize_t wait_for_cached_io(struct rw_options *old_rw,
 		gossip_err("writes are not handled yet!\n");
 		return -EOPNOTSUPP;
 	}
-	offset = *(rw.off.io.offset);
+	offset = *(rw.io.offset);
 	isize = i_size_read(rw.inode);
 	/* If our file offset was greater than file size, we should return 0 */
 	if (offset >= isize)
@@ -1304,7 +1165,7 @@ static ssize_t do_readv_writev(struct rw_options *rw)
 		gossip_lerr("Invalid parameters\n");
 		goto out;
 	}
-	offset = rw->off.io.offset;
+	offset = rw->io.offset;
 	if (!offset) {
 		gossip_err("%s: Invalid offset\n", rw->fnstr);
 		goto out;
@@ -1569,7 +1430,7 @@ ssize_t pvfs2_inode_read(struct inode *inode,
 
 	memset(&rw, 0, sizeof(rw));
 	rw.async = 0;
-	rw.type = IO_READ;
+	rw.type = IO_READV;
 	rw.copy_dest_type = COPY_DEST_ADDRESSES;
 	rw.readahead_size = readahead_size;
 	rw.copy_to_user_addresses = copy_to_user;
@@ -1581,286 +1442,9 @@ ssize_t pvfs2_inode_read(struct inode *inode,
 	rw.file = NULL;
 	rw.dest.address.iov = &vec;
 	rw.dest.address.nr_segs = 1;
-	rw.off.io.offset = offset;
+	rw.io.offset = offset;
 	g_pvfs2_stats.reads++;
 	return do_readv_writev(&rw);
-}
-
-/* Read data from a specified offset in a file into a user buffer.  */
-ssize_t pvfs2_file_read(struct file *file,
-			char __user *buf,
-			size_t count,
-			loff_t *offset)
-{
-	struct rw_options rw;
-	struct iovec vec;
-
-	gossip_debug(GOSSIP_IO_DEBUG,
-		     "pvfs2_file_read: count=%zd \toffset=%lld\n",
-		     count,
-		     (long long)*offset);
-
-	memset(&rw, 0, sizeof(rw));
-	rw.async = 0;
-	rw.type = IO_READ;
-	rw.copy_dest_type = COPY_DEST_ADDRESSES;
-	rw.copy_to_user_addresses = 1;
-	rw.fnstr = __func__;
-	vec.iov_base = buf;
-	vec.iov_len = count;
-	rw.inode = file->f_dentry->d_inode;
-	rw.pvfs2_inode = PVFS2_I(rw.inode);
-	rw.file = file;
-	rw.dest.address.iov = &vec;
-	rw.dest.address.nr_segs = 1;
-	rw.off.io.offset = offset;
-
-	rw.readahead_size = 0;
-	g_pvfs2_stats.reads++;
-
-/* RESET_FILE_POS is a configure option: --enable-reset-file-pos */
-#ifdef RESET_FILE_POS
-	return do_readv_writev_wrapper(&rw);
-#else
-	return do_readv_writev(&rw);
-#endif
-}
-
-/*
- * Write data from a contiguous user buffer into a file at a specified
- * offset.
- */
-static ssize_t pvfs2_file_write(struct file *file,
-				const char __user *buf,
-				size_t count,
-				loff_t *offset)
-{
-	struct rw_options rw;
-	struct iovec vec;
-
-	memset(&rw, 0, sizeof(rw));
-	rw.async = 0;
-	rw.type = IO_WRITE;
-	rw.copy_dest_type = COPY_DEST_ADDRESSES;
-	rw.readahead_size = 0;
-	rw.copy_to_user_addresses = 1;
-	rw.fnstr = __func__;
-	vec.iov_base = (char *)buf;
-	vec.iov_len = count;
-	rw.file = file;
-	rw.inode = file->f_dentry->d_inode;
-	rw.pvfs2_inode = PVFS2_I(rw.inode);
-	rw.dest.address.iov = &vec;
-	rw.dest.address.nr_segs = 1;
-	rw.off.io.offset = offset;
-	g_pvfs2_stats.writes++;
-
-#ifdef RESET_FILE_POS
-	return do_readv_writev_wrapper(&rw);
-#else
-	return do_readv_writev(&rw);
-#endif
-}
-
-/*
- * Construct a trailer of <file offsets, length pairs> in a buffer that we
- * pass in as an upcall trailer to client-core. This is used by clientcore
- * to construct a Request_hindexed type to stage the non-contiguous I/O
- * to file
- */
-static int construct_file_offset_trailer(char **trailer,
-					 PVFS_size *trailer_size,
-					 int seg_count,
-					 struct xtvec *xptr)
-{
-	int i;
-	struct read_write_x *rwx;
-
-	*trailer_size = seg_count * sizeof(*rwx);
-	*trailer = vmalloc(*trailer_size);
-	if (*trailer == NULL) {
-		*trailer_size = 0;
-		return -ENOMEM;
-	}
-	rwx = (struct read_write_x *)*trailer;
-	for (i = 0; i < seg_count; i++) {
-		rwx->off = xptr[i].xtv_off;
-		rwx->len = xptr[i].xtv_len;
-		rwx++;
-	}
-	return 0;
-}
-
-/*
- * Post and wait for the I/O upcall to finish.
- * @rw  - contains state information to initiate the I/O operation
- * @vec - contains the memory regions
- * @nr_segs - number of memory vector regions
- * @xtvec - contains the file regions
- * @xtnr_segs - number of file vector regions
- */
-static ssize_t wait_for_iox(struct rw_options *rw,
-			    struct iovec *vec,
-			    unsigned long nr_segs,
-			    struct xtvec *xtvec,
-			    unsigned long xtnr_segs,
-			    size_t total_size)
-{
-	pvfs2_kernel_op_t *new_op = NULL;
-	int buffer_index = -1;
-	ssize_t ret;
-
-	if (!rw ||
-	    !vec ||
-	    nr_segs < 0 ||
-	    total_size <= 0 ||
-	    !xtvec ||
-	    xtnr_segs < 0) {
-		gossip_lerr("invalid parameters (rw: %p, vec: %p, nr_segs: %lu, xtvec %p, xtnr_segs %lu, total_size: %zd\n",
-			    rw,
-			    vec,
-			    nr_segs,
-			    xtvec,
-			    xtnr_segs,
-			    total_size);
-		ret = -EINVAL;
-		goto out;
-	}
-	if (!rw->pvfs2_inode ||
-	    !rw->inode ||
-	    !rw->fnstr) {
-		gossip_lerr("invalid parameters: pvfs2_inode: %p, inode: %p, fnstr: %p\n",
-			    rw->pvfs2_inode,
-			    rw->inode,
-			    rw->fnstr);
-		ret = -EINVAL;
-		goto out;
-	}
-	new_op = op_alloc_trailer(PVFS2_VFS_OP_FILE_IOX);
-	if (!new_op) {
-		ret = -ENOMEM;
-		goto out;
-	}
-	new_op->upcall.req.iox.io_type =
-	    (rw->type == IO_READX) ? PVFS_IO_READ : PVFS_IO_WRITE;
-	new_op->upcall.req.iox.refn = rw->pvfs2_inode->refn;
-
-	/* get a shared buffer index */
-	ret = pvfs_bufmap_get(&buffer_index);
-	if (ret < 0) {
-		gossip_debug(GOSSIP_FILE_DEBUG,
-			     "%s: pvfs_bufmap_get() failure (%ld)\n",
-			     rw->fnstr,
-			     (long)ret);
-		goto out;
-	}
-	new_op->upcall.req.iox.buf_index = buffer_index;
-	new_op->upcall.req.iox.count = total_size;
-	/* construct the upcall trailer buffer */
-	ret = construct_file_offset_trailer(&new_op->upcall.trailer_buf,
-					    &new_op->upcall.trailer_size,
-					    xtnr_segs,
-					    xtvec);
-	if (ret < 0) {
-		gossip_err("%s: construct_file_offset_trailer failure (%ld)\n",
-			   rw->fnstr,
-			   (long)ret);
-		goto out;
-	}
-	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "%s: copy_to_user %d nr_segs %lu, xtnr_segs: %lu "
-		     "total_size: %zd copy_dst_type %d\n",
-		     rw->fnstr,
-		     rw->copy_to_user_addresses,
-		     nr_segs,
-		     xtnr_segs,
-		     total_size,
-		     rw->copy_dest_type);
-
-	/* Stage 1: Copy in buffers */
-	ret = precopy_buffers(buffer_index, rw, vec, nr_segs, total_size);
-	if (ret < 0)
-		goto out;
-
-	/* Stage 2: whew! finally service this operation */
-	ret = service_operation(new_op,
-				rw->fnstr,
-				get_interruptible_flag(rw->inode));
-	if (ret < 0) {
-		/* this macro is defined in pvfs2-kernel.h */
-		handle_io_error();
-
-		/*
-		   don't write an error to syslog on signaled operation
-		   termination unless we've got debugging turned on, as
-		   this can happen regularly (i.e. ctrl-c)
-		 */
-		if (ret == -EINTR)
-			gossip_debug(GOSSIP_FILE_DEBUG,
-				     "%s: returning error %ld\n",
-				     rw->fnstr,
-				     (long)ret);
-		else
-			gossip_err("%s: error in %s handle %llu, FILE: %s\n  -- returning %ld\n",
-				   rw->fnstr,
-				   rw->type == IO_READX ?
-					"noncontig read from" :
-					"noncontig write to",
-				   llu(get_handle_from_ino(rw->inode)),
-				   (rw->file &&
-				    rw->file->f_dentry &&
-				    rw->file->f_dentry->d_name.name ?
-				      (char *)rw->file->f_dentry->d_name.name :
-				      "UNKNOWN"),
-				   (long)ret);
-		goto out;
-	}
-	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "downcall returned %lld\n",
-		     llu(new_op->downcall.resp.iox.amt_complete));
-
-	/* Stage 3: Post copy buffers */
-	ret = postcopy_buffers(buffer_index,
-			       rw,
-			       vec,
-			       nr_segs,
-			       new_op->downcall.resp.iox.amt_complete);
-	if (ret < 0) {
-		/*
-		 * put error codes in downcall so that handle_io_error()
-		 * preserves it properly
-		 */
-		new_op->downcall.status = ret;
-		handle_io_error();
-		goto out;
-	}
-	ret = new_op->downcall.resp.iox.amt_complete;
-	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "wait_for_iox returning %ld\n",
-		     (long)ret);
-	/*
-	   tell the device file owner waiting on I/O that this I/O has
-	   completed and it can return now.  in this exact case, on
-	   wakeup the device will free the op, so we *cannot* touch it
-	   after this.
-	 */
-	wake_up_daemon_for_return(new_op);
-	new_op = NULL;
-out:
-	if (buffer_index >= 0) {
-		pvfs_bufmap_put(buffer_index);
-		gossip_debug(GOSSIP_FILE_DEBUG,
-			     "PUT buffer_index %d\n",
-			     buffer_index);
-		buffer_index = -1;
-	}
-	if (new_op) {
-		if (new_op->upcall.trailer_buf)
-			vfree(new_op->upcall.trailer_buf);
-		op_release(new_op);
-		new_op = NULL;
-	}
-	return ret;
 }
 
 /*
@@ -2178,7 +1762,7 @@ static ssize_t do_aio_read_write(struct rw_options *rw)
 	pvfs2_kiocb *x;
 
 	error = -EINVAL;
-	if (!rw || !rw->fnstr || !rw->off.io.offset) {
+	if (!rw || !rw->fnstr || !rw->io.offset) {
 		gossip_lerr("Invalid parameters (rw %p)\n", rw);
 		goto out_error;
 	}
@@ -2186,7 +1770,7 @@ static ssize_t do_aio_read_write(struct rw_options *rw)
 	filp = rw->file;
 	iocb = rw->iocb;
 	pvfs2_inode = rw->pvfs2_inode;
-	offset = rw->off.io.offset;
+	offset = rw->io.offset;
 	if (!inode || !filp || !pvfs2_inode || !iocb || !offset) {
 		gossip_lerr("Invalid parameters\n");
 		goto out_error;
@@ -2225,11 +1809,7 @@ static ssize_t do_aio_read_write(struct rw_options *rw)
 		 * RESET_FILE_POS is a configure option:
 		 *   --enable-reset-file-pos
 		 */
-#ifdef RESET_FILE_POS
-		error = do_readv_writev_wrapper(rw);
-#else
 		error = do_readv_writev(rw);
-#endif
 
 		/*
 		 * not sure this is the correct place or way to update
@@ -2242,7 +1822,7 @@ static ssize_t do_aio_read_write(struct rw_options *rw)
 		goto out_error;
 	}
 	/* Asynchronous I/O */
-	if (rw->type == IO_WRITE) {
+	if (rw->type == IO_WRITEV) {
 		int ret;
 		/* perform generic tests for sanity of write arguments */
 		ret = generic_write_checks(filp,
@@ -2287,7 +1867,7 @@ static ssize_t do_aio_read_write(struct rw_options *rw)
 		/* Asynchronous I/O */
 		new_op->upcall.req.io.async_vfs_io = PVFS_VFS_ASYNC_IO;
 		new_op->upcall.req.io.io_type =
-			(rw->type == IO_READ) ?
+			(rw->type == IO_READV) ?
 			PVFS_IO_READ :
 			PVFS_IO_WRITE;
 		new_op->upcall.req.io.refn = pvfs2_inode->refn;
@@ -2308,7 +1888,7 @@ static ssize_t do_aio_read_write(struct rw_options *rw)
 		new_op->upcall.req.io.buf_index = buffer_index;
 		new_op->upcall.req.io.count = count;
 		new_op->upcall.req.io.offset = *offset;
-		if (rw->type == IO_WRITE) {
+		if (rw->type == IO_WRITEV) {
 			/*
 			 * copy the data from the application for writes.
 			 * We could return -EIOCBRETRY here and have
@@ -2370,7 +1950,7 @@ static ssize_t do_aio_read_write(struct rw_options *rw)
 		error = fill_default_kiocb(x,
 					   current,
 					   iocb,
-					   (rw->type == IO_READ) ?
+					   (rw->type == IO_READV) ?
 						PVFS_IO_READ :
 						PVFS_IO_WRITE,
 					   buffer_index,
@@ -2433,9 +2013,9 @@ static ssize_t pvfs2_file_aio_read_iovec(struct kiocb *iocb,
 
 	memset(&rw, 0, sizeof(rw));
 	rw.async = !is_sync_kiocb(iocb);
-	rw.type = IO_READ;
+	rw.type = IO_READV;
 	rw.copy_dest_type = COPY_DEST_ADDRESSES;
-	rw.off.io.offset = &offset;
+	rw.io.offset = &offset;
 	rw.copy_to_user_addresses = 1;
 	rw.fnstr = __func__;
 	rw.iocb = iocb;
@@ -2460,10 +2040,10 @@ static ssize_t pvfs2_file_aio_write_iovec(struct kiocb *iocb,
 
 	memset(&rw, 0, sizeof(rw));
 	rw.async = !is_sync_kiocb(iocb);
-	rw.type = IO_WRITE;
+	rw.type = IO_WRITEV;
 	rw.copy_dest_type = COPY_DEST_ADDRESSES;
 	rw.readahead_size = 0;
-	rw.off.io.offset = &offset;
+	rw.io.offset = &offset;
 	rw.copy_to_user_addresses = 1;
 	rw.fnstr = __func__;
 	rw.iocb = iocb;
@@ -2673,8 +2253,8 @@ int pvfs2_lock(struct file *f, int flags, struct file_lock *lock)
 /** PVFS2 implementation of VFS file operations */
 const struct file_operations pvfs2_file_operations = {
 	.llseek = pvfs2_file_llseek,
-	.read = pvfs2_file_read,
-	.write = pvfs2_file_write,
+	.read = do_sync_read,
+	.write = do_sync_write,
 	.aio_read = pvfs2_file_aio_read_iovec,
 	.aio_write = pvfs2_file_aio_write_iovec,
 	.lock = pvfs2_lock,
@@ -2683,38 +2263,4 @@ const struct file_operations pvfs2_file_operations = {
 	.open = pvfs2_file_open,
 	.release = pvfs2_file_release,
 	.fsync = pvfs2_fsync,
-	.lock = pvfs2_lock,
 };
-
-/* RESET_FILE_POS is a configure option: --enable-reset-file-pos */
-#ifdef RESET_FILE_POS
-/* This function wrapper imposes the rule that the user's
- * request was either entirely fulfilled or it wasn't.  If it wasn't,
- * then errno will be set appropriately, -1 will be returned as the
- * request's return value, and the file offset will be repositioned to
- * the beginning of the request.   If it was successfully completed, then
- * the amount written/read will be returned and the file offset will be
- * incremented the appropriate amount.
- */
-static ssize_t do_readv_writev_wrapper(struct rw_options *rw)
-{
-	ssize_t ret;
-
-	gossip_err("Wrapper called.\n");
-
-	/*
-	 * Save the file's current offset before issuing this read/write
-	 * request.
-	 */
-	rw->off.io.offset_before_request = *(rw->off.io.offset);
-
-	/*
-	 * If the return code from the request is negative,
-	 * restore the offset to it's original value.
-	 */
-	ret = do_readv_writev(rw);
-	if (ret < 0)
-		*(rw->off.io.offset) = rw->off.io.offset_before_request;
-	return ret;
-}
-#endif
