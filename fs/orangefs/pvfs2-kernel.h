@@ -581,8 +581,6 @@ ssize_t pvfs2_getxattr(struct dentry *dentry,
 
 ssize_t pvfs2_listxattr(struct dentry *dentry, char *buffer, size_t size);
 
-int pvfs2_removexattr(struct dentry *dentry, const char *name);
-
 /*
  * defined in namei.c
  */
