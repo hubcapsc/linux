@@ -235,20 +235,17 @@ static int pvfs2_inode_removexattr(struct inode *inode,
 }
 
 /*
- * tries to set an attribute for a given key on a file.
- * Returns a -ve number on error and 0 on success.
- * Key is text, but value can be binary!
+ * Tries to set an attribute for a given key on a file.
+ * 
+ * Returns a -ve number on error and 0 on success.  Key is text, but value
+ * can be binary!
  */
-int pvfs2_inode_setxattr(struct inode *inode,
-			 const char *prefix,
-			 const char *name,
-			 const void *value,
-			 size_t size,
-			 int flags)
+int pvfs2_inode_setxattr(struct inode *inode, const char *prefix,
+		const char *name, const void *value, size_t size, int flags)
 {
+	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
+	pvfs2_kernel_op_t *new_op;
 	int ret = -ENOMEM;
-	pvfs2_kernel_op_t *new_op = NULL;
-	pvfs2_inode_t *pvfs2_inode = NULL;
 
 	if (size < 0 ||
 	    size >= PVFS_MAX_XATTR_VALUELEN ||
@@ -290,67 +287,64 @@ int pvfs2_inode_setxattr(struct inode *inode,
 		return pvfs2_inode_removexattr(inode, prefix, name, flags);
 	}
 
-	if (inode) {
-		gossip_debug(GOSSIP_XATTR_DEBUG,
-			     "setxattr on inode %llu, name %s\n",
-			     llu(get_handle_from_ino(inode)),
-			     name);
-		if (IS_RDONLY(inode)) {
-			gossip_err
-			    ("pvfs2_inode_setxattr: Read-only file system\n");
-			return -EROFS;
-		}
-		if (IS_IMMUTABLE(inode) || IS_APPEND(inode)) {
-			gossip_err("pvfs2_inode_setxattr: Immutable inode or append-only inode; operation not permitted\n");
-			return -EPERM;
-		}
-		pvfs2_inode = PVFS2_I(inode);
-
-		down_write(&pvfs2_inode->xattr_sem);
-		new_op = op_alloc(PVFS2_VFS_OP_SETXATTR);
-		if (!new_op) {
-			up_write(&pvfs2_inode->xattr_sem);
-			return ret;
-		}
-
-		new_op->upcall.req.setxattr.refn = pvfs2_inode->refn;
-		new_op->upcall.req.setxattr.flags = flags;
-		/*
-		 * NOTE: Although keys are meant to be NULL terminated textual
-		 * strings, I am going to explicitly pass the length just in
-		 * case we change this later on...
-		 */
-		ret = snprintf((char *)new_op->upcall.req.setxattr.keyval.key,
-			       PVFS_MAX_XATTR_NAMELEN,
-			       "%s%s",
-			       prefix, name);
-		new_op->upcall.req.setxattr.keyval.key_sz = ret + 1;
-		memcpy(new_op->upcall.req.setxattr.keyval.val, value, size);
-		new_op->upcall.req.setxattr.keyval.val[size] = '\0';
-		/* For some reason, val_sz should include the \0 at the end
-		 * as well.
-		 */
-		new_op->upcall.req.setxattr.keyval.val_sz = size + 1;
-
-		gossip_debug(GOSSIP_XATTR_DEBUG,
-			     "pvfs2_inode_setxattr: key %s, key_sz %d "
-			     " value size %zd\n",
-			     (char *)new_op->upcall.req.setxattr.keyval.key,
-			     (int)new_op->upcall.req.setxattr.keyval.key_sz,
-			     size + 1);
-
-		ret = service_operation(new_op,
-					"pvfs2_inode_setxattr",
-					get_interruptible_flag(inode));
-
-		gossip_debug(GOSSIP_XATTR_DEBUG,
-			     "pvfs2_inode_setxattr: returning %d\n",
-			     ret);
-
-		/* when request is serviced properly, free req op struct */
-		op_release(new_op);
-		up_write(&pvfs2_inode->xattr_sem);
+	gossip_debug(GOSSIP_XATTR_DEBUG,
+		     "setxattr on inode %llu, name %s\n",
+		     llu(get_handle_from_ino(inode)),
+		     name);
+	if (IS_RDONLY(inode)) {
+		gossip_err
+		    ("pvfs2_inode_setxattr: Read-only file system\n");
+		return -EROFS;
 	}
+	if (IS_IMMUTABLE(inode) || IS_APPEND(inode)) {
+		gossip_err("pvfs2_inode_setxattr: Immutable inode or append-only inode; operation not permitted\n");
+		return -EPERM;
+	}
+
+	down_write(&pvfs2_inode->xattr_sem);
+	new_op = op_alloc(PVFS2_VFS_OP_SETXATTR);
+	if (!new_op)
+		goto out_unlock;
+
+
+	new_op->upcall.req.setxattr.refn = pvfs2_inode->refn;
+	new_op->upcall.req.setxattr.flags = flags;
+	/*
+	 * NOTE: Although keys are meant to be NULL terminated textual
+	 * strings, I am going to explicitly pass the length just in
+	 * case we change this later on...
+	 */
+	ret = snprintf((char *)new_op->upcall.req.setxattr.keyval.key,
+		       PVFS_MAX_XATTR_NAMELEN,
+		       "%s%s",
+		       prefix, name);
+	new_op->upcall.req.setxattr.keyval.key_sz = ret + 1;
+	memcpy(new_op->upcall.req.setxattr.keyval.val, value, size);
+	new_op->upcall.req.setxattr.keyval.val[size] = '\0';
+	/* For some reason, val_sz should include the \0 at the end
+	 * as well.
+	 */
+	new_op->upcall.req.setxattr.keyval.val_sz = size + 1;
+
+	gossip_debug(GOSSIP_XATTR_DEBUG,
+		     "pvfs2_inode_setxattr: key %s, key_sz %d "
+		     " value size %zd\n",
+		     (char *)new_op->upcall.req.setxattr.keyval.key,
+		     (int)new_op->upcall.req.setxattr.keyval.key_sz,
+		     size + 1);
+
+	ret = service_operation(new_op,
+				"pvfs2_inode_setxattr",
+				get_interruptible_flag(inode));
+
+	gossip_debug(GOSSIP_XATTR_DEBUG,
+		     "pvfs2_inode_setxattr: returning %d\n",
+		     ret);
+
+	/* when request is serviced properly, free req op struct */
+	op_release(new_op);
+out_unlock:
+	up_write(&pvfs2_inode->xattr_sem);
 	return ret;
 }
 
