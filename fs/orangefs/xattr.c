@@ -321,132 +321,118 @@ out_unlock:
 }
 
 /*
- * Tries to get a specified object's keys into a user-specified
- * buffer of a given size.
- * Note that like the previous instances of xattr routines,
- * this also allows you to pass in a NULL pointer and 0 size
- * to probe the size for subsequent memory allocations.
- * Thus our return value is always the size of all the keys
- * unless there were errors in fetching the keys!
+ * Tries to get a specified object's keys into a user-specified buffer of a
+ * given size.  Note that like the previous instances of xattr routines, this
+ * also allows you to pass in a NULL pointer and 0 size to probe the size for
+ * subsequent memory allocations. Thus our return value is always the size of
+ * all the keys unless there were errors in fetching the keys!
  */
-static int pvfs2_inode_listxattr(struct inode *inode, char *buffer, size_t size)
+ssize_t pvfs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
+	struct inode *inode = dentry->d_inode;
+	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
+	pvfs2_kernel_op_t *new_op;
+	PVFS_ds_position token = PVFS_ITERATE_START;
 	ssize_t ret = -ENOMEM;
 	ssize_t total = 0;
-	int i = 0;
-	int count_keys = 0;
-	pvfs2_kernel_op_t *new_op = NULL;
-	pvfs2_inode_t *pvfs2_inode = NULL;
 	ssize_t length = 0;
+	int count_keys = 0;
+	int key_size = 0;
+	int i = 0;
 
 	if (size > 0 && buffer == NULL) {
-		gossip_err("pvfs2_inode_listxattr: bogus NULL pointers\n");
+		gossip_err("%s: bogus NULL pointers\n", __func__);
 		return -EINVAL;
 	}
 	if (size < 0) {
 		gossip_err("Invalid size (%d)\n", (int)size);
 		return -EINVAL;
 	}
-	if (inode) {
-		PVFS_ds_position token = PVFS_ITERATE_START;
+	
 
-		pvfs2_inode = PVFS2_I(inode);
-		/* obtain the xattr semaphore */
-		down_read(&pvfs2_inode->xattr_sem);
+	down_read(&pvfs2_inode->xattr_sem);
+	new_op = op_alloc(PVFS2_VFS_OP_LISTXATTR);
+	if (!new_op)
+		goto out_unlock;
 
-		new_op = op_alloc(PVFS2_VFS_OP_LISTXATTR);
-		if (!new_op) {
-			up_read(&pvfs2_inode->xattr_sem);
-			return ret;
-		}
-		if (buffer && size > 0)
-			memset(buffer, 0, size);
+	if (buffer && size > 0)
+		memset(buffer, 0, size);
 
 try_again:
-		new_op->upcall.req.listxattr.refn = pvfs2_inode->refn;
-		new_op->upcall.req.listxattr.token = token;
-		new_op->upcall.req.listxattr.requested_count =
-		    (size == 0) ? 0 : PVFS_MAX_XATTR_LISTLEN;
-		ret = service_operation(new_op,
-					"pvfs2_inode_listxattr",
-					get_interruptible_flag(inode));
-		if (ret == 0) {
-		  if (size == 0) {
-		    /*
-		     * This is a bit of a big upper limit, but I
-		     * did not want to spend too much time getting
-		     * this correct, since users end up allocating
-		     * memory rather than us...
-		     */
-		    total = new_op->downcall.resp.listxattr.returned_count *
-			    PVFS_MAX_XATTR_NAMELEN;
-		    goto done;
-		  }
-		  length = new_op->downcall.resp.listxattr.keylen;
-		  if (length == 0) {
-		    goto done;
-		  } else {
-		    int key_size = 0;
-		    /*
-		     * check to see how much can be fit in the
-		     * buffer. fit only whole keys
-		     */
-		    for (i = 0;
-			 i < new_op->downcall.resp.listxattr.returned_count;
-			 i++) {
-		      if (total + new_op->downcall.resp.listxattr.lengths[i] <=
-			  size) {
-			/* Since many dumb programs try to setxattr()
-			 * on our reserved xattrs this is a feeble
-			 * attempt at defeating those by not listing
-			 * them in the output of listxattr.. sigh
-			 */
+	new_op->upcall.req.listxattr.refn = pvfs2_inode->refn;
+	new_op->upcall.req.listxattr.token = token;
+	new_op->upcall.req.listxattr.requested_count =
+	    (size == 0) ? 0 : PVFS_MAX_XATTR_LISTLEN;
+	ret = service_operation(new_op, __func__,
+				get_interruptible_flag(inode));
+	if (ret != 0)
+		goto done;
 
-			if (is_reserved_key(
-			     new_op->downcall.resp.listxattr.key + key_size,
-			     new_op->downcall.resp.listxattr.lengths[i]) == 0) {
-			  gossip_debug(GOSSIP_XATTR_DEBUG,
-			      "Copying key %d -> %s\n",
-			      i,
-			      new_op->downcall.resp.listxattr.key + key_size);
-			  memcpy(buffer + total,
-			  new_op->downcall.resp.listxattr.key + key_size,
-				 new_op->downcall.resp.listxattr.lengths[i]);
-			  total += new_op->downcall.resp.listxattr.lengths[i];
-			  count_keys++;
-			} else {
-			  gossip_debug(GOSSIP_XATTR_DEBUG,
-			       "[RESERVED] key %d -> %s\n",
-			       i,
-			       new_op->downcall.resp.listxattr.key + key_size);
-			}
-			key_size += new_op->downcall.resp.listxattr.lengths[i];
-		      } else {
-			goto done;
-		      }
-		    }
-		    /*
-		     * Since the buffer was large enough, we might have to
-		     * continue fetching more keys!
-		     */
-		    token = new_op->downcall.resp.listxattr.token;
-		    if (token != PVFS_ITERATE_END)
-			goto try_again;
-		  }
-		}
-done:
-		gossip_debug(GOSSIP_XATTR_DEBUG,
-			     "pvfs2_inode_listxattr: returning %d"
-			     " [size of buffer %ld] (filled in %d keys)\n",
-			     ret ? (int)ret : (int)total,
-			     (long)size,
-			     count_keys);
-		/* when request is serviced properly, free req op struct */
-		op_release(new_op);
-		up_read(&pvfs2_inode->xattr_sem);
-		if (ret == 0)
-			ret = total;
+	if (size == 0) {
+		/*
+		 * This is a bit of a big upper limit, but I did not want to
+		 * spend too much time getting this correct, since users end
+		 * up allocating memory rather than us...
+		 */
+		total = new_op->downcall.resp.listxattr.returned_count *
+		 		PVFS_MAX_XATTR_NAMELEN;
+		goto done;
 	}
+
+	length = new_op->downcall.resp.listxattr.keylen;
+	if (length == 0)
+		goto done;
+
+	/*
+	 * Check to see how much can be fit in the buffer. Fit only whole keys.
+	 */
+	for (i = 0; i < new_op->downcall.resp.listxattr.returned_count; i++) {
+	 	if (total + new_op->downcall.resp.listxattr.lengths[i] > size)
+			goto done;
+
+		/*
+		 * Since many dumb programs try to setxattr() on our reserved
+		 * xattrs this is a feeble attempt at defeating those by not
+		 * listing them in the output of listxattr.. sigh
+		 */
+		if (is_reserved_key(new_op->downcall.resp.listxattr.key + key_size,
+				new_op->downcall.resp.listxattr.lengths[i])) {
+			gossip_debug(GOSSIP_XATTR_DEBUG, "Copying key %d -> %s\n",
+					i, new_op->downcall.resp.listxattr.key +
+						key_size);
+			memcpy(buffer + total,
+				new_op->downcall.resp.listxattr.key + key_size,
+				new_op->downcall.resp.listxattr.lengths[i]);
+			total += new_op->downcall.resp.listxattr.lengths[i];
+			count_keys++;
+		} else {
+			gossip_debug(GOSSIP_XATTR_DEBUG, "[RESERVED] key %d -> %s\n",
+					i, new_op->downcall.resp.listxattr.key +
+						key_size);
+		}
+		key_size += new_op->downcall.resp.listxattr.lengths[i];
+	}
+
+	/*
+	 * Since the buffer was large enough, we might have to continue
+	 * fetching more keys!
+	 */
+	token = new_op->downcall.resp.listxattr.token;
+	if (token != PVFS_ITERATE_END)
+		goto try_again;
+
+done:
+	gossip_debug(GOSSIP_XATTR_DEBUG, "%s: returning %d"
+		     " [size of buffer %ld] (filled in %d keys)\n",
+		     __func__,
+		     ret ? (int)ret : (int)total,
+		     (long)size,
+		     count_keys);
+	op_release(new_op);
+	if (ret == 0)
+		ret = total;
+out_unlock:
+	up_read(&pvfs2_inode->xattr_sem);
 	return ret;
 }
 
@@ -612,9 +598,3 @@ const struct xattr_handler *pvfs2_xattr_handlers[] = {
 	&pvfs2_xattr_default_handler,
 	NULL
 };
-
-ssize_t pvfs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
-{
-	struct inode *inode = dentry->d_inode;
-	return pvfs2_inode_listxattr(inode, buffer, size);
-}
