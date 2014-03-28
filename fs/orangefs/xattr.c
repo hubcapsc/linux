@@ -157,80 +157,52 @@ static int pvfs2_inode_removexattr(struct inode *inode,
 			    const char *name,
 			    int flags)
 {
-	int ret = -ENOMEM;
+	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
 	pvfs2_kernel_op_t *new_op = NULL;
-	pvfs2_inode_t *pvfs2_inode = NULL;
+	int ret = -ENOMEM;
 
-	if (!name) {
-		gossip_err("pvfs2_inode_removexattr: xattr key is NULL\n");
-		return -EINVAL;
-	}
+	down_write(&pvfs2_inode->xattr_sem);
+	new_op = op_alloc(PVFS2_VFS_OP_REMOVEXATTR);
+	if (!new_op)
+		goto out_unlock;
 
-	if (prefix) {
-		if ((strlen(name) + strlen(prefix)) >= PVFS_MAX_XATTR_NAMELEN) {
-			gossip_err
-			   ("pvfs2_inode_removexattr: Invalid key length(%d)\n",
-			    (int)(strlen(name) + strlen(prefix)));
-			return -EINVAL;
-		}
-	} else {
-		if (strlen(name) >= PVFS_MAX_XATTR_NAMELEN) {
-			gossip_err
-			   ("pvfs2_inode_removexattr: Invalid key length(%d)\n",
-			    (int)(strlen(name)));
-			return -EINVAL;
-		}
-	}
+	new_op->upcall.req.removexattr.refn = pvfs2_inode->refn;
+	/*
+	 * NOTE: Although keys are meant to be NULL terminated
+	 * textual strings, I am going to explicitly pass the
+	 * length just in case we change this later on...
+	 */
+	ret = snprintf((char *)new_op->upcall.req.removexattr.key,
+		       PVFS_MAX_XATTR_NAMELEN,
+		       "%s%s",
+		       (prefix ? prefix : ""),
+		       name);
+	new_op->upcall.req.removexattr.key_sz = ret + 1;
 
-	if (inode) {
-		pvfs2_inode = PVFS2_I(inode);
+	gossip_debug(GOSSIP_XATTR_DEBUG,
+		     "pvfs2_inode_removexattr: key %s, key_sz %d\n",
+		     (char *)new_op->upcall.req.removexattr.key,
+		     (int)new_op->upcall.req.removexattr.key_sz);
 
-		down_write(&pvfs2_inode->xattr_sem);
-		new_op = op_alloc(PVFS2_VFS_OP_REMOVEXATTR);
-		if (!new_op) {
-			up_write(&pvfs2_inode->xattr_sem);
-			return ret;
-		}
-
-		new_op->upcall.req.removexattr.refn = pvfs2_inode->refn;
+	ret = service_operation(new_op,
+				"pvfs2_inode_removexattr",
+				get_interruptible_flag(inode));
+	if (ret == -ENOENT) {
 		/*
-		 * NOTE: Although keys are meant to be NULL terminated
-		 * textual strings, I am going to explicitly pass the
-		 * length just in case we change this later on...
+		 * Request to replace a non-existent attribute is an error.
 		 */
-		ret = snprintf((char *)new_op->upcall.req.removexattr.key,
-			       PVFS_MAX_XATTR_NAMELEN,
-			       "%s%s",
-			       (prefix ? prefix : ""),
-			       name);
-		new_op->upcall.req.removexattr.key_sz = ret + 1;
-
-		gossip_debug(GOSSIP_XATTR_DEBUG,
-			     "pvfs2_inode_removexattr: key %s, key_sz %d\n",
-			     (char *)new_op->upcall.req.removexattr.key,
-			     (int)new_op->upcall.req.removexattr.key_sz);
-
-		ret = service_operation(new_op,
-					"pvfs2_inode_removexattr",
-					get_interruptible_flag(inode));
-
-		if (ret == -ENOENT) {
-			/*
-			 * Request to replace a non-existent attribute is an
-			 * error
-			 */
-			if (flags & XATTR_REPLACE)
-				ret = -ENODATA;
-			else
-				ret = 0;
-		}
-		gossip_debug(GOSSIP_XATTR_DEBUG,
-			     "pvfs2_inode_removexattr: returning %d\n", ret);
-
-		/* when request is serviced properly, free req op struct */
-		op_release(new_op);
-		up_write(&pvfs2_inode->xattr_sem);
+		if (flags & XATTR_REPLACE)
+			ret = -ENODATA;
+		else
+			ret = 0;
 	}
+
+	gossip_debug(GOSSIP_XATTR_DEBUG,
+		     "pvfs2_inode_removexattr: returning %d\n", ret);
+
+	op_release(new_op);
+out_unlock:
+	up_write(&pvfs2_inode->xattr_sem);
 	return ret;
 }
 
