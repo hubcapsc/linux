@@ -623,13 +623,6 @@ int pvfs2_inode_setxattr(struct inode *inode,
 			 size_t size,
 			 int flags);
 
-int pvfs2_inode_removexattr(struct inode *inode,
-			    const char *prefix,
-			    const char *name,
-			    int flags);
-
-int pvfs2_inode_listxattr(struct inode *inode, char *, size_t);
-
 int pvfs2_inode_getattr(struct inode *inode, uint32_t mask);
 
 int pvfs2_inode_setattr(struct inode *inode, struct iattr *iattr);
