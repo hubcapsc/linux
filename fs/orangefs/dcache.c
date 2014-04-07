@@ -166,13 +166,6 @@ static int pvfs2_d_revalidate(struct dentry *dentry, unsigned int flags)
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
-	if ((flags & LOOKUP_FOLLOW) && (!(flags & LOOKUP_CREATE))) {
-		gossip_debug(GOSSIP_DCACHE_DEBUG,
-			     "\n%s: Trusting intent; skipping getattr\n",
-			     __func__);
-		return 1;
-	}
-
 	return pvfs2_d_revalidate_common(dentry);
 }
 
