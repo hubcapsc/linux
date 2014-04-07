@@ -637,6 +637,8 @@ ssize_t pvfs2_inode_getxattr(struct inode *inode,
 		if (ret == 0) {
 			ssize_t new_length;
 			length = new_op->downcall.resp.getxattr.val_sz;
+			/* Length returned includes null terminator. */
+                        length--;
 			new_length = length;
 
 			/*
@@ -973,7 +975,7 @@ try_again:
 
 			if (is_reserved_key(
 			     new_op->downcall.resp.listxattr.key + key_size,
-			     new_op->downcall.resp.listxattr.lengths[i]) == 0) {
+			     new_op->downcall.resp.listxattr.lengths[i])) {
 			  gossip_debug(GOSSIP_XATTR_DEBUG,
 			      "Copying key %d -> %s\n",
 			      i,
