@@ -716,10 +716,9 @@ extern wait_queue_head_t pvfs2_bufmap_init_waitq;
  */
 #define add_op_to_request_list(op)				\
 do {								\
+	spin_lock(&pvfs2_request_list_lock);			\
 	spin_lock(&op->lock);					\
 	set_op_state_waiting(op);				\
-								\
-	spin_lock(&pvfs2_request_list_lock);			\
 	list_add_tail(&op->list, &pvfs2_request_list);		\
 	spin_unlock(&pvfs2_request_list_lock);			\
 	spin_unlock(&op->lock);					\
@@ -728,10 +727,10 @@ do {								\
 
 #define add_priority_op_to_request_list(op)				\
 	do {								\
+		spin_lock(&pvfs2_request_list_lock);			\
 		spin_lock(&op->lock);					\
 		set_op_state_waiting(op);				\
 									\
-		spin_lock(&pvfs2_request_list_lock);			\
 		list_add(&op->list, &pvfs2_request_list);		\
 		spin_unlock(&pvfs2_request_list_lock);			\
 		spin_unlock(&op->lock);					\
