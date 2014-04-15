@@ -452,9 +452,6 @@ int pvfs2_xattr_set_default(struct dentry *dentry,
 {
 	int internal_flag = 0;
 
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
-
 	gossip_debug(GOSSIP_XATTR_DEBUG, "pvfs2_setxattr_default %s\n", name);
 	internal_flag = convert_to_internal_xattr_flags(flags);
 
@@ -472,9 +469,6 @@ int pvfs2_xattr_get_default(struct dentry *dentry,
 			    size_t size,
 			    int handler_flags)
 {
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
-
 	gossip_debug(GOSSIP_XATTR_DEBUG, "pvfs2_getxattr_default %s\n", name);
 
 	return pvfs2_inode_getxattr(dentry->d_inode,
@@ -499,9 +493,6 @@ static int pvfs2_xattr_set_trusted(struct dentry *dentry,
 		     name,
 		     size);
 
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
-
 	internal_flag = convert_to_internal_xattr_flags(flags);
 
 	return pvfs2_inode_setxattr(dentry->d_inode,
@@ -522,9 +513,6 @@ static int pvfs2_xattr_get_trusted(struct dentry *dentry,
 		     "pvfs2_xattr_get_trusted: name %s, buffer_size %zd\n",
 		     name,
 		     size);
-
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
 
 	return pvfs2_inode_getxattr(dentry->d_inode,
 				    PVFS2_XATTR_NAME_TRUSTED_PREFIX,
