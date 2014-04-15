@@ -263,15 +263,6 @@ int pvfs2_inode_setxattr(struct inode *inode, const char *prefix,
 		     "setxattr on inode %llu, name %s\n",
 		     llu(get_handle_from_ino(inode)),
 		     name);
-	if (IS_RDONLY(inode)) {
-		gossip_err
-		    ("pvfs2_inode_setxattr: Read-only file system\n");
-		return -EROFS;
-	}
-	if (IS_IMMUTABLE(inode) || IS_APPEND(inode)) {
-		gossip_err("pvfs2_inode_setxattr: Immutable inode or append-only inode; operation not permitted\n");
-		return -EPERM;
-	}
 
 	down_write(&pvfs2_inode->xattr_sem);
 	new_op = op_alloc(PVFS2_VFS_OP_SETXATTR);
@@ -464,15 +455,6 @@ int pvfs2_xattr_set_default(struct dentry *dentry,
 	if (strcmp(name, "") == 0)
 		return -EINVAL;
 
-	if (!S_ISREG(dentry->d_inode->i_mode) &&
-	    (!S_ISDIR(dentry->d_inode->i_mode) ||
-	     dentry->d_inode->i_mode & S_ISVTX)) {
-		gossip_err
-		    ("pvfs2_xattr_set_default: Returning EPERM for inode %p.\n",
-		     dentry->d_inode);
-		return -EPERM;
-	}
-
 	gossip_debug(GOSSIP_XATTR_DEBUG, "pvfs2_setxattr_default %s\n", name);
 	internal_flag = convert_to_internal_xattr_flags(flags);
 
@@ -520,12 +502,6 @@ static int pvfs2_xattr_set_trusted(struct dentry *dentry,
 	if (strcmp(name, "") == 0)
 		return -EINVAL;
 
-	if (!capable(CAP_SYS_ADMIN)) {
-		gossip_err
-		    ("pvfs2_xattr_set_trusted: operation not permitted\n");
-		return -EPERM;
-	}
-
 	internal_flag = convert_to_internal_xattr_flags(flags);
 
 	return pvfs2_inode_setxattr(dentry->d_inode,
@@ -549,12 +525,6 @@ static int pvfs2_xattr_get_trusted(struct dentry *dentry,
 
 	if (strcmp(name, "") == 0)
 		return -EINVAL;
-
-	if (!capable(CAP_SYS_ADMIN)) {
-		gossip_err
-		    ("pvfs2_xattr_get_trusted: operation not permitted\n");
-		return -EPERM;
-	}
 
 	return pvfs2_inode_getxattr(dentry->d_inode,
 				    PVFS2_XATTR_NAME_TRUSTED_PREFIX,
