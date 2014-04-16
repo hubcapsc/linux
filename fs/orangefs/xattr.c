@@ -37,6 +37,21 @@ static int is_reserved_key(const char *key, size_t size)
 		 0 ;
 }
 
+static inline int convert_to_internal_xattr_flags(int setxattr_flags)
+{
+	int internal_flag = 0;
+
+	if (setxattr_flags & XATTR_REPLACE) {
+		/* Attribute must exist! */
+		internal_flag = PVFS_XATTR_REPLACE;
+	} else if (setxattr_flags & XATTR_CREATE) {
+		/* Attribute must not exist */
+		internal_flag = PVFS_XATTR_CREATE;
+	}
+	return internal_flag;
+}
+
+
 /*
  * Tries to get a specified key's attributes of a given
  * file into a user-specified buffer. Note that the getxattr
@@ -55,6 +70,10 @@ ssize_t pvfs2_inode_getxattr(struct inode *inode, const char *prefix,
 	ssize_t length = 0;
 	int fsuid;
 	int fsgid;
+
+	gossip_debug(GOSSIP_XATTR_DEBUG,
+		     "%s: prefix %s name %s, buffer_size %zd\n",
+		     __func__, prefix, name, size);
 
 	if (name == NULL || (size > 0 && buffer == NULL)) {
 		gossip_err("pvfs2_inode_getxattr: bogus NULL pointers\n");
@@ -217,7 +236,12 @@ int pvfs2_inode_setxattr(struct inode *inode, const char *prefix,
 {
 	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
 	pvfs2_kernel_op_t *new_op;
+	int internal_flag = 0;
 	int ret = -ENOMEM;
+
+	gossip_debug(GOSSIP_XATTR_DEBUG,
+		     "%s: prefix %s, name %s, buffer_size %zd\n",
+		     __func__, prefix, name, size);
 
 	if (size < 0 ||
 	    size >= PVFS_MAX_XATTR_VALUELEN ||
@@ -233,6 +257,8 @@ int pvfs2_inode_setxattr(struct inode *inode, const char *prefix,
 		gossip_err("pvfs2_inode_setxattr: bogus NULL pointers!\n");
 		return -EINVAL;
 	}
+
+	internal_flag = convert_to_internal_xattr_flags(flags);
 
 	if (prefix) {
 		if (strlen(name) + strlen(prefix) >= PVFS_MAX_XATTR_NAMELEN) {
@@ -271,7 +297,7 @@ int pvfs2_inode_setxattr(struct inode *inode, const char *prefix,
 
 
 	new_op->upcall.req.setxattr.refn = pvfs2_inode->refn;
-	new_op->upcall.req.setxattr.flags = flags;
+	new_op->upcall.req.setxattr.flags = internal_flag;
 	/*
 	 * NOTE: Although keys are meant to be NULL terminated textual
 	 * strings, I am going to explicitly pass the length just in
@@ -427,22 +453,6 @@ out_unlock:
 	return ret;
 }
 
-
-static inline int convert_to_internal_xattr_flags(int setxattr_flags)
-{
-	int internal_flag = 0;
-
-	if (setxattr_flags & XATTR_REPLACE) {
-		/* Attribute must exist! */
-		internal_flag = PVFS_XATTR_REPLACE;
-	} else if (setxattr_flags & XATTR_CREATE) {
-		/* Attribute must not exist */
-		internal_flag = PVFS_XATTR_CREATE;
-	}
-	return internal_flag;
-}
-
-
 int pvfs2_xattr_set_default(struct dentry *dentry,
 			    const char *name,
 			    const void *buffer,
@@ -450,17 +460,12 @@ int pvfs2_xattr_set_default(struct dentry *dentry,
 			    int flags,
 			    int handler_flags)
 {
-	int internal_flag = 0;
-
-	gossip_debug(GOSSIP_XATTR_DEBUG, "pvfs2_setxattr_default %s\n", name);
-	internal_flag = convert_to_internal_xattr_flags(flags);
-
 	return pvfs2_inode_setxattr(dentry->d_inode,
 				    PVFS2_XATTR_NAME_DEFAULT_PREFIX,
 				    name,
 				    buffer,
 				    size,
-				    internal_flag);
+				    flags);
 }
 
 int pvfs2_xattr_get_default(struct dentry *dentry,
@@ -469,8 +474,6 @@ int pvfs2_xattr_get_default(struct dentry *dentry,
 			    size_t size,
 			    int handler_flags)
 {
-	gossip_debug(GOSSIP_XATTR_DEBUG, "pvfs2_getxattr_default %s\n", name);
-
 	return pvfs2_inode_getxattr(dentry->d_inode,
 				    PVFS2_XATTR_NAME_DEFAULT_PREFIX,
 				    name,
@@ -486,21 +489,12 @@ static int pvfs2_xattr_set_trusted(struct dentry *dentry,
 			    int flags,
 			    int handler_flags)
 {
-	int internal_flag = 0;
-
-	gossip_debug(GOSSIP_XATTR_DEBUG,
-		     "pvfs2_xattr_set_trusted: name %s, buffer_size %zd\n",
-		     name,
-		     size);
-
-	internal_flag = convert_to_internal_xattr_flags(flags);
-
 	return pvfs2_inode_setxattr(dentry->d_inode,
 				    PVFS2_XATTR_NAME_TRUSTED_PREFIX,
 				    name,
 				    buffer,
 				    size,
-				    internal_flag);
+				    flags);
 }
 
 static int pvfs2_xattr_get_trusted(struct dentry *dentry,
@@ -509,11 +503,6 @@ static int pvfs2_xattr_get_trusted(struct dentry *dentry,
 			    size_t size,
 			    int handler_flags)
 {
-	gossip_debug(GOSSIP_XATTR_DEBUG,
-		     "pvfs2_xattr_get_trusted: name %s, buffer_size %zd\n",
-		     name,
-		     size);
-
 	return pvfs2_inode_getxattr(dentry->d_inode,
 				    PVFS2_XATTR_NAME_TRUSTED_PREFIX,
 				    name,
