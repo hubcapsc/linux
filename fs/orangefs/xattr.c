@@ -227,7 +227,7 @@ out_unlock:
 
 /*
  * Tries to set an attribute for a given key on a file.
- * 
+ *
  * Returns a -ve number on error and 0 on success.  Key is text, but value
  * can be binary!
  */
@@ -392,7 +392,7 @@ try_again:
 		 * up allocating memory rather than us...
 		 */
 		total = new_op->downcall.resp.listxattr.returned_count *
-		 		PVFS_MAX_XATTR_NAMELEN;
+			PVFS_MAX_XATTR_NAMELEN;
 		goto done;
 	}
 
@@ -404,7 +404,7 @@ try_again:
 	 * Check to see how much can be fit in the buffer. Fit only whole keys.
 	 */
 	for (i = 0; i < new_op->downcall.resp.listxattr.returned_count; i++) {
-	 	if (total + new_op->downcall.resp.listxattr.lengths[i] > size)
+		if (total + new_op->downcall.resp.listxattr.lengths[i] > size)
 			goto done;
 
 		/*
