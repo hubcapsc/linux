@@ -2021,28 +2021,207 @@ static ssize_t pvfs2_file_aio_read_iovec(struct kiocb *iocb,
 static ssize_t pvfs2_file_aio_write_iovec(struct kiocb *iocb,
 					  const struct iovec *iov,
 					  unsigned long nr_segs,
-					  loff_t offset)
+					  loff_t pos)
 {
-	struct rw_options rw;
+	struct file *file = iocb->ki_filp;
+	struct inode *inode = file->f_mapping->host;
+	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
+	pvfs2_kernel_op_t *new_op;
+	pvfs2_kiocb *x;
+	unsigned long max_new_nr_segs;
+	size_t count = 0;
+	ssize_t error;
+	int buffer_index = -1;
 
-	memset(&rw, 0, sizeof(rw));
-	rw.async = !is_sync_kiocb(iocb);
-	rw.type = PVFS_IO_WRITE;
-	rw.copy_dest_type = COPY_DEST_ADDRESSES;
-	rw.readahead_size = 0;
-	rw.io.offset = &offset;
-	rw.copy_to_user_addresses = 1;
-	rw.fnstr = __func__;
-	rw.iocb = iocb;
-	rw.file = iocb->ki_filp;
-	if (!rw.file || !(rw.file)->f_mapping)
-		return -EINVAL;
-	rw.inode = (rw.file)->f_mapping->host;
-	rw.pvfs2_inode = PVFS2_I(rw.inode);
-	rw.dest.address.iov = iov;
-	rw.dest.address.nr_segs = nr_segs;
 	g_pvfs2_stats.writes++;
-	return do_aio_read_write(&rw);
+
+	/* Compute total and max number of segments after split */
+	max_new_nr_segs = bound_max_iovecs(iov, nr_segs, &count);
+	if (max_new_nr_segs < 0) {
+		gossip_lerr("%s: could not bound iovecs %ld\n",
+			    __func__,
+			    max_new_nr_segs);
+		return -EINVAL;
+	}
+	if (unlikely(((ssize_t) count)) < 0) {
+		gossip_lerr("%s: count overflow\n", __func__);
+		return -EINVAL;
+	}
+
+	/* synchronous I/O */
+	if (is_sync_kiocb(iocb)) {
+		struct rw_options rw;
+	
+		memset(&rw, 0, sizeof(rw));
+		rw.async = !is_sync_kiocb(iocb);
+		rw.type = PVFS_IO_WRITE;
+		rw.copy_dest_type = COPY_DEST_ADDRESSES;
+		rw.readahead_size = 0;
+		rw.io.offset = &pos;
+		rw.copy_to_user_addresses = 1;
+		rw.fnstr = __func__;
+		rw.iocb = iocb;
+		rw.file = iocb->ki_filp;
+		rw.inode = (rw.file)->f_mapping->host;
+		rw.pvfs2_inode = PVFS2_I(rw.inode);
+		rw.dest.address.iov = iov;
+		rw.dest.address.nr_segs = nr_segs;
+
+		error = do_readv_writev(&rw);
+
+		/*
+		 * not sure this is the correct place or way to update
+		 * ki_pos but it definitely needs to occur somehow. otherwise,
+		 * a write following a synchronous writev will not write at
+		 * the correct file position. store the offset from the
+		 * read/write into the kiocb struct.
+		 */
+		iocb->ki_pos = pos;
+		return error;
+	}
+
+	/* perform generic tests for sanity of write arguments */
+	error = generic_write_checks(file, &pos, &count, 0);
+	if (error) {
+		gossip_err("%s: failed generic argument checks.\n", __func__);
+		return error;
+	}
+
+	if (count == 0)
+		return 0;
+
+	error = -EINVAL;
+	if (count > pvfs_bufmap_size_query()) {
+		/*
+		 * TODO: Asynchronous I/O operation is not allowed to
+		 * be greater than our block size
+		 */
+		gossip_lerr("%s: cannot transfer (%zd) bytes (larger than block size %d)\n",
+			    __func__,
+			    count,
+			    pvfs_bufmap_size_query());
+		goto out_error;
+	}
+
+	gossip_debug(GOSSIP_FILE_DEBUG, "Posting asynchronous I/O operation\n");
+
+	x = iocb->private;
+	if (x != NULL) {
+		/*
+		 * retry and see what is the status!
+		 * I don't think this path will ever be taken.
+		 */
+		return pvfs2_aio_retry(iocb);
+	}
+
+
+	new_op = op_alloc(PVFS2_VFS_OP_FILE_IO);
+	if (!new_op) {
+		error = -ENOMEM;
+		goto out_error;
+	}
+	/* Increase ref count */
+	get_op(new_op);
+	/* Asynchronous I/O */
+	new_op->upcall.req.io.async_vfs_io = PVFS_VFS_ASYNC_IO;
+	new_op->upcall.req.io.io_type = PVFS_IO_WRITE;
+	new_op->upcall.req.io.refn = pvfs2_inode->refn;
+	error = pvfs_bufmap_get(&buffer_index);
+	if (error < 0) {
+		gossip_debug(GOSSIP_FILE_DEBUG,
+			     "%s: pvfs_bufmap_get() failure %ld\n",
+			     __func__,
+			     (long)error);
+		goto out_put_op;
+	}
+	gossip_debug(GOSSIP_FILE_DEBUG,
+		     "%s: pvfs_bufmap_get %d\n",
+		     __func__,
+		     buffer_index);
+	new_op->upcall.req.io.buf_index = buffer_index;
+	new_op->upcall.req.io.count = count;
+	new_op->upcall.req.io.offset = pos;
+
+	/*
+	 * copy the data from the application for writes.
+	 * We could return -EIOCBRETRY here and have
+	 * the data copied in the pvfs2_aio_retry routine,
+	 * I dont see too much point in doing that
+	 * since the app would have touched the
+	 * memory pages prior to the write and
+	 * hence accesses to the page won't block.
+	 */
+	error = pvfs_bufmap_copy_iovec_from_user(
+			buffer_index,
+			iov,
+			nr_segs,
+			count);
+	if (error < 0) {
+		gossip_err("%s: Failed to copy user buffer %ld. Make sure that pvfs2-client-core is still running\n",
+		__func__,
+			(long)error);
+		gossip_debug(GOSSIP_FILE_DEBUG,
+			     "%s: pvfs_bufmap_put %d\n",
+			     __func__,
+			     buffer_index);
+		goto out_put_bufmap;
+	}
+
+	x = kiocb_alloc();
+	if (x == NULL) {
+		error = -ENOMEM;
+		gossip_debug(GOSSIP_FILE_DEBUG,
+			     "%s: pvfs_bufmap_put %d\n",
+			     __func__,
+			     buffer_index);
+		goto out_put_bufmap;
+	}
+	gossip_debug(GOSSIP_FILE_DEBUG, "kiocb_alloc: %p\n", x);
+
+	/*
+	 * We need to set the cancellation callbacks + other state information
+	 * here if the asynchronous request is going to be successfully
+	 * submitted.
+	 */
+	error = fill_default_kiocb(x, current, iocb, PVFS_IO_WRITE,
+			buffer_index, new_op, iov, nr_segs, pos, count,
+			&pvfs2_aio_cancel);
+	if (error != 0) {
+		gossip_debug(GOSSIP_FILE_DEBUG,
+			     "%s: pvfs_bufmap_put %d\n",
+			     __func__,
+			     buffer_index);
+		goto out_kiocb_release;
+	}
+
+	/*
+	 * We need to be able to retrieve this structure from
+	 * the op structure as well, since the client-daemon
+	 * needs to send notifications upon aio_completion.
+	 */
+	new_op->priv = x;
+	iocb->private = x;
+
+	/*
+	 * Add it to the list of ops to be serviced but don't wait for it to
+	 * be serviced.  Return immediately
+	 */
+	service_operation(new_op, __func__, PVFS2_OP_ASYNC);
+	gossip_debug(GOSSIP_FILE_DEBUG,
+		     "%s: queued operation [%llu for %zd]\n",
+		     __func__,
+		     llu(pos),
+		     count);
+	return -EIOCBQUEUED;
+
+out_kiocb_release:
+	kiocb_release(x);
+out_put_bufmap:
+	pvfs_bufmap_put(buffer_index);
+out_put_op:
+	put_op(new_op);
+out_error:
+	return error;
 }
 
 /*
