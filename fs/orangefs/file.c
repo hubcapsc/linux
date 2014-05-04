@@ -82,17 +82,9 @@ static int pvfs2_file_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
-enum dest_type {
-	/* Destination type can be addresses (user or kernel va) */
-	COPY_DEST_ADDRESSES = 0,
-	/* or can be pointers to struct pages */
-	COPY_DEST_PAGES = 1
-};
-
 struct rw_options {
 	int async; /* whether or not it is a synchronous I/O operation */
 	enum PVFS_io_type type; /* whether it is a READ/WRITE operation */
-	enum dest_type copy_dest_type; /* whether copying to addresses/pages */
 	struct file *file;
 	struct inode *inode;
 	pvfs2_inode_t *pvfs2_inode;
@@ -107,23 +99,6 @@ struct rw_options {
 			const struct iovec *iov;
 			unsigned long nr_segs;
 		} address;
-		struct {
-			/* byte-map of which pages are locked down for I/o */
-			unsigned char *pg_byte_map;
-			/* All pages spanning a given I/O operation */
-			struct page **pages;
-			/* count of such pages */
-			unsigned long nr_pages;
-			/* Only those pages that need to be fetched */
-			struct page **issue_pages;
-			/* and the count of such pages */
-			unsigned long nr_issue_pages;
-			/*
-			 * list of pages for which I/O needs to be
-			 * done as dictated by read_cache_pages
-			 */
-			struct list_head page_list;
-		} pages;
 	} dest;
 	/* file I/O operations */
 	struct {
@@ -154,30 +129,22 @@ static int precopy_buffers(int buffer_index,
 	if (rw->type == PVFS_IO_WRITE) {
 		/*
 		 * copy data from application/kernel by pulling it out
-		 * of the iovec. NOTE: target buffers can be addresses
-		 * or struct page pointers
+		 * of the iovec.
 		 */
-		if (rw->copy_dest_type == COPY_DEST_ADDRESSES)
-			/* Are we copying from User Virtual Addresses? */
-			if (rw->copy_to_user_addresses)
-				ret = pvfs_bufmap_copy_iovec_from_user(
-					buffer_index,
-					vec,
-					nr_segs,
-					total_size);
-			/* Are we copying from Kernel Virtual Addresses? */
-			else
-				ret = pvfs_bufmap_copy_iovec_from_kernel(
-					buffer_index,
-					vec,
-					nr_segs,
-					total_size);
+		/* Are we copying from User Virtual Addresses? */
+		if (rw->copy_to_user_addresses)
+			ret = pvfs_bufmap_copy_iovec_from_user(
+				buffer_index,
+				vec,
+				nr_segs,
+				total_size);
+		/* Are we copying from Kernel Virtual Addresses? */
 		else
-			/* We must be copying from struct page pointers */
-			ret = pvfs_bufmap_copy_from_pages(buffer_index,
-							  vec,
-							  nr_segs,
-							  total_size);
+			ret = pvfs_bufmap_copy_iovec_from_kernel(
+				buffer_index,
+				vec,
+				nr_segs,
+				total_size);
 		if (ret < 0)
 			gossip_err("%s: Failed to copy-in buffers. Please make sure that the pvfs2-client is running. %ld\n",
 				rw->fnstr,
@@ -213,27 +180,20 @@ static int postcopy_buffers(int buffer_index,
 		 * struct page pointers.
 		 */
 		if (total_size) {
-			if (rw->copy_dest_type == COPY_DEST_ADDRESSES)
-				/* Are we copying to User Virtual Addresses? */
-				if (rw->copy_to_user_addresses)
-					ret = pvfs_bufmap_copy_to_user_iovec(
-						buffer_index,
-						vec,
-						nr_segs,
-						total_size);
-				/* Are we copying to Kern Virtual Addresses? */
-				else
-					ret = pvfs_bufmap_copy_to_kernel_iovec(
-						buffer_index,
-						vec,
-						nr_segs,
-						total_size);
+			/* Are we copying to User Virtual Addresses? */
+			if (rw->copy_to_user_addresses)
+				ret = pvfs_bufmap_copy_to_user_iovec(
+					buffer_index,
+					vec,
+					nr_segs,
+					total_size);
+			/* Are we copying to Kern Virtual Addresses? */
 			else
-				/* We must be copying to struct page pointers */
-				ret = pvfs_bufmap_copy_to_pages(buffer_index,
-								vec,
-								nr_segs,
-								total_size);
+				ret = pvfs_bufmap_copy_to_kernel_iovec(
+					buffer_index,
+					vec,
+					nr_segs,
+					total_size);
 			if (ret < 0)
 				gossip_err("%s: Failed to copy-out buffers.  Please make sure that the pvfs2-client is running (%ld)\n",
 					rw->fnstr,
@@ -891,7 +851,6 @@ ssize_t pvfs2_inode_read(struct inode *inode,
 	memset(&rw, 0, sizeof(rw));
 	rw.async = 0;
 	rw.type = PVFS_IO_READ;
-	rw.copy_dest_type = COPY_DEST_ADDRESSES;
 	rw.readahead_size = readahead_size;
 	rw.copy_to_user_addresses = copy_to_user;
 	rw.fnstr = __func__;
@@ -1134,7 +1093,6 @@ static ssize_t pvfs2_file_aio_read_iovec(struct kiocb *iocb,
 		memset(&rw, 0, sizeof(rw));
 		rw.async = !is_sync_kiocb(iocb);
 		rw.type = PVFS_IO_READ;
-		rw.copy_dest_type = COPY_DEST_ADDRESSES;
 		rw.io.offset = &pos;
 		rw.copy_to_user_addresses = 1;
 		rw.fnstr = __func__;
@@ -1295,7 +1253,6 @@ static ssize_t pvfs2_file_aio_write_iovec(struct kiocb *iocb,
 		memset(&rw, 0, sizeof(rw));
 		rw.async = !is_sync_kiocb(iocb);
 		rw.type = PVFS_IO_WRITE;
-		rw.copy_dest_type = COPY_DEST_ADDRESSES;
 		rw.readahead_size = 0;
 		rw.io.offset = &pos;
 		rw.copy_to_user_addresses = 1;

@@ -65,16 +65,6 @@ int pvfs_bufmap_copy_to_kernel_iovec(int buffer_index,
 
 int pvfs_bufmap_copy_to_kernel(void *to, int buffer_index, size_t size);
 
-int pvfs_bufmap_copy_to_pages(int buffer_index,
-			      const struct iovec *vec,
-			      unsigned long nr_segs,
-			      size_t size);
-
-int pvfs_bufmap_copy_from_pages(int buffer_index,
-				const struct iovec *vec,
-				unsigned long nr_segs,
-				size_t size);
-
 size_t pvfs_bufmap_copy_to_user_task(struct task_struct *tsk,
 				     void __user *to,
 				     size_t size,
