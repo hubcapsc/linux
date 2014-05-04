@@ -1720,89 +1720,57 @@ fill_default_kiocb(pvfs2_kiocb *x,
 	return 0;
 }
 
-/*
- * This function will do the following,
- * On an error, it returns a negative error number.
- * For a synchronous iocb, we copy the data into the
- * user buffer's before returning and
- * the count of how much was actually read.
- * For a first-time asynchronous iocb, we submit the
- * I/O to the client-daemon and do not wait
- * for the matching downcall to be written and we
- * return a special -EIOCBQUEUED
- * to indicate that we have queued the request.
- * NOTE: Unlike typical aio requests
- * that get completion notification from interrupt
- * context, we get completion notification from a process
- * context (i.e. the client daemon).
- * TODO: We handle vectored aio requests now but we do
- * not handle the case where the total size of IO is
- * larger than our FS transfer block size (4 MB
- * default).
- */
-static ssize_t do_aio_read_write(struct rw_options *rw)
+static ssize_t pvfs2_file_aio_read_iovec(struct kiocb *iocb,
+					 const struct iovec *iov,
+					 unsigned long nr_segs,
+					 loff_t pos)
 {
-	struct file *filp;
-	struct inode *inode;
-	ssize_t error;
-	pvfs2_inode_t *pvfs2_inode;
-	const struct iovec *iov;
-	unsigned long nr_segs;
-	unsigned long max_new_nr_segs;
-	size_t count;
-	struct kiocb *iocb;
-	loff_t *offset;
+	struct file *file = iocb->ki_filp;
+	struct inode *inode = file->f_mapping->host;
+	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
+	pvfs2_kernel_op_t *new_op;
 	pvfs2_kiocb *x;
+	unsigned long max_new_nr_segs;
+	size_t count = 0;
+	ssize_t error;
+	int buffer_index = -1;
 
-	error = -EINVAL;
-	if (!rw || !rw->fnstr || !rw->io.offset) {
-		gossip_lerr("Invalid parameters (rw %p)\n", rw);
-		goto out_error;
-	}
-	inode = rw->inode;
-	filp = rw->file;
-	iocb = rw->iocb;
-	pvfs2_inode = rw->pvfs2_inode;
-	offset = rw->io.offset;
-	if (!inode || !filp || !pvfs2_inode || !iocb || !offset) {
-		gossip_lerr("Invalid parameters\n");
-		goto out_error;
-	}
-	if (iocb->ki_pos != *offset) {
-		gossip_lerr("iocb offsets don't match (%llu %llu)\n",
-			    llu(iocb->ki_pos),
-			    llu(*offset));
-		goto out_error;
-	}
-	iov = rw->dest.address.iov;
-	nr_segs = rw->dest.address.nr_segs;
-	if (iov == NULL || nr_segs < 0) {
-		gossip_lerr
-		    ("Invalid iovector (%p) or invalid iovec count (%ld)\n",
-		     iov,
-		     nr_segs);
-		goto out_error;
-	}
-	count = 0;
+	g_pvfs2_stats.reads++;
+
 	/* Compute total and max number of segments after split */
 	max_new_nr_segs = bound_max_iovecs(iov, nr_segs, &count);
 	if (max_new_nr_segs < 0) {
 		gossip_lerr("%s: could not bound iovecs %ld\n",
-			    rw->fnstr,
+			    __func__,
 			    max_new_nr_segs);
-		goto out_error;
+		return -EINVAL;
 	}
 	if (unlikely(((ssize_t) count)) < 0) {
-		gossip_lerr("%s: count overflow\n", rw->fnstr);
-		goto out_error;
+		gossip_lerr("%s: count overflow\n", __func__);
+		return -EINVAL;
 	}
-	/* synchronous I/O */
-	if (!rw->async) {
-		/*
-		 * RESET_FILE_POS is a configure option:
-		 *   --enable-reset-file-pos
-		 */
-		error = do_readv_writev(rw);
+
+	if (is_sync_kiocb(iocb)) {
+		struct rw_options rw;
+
+		memset(&rw, 0, sizeof(rw));
+		rw.async = !is_sync_kiocb(iocb);
+		rw.type = PVFS_IO_READ;
+		rw.copy_dest_type = COPY_DEST_ADDRESSES;
+		rw.io.offset = &pos;
+		rw.copy_to_user_addresses = 1;
+		rw.fnstr = __func__;
+		rw.iocb = iocb;
+		rw.file = iocb->ki_filp;
+		if (!rw.file || !(rw.file)->f_mapping)
+			return -EINVAL;
+		rw.inode = (rw.file)->f_mapping->host;
+		rw.pvfs2_inode = PVFS2_I(rw.inode);
+		rw.dest.address.iov = iov;
+		rw.dest.address.nr_segs = nr_segs;
+		rw.readahead_size = 0;
+
+		error = do_readv_writev(&rw);
 
 		/*
 		 * not sure this is the correct place or way to update
@@ -1811,211 +1779,112 @@ static ssize_t do_aio_read_write(struct rw_options *rw)
 		 * the correct file position. store the offset from the
 		 * read/write into the kiocb struct.
 		 */
-		iocb->ki_pos = *offset;
+		iocb->ki_pos = pos;
 		goto out_error;
 	}
-	/* Asynchronous I/O */
-	if (rw->type == PVFS_IO_WRITE) {
-		int ret;
-		/* perform generic tests for sanity of write arguments */
-		ret = generic_write_checks(filp,
-					   offset,
-					   &count,
-					   S_ISBLK(inode->i_mode));
-		if (ret != 0) {
-			gossip_err("%s: failed generic argument checks.\n",
-				   rw->fnstr);
-			return ret;
-		}
-	}
-	if (count == 0) {
-		error = 0;
-		goto out_error;
-	} else if (count > pvfs_bufmap_size_query()) {
+
+	if (count == 0)
+		return 0;
+
+	if (count > pvfs_bufmap_size_query()) {
 		/*
 		 * TODO: Asynchronous I/O operation is not allowed to
 		 * be greater than our block size
 		 */
 		gossip_lerr("%s: cannot transfer (%zd) bytes (larger than block size %d)\n",
-			    rw->fnstr,
+			    __func__,
 			    count,
 			    pvfs_bufmap_size_query());
-		goto out_error;
+		return -EINVAL;
 	}
-	gossip_debug(GOSSIP_FILE_DEBUG, "Posting asynchronous I/O operation\n");
-	/* First time submission */
-	x = (pvfs2_kiocb *) iocb->private;
-	if (x == NULL) {
-		int buffer_index = -1;
-		pvfs2_kernel_op_t *new_op = NULL;
-		pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
 
-		new_op = op_alloc(PVFS2_VFS_OP_FILE_IO);
-		if (!new_op) {
-			error = -ENOMEM;
-			goto out_error;
-		}
-		/* Increase ref count */
-		get_op(new_op);
-		/* Asynchronous I/O */
-		new_op->upcall.req.io.async_vfs_io = PVFS_VFS_ASYNC_IO;
-		new_op->upcall.req.io.io_type = rw->type;
-		new_op->upcall.req.io.refn = pvfs2_inode->refn;
-		error = pvfs_bufmap_get(&buffer_index);
-		if (error < 0) {
-			gossip_debug(GOSSIP_FILE_DEBUG,
-				     "%s: pvfs_bufmap_get() failure %ld\n",
-				     rw->fnstr,
-				     (long)error);
-			/* drop ref count and possibly de-allocate */
-			put_op(new_op);
-			goto out_error;
-		}
-		gossip_debug(GOSSIP_FILE_DEBUG,
-			     "%s: pvfs_bufmap_get %d\n",
-			     rw->fnstr,
-			     buffer_index);
-		new_op->upcall.req.io.buf_index = buffer_index;
-		new_op->upcall.req.io.count = count;
-		new_op->upcall.req.io.offset = *offset;
-		if (rw->type == PVFS_IO_WRITE) {
-			/*
-			 * copy the data from the application for writes.
-			 * We could return -EIOCBRETRY here and have
-			 * the data copied in the pvfs2_aio_retry routine,
-			 * I dont see too much point in doing that
-			 * since the app would have touched the
-			 * memory pages prior to the write and
-			 * hence accesses to the page won't block.
-			 */
-			if (rw->copy_to_user_addresses)
-				error =
-					pvfs_bufmap_copy_iovec_from_user(
-						buffer_index,
-						iov,
-						nr_segs,
-						count);
-			else
-				error =
-					pvfs_bufmap_copy_iovec_from_kernel(
-						buffer_index,
-						iov,
-						nr_segs,
-						count);
-			if (error < 0) {
-				gossip_err("%s: Failed to copy user buffer %ld. Make sure that pvfs2-client-core is still running\n",
-					rw->fnstr,
-					(long)error);
-				/* drop the buffer index */
-				pvfs_bufmap_put(buffer_index);
-				gossip_debug(GOSSIP_FILE_DEBUG,
-					     "%s: pvfs_bufmap_put %d\n",
-					     rw->fnstr,
-					     buffer_index);
-				/* drop the reference count and deallocate */
-				put_op(new_op);
-				goto out_error;
-			}
-		}
-		x = kiocb_alloc();
-		if (x == NULL) {
-			error = -ENOMEM;
-			/* drop the buffer index */
-			pvfs_bufmap_put(buffer_index);
-			gossip_debug(GOSSIP_FILE_DEBUG,
-				     "%s: pvfs_bufmap_put %d\n",
-				     rw->fnstr,
-				     buffer_index);
-			/* drop the reference count and deallocate */
-			put_op(new_op);
-			goto out_error;
-		}
-		gossip_debug(GOSSIP_FILE_DEBUG, "kiocb_alloc: %p\n", x);
-		/*
-		 * We need to set the cancellation callbacks +
-		 * other state information
-		 * here if the asynchronous request is going to
-		 * be successfully submitted
-		 */
-		error = fill_default_kiocb(x,
-					   current,
-					   iocb, rw->type,
-					   buffer_index,
-					   new_op,
-					   iov,
-					   nr_segs,
-					   *offset,
-					   count,
-					   &pvfs2_aio_cancel);
-		if (error != 0) {
-			kiocb_release(x);
-			/* drop the buffer index */
-			pvfs_bufmap_put(buffer_index);
-			gossip_debug(GOSSIP_FILE_DEBUG,
-				     "%s: pvfs_bufmap_put %d\n",
-				     rw->fnstr,
-				     buffer_index);
-			/* drop the reference count and deallocate */
-			put_op(new_op);
-			goto out_error;
-		}
-		/*
-		 * We need to be able to retrieve this structure from
-		 * the op structure as well, since the client-daemon
-		 * needs to send notifications upon aio_completion.
-		 */
-		new_op->priv = x;
-		/* and stash it away in the kiocb structure as well */
-		iocb->private = x;
-		/*
-		 * Add it to the list of ops to be serviced
-		 * but don't wait for it to be serviced.
-		 * Return immediately
-		 */
-		service_operation(new_op, rw->fnstr, PVFS2_OP_ASYNC);
-		gossip_debug(GOSSIP_FILE_DEBUG,
-			     "%s: queued operation [%llu for %zd]\n",
-			     rw->fnstr,
-			     llu(*offset),
-			     count);
-		error = -EIOCBQUEUED;
-		/* All cleanups done upon completion (OR) cancellation! */
-	} else {
+	gossip_debug(GOSSIP_FILE_DEBUG, "Posting asynchronous I/O operation\n");
+
+	x = iocb->private;
+	if (x) {
 		/*
 		 * retry and see what is the status!
 		 * I don't think this path will ever be taken.
 		 */
-		error = pvfs2_aio_retry(iocb);
+		return pvfs2_aio_retry(iocb);
 	}
+
+	new_op = op_alloc(PVFS2_VFS_OP_FILE_IO);
+	if (!new_op)
+		return -ENOMEM;
+
+	/* Increase ref count */
+	get_op(new_op);
+	new_op->upcall.req.io.async_vfs_io = PVFS_VFS_ASYNC_IO;
+	new_op->upcall.req.io.io_type = PVFS_IO_READ;
+	new_op->upcall.req.io.refn = pvfs2_inode->refn;
+	error = pvfs_bufmap_get(&buffer_index);
+	if (error < 0) {
+		gossip_debug(GOSSIP_FILE_DEBUG,
+			     "%s: pvfs_bufmap_get() failure %ld\n",
+			     __func__,
+			     (long)error);
+		goto out_put_op;
+	}
+
+	gossip_debug(GOSSIP_FILE_DEBUG,
+		     "%s: pvfs_bufmap_get %d\n",
+		     __func__,
+		     buffer_index);
+	new_op->upcall.req.io.buf_index = buffer_index;
+	new_op->upcall.req.io.count = count;
+	new_op->upcall.req.io.offset = pos;
+
+	x = kiocb_alloc();
+	if (x == NULL) {
+		gossip_debug(GOSSIP_FILE_DEBUG,
+			     "%s: pvfs_bufmap_put %d\n",
+			     __func__,
+			     buffer_index);
+		error = -ENOMEM;
+		goto out_put_bufmap;
+	}
+	gossip_debug(GOSSIP_FILE_DEBUG, "kiocb_alloc: %p\n", x);
+
+	/*
+	 * We need to set the cancellation callbacks + other state information
+	 * here if the asynchronous request is going to be successfully
+	 * submitted.
+	 */
+	error = fill_default_kiocb(x, current, iocb, PVFS_IO_READ,
+			buffer_index, new_op, iov, nr_segs, pos, count,
+			&pvfs2_aio_cancel);
+	if (error != 0) {
+		gossip_debug(GOSSIP_FILE_DEBUG,
+			     "%s: pvfs_bufmap_put %d\n",
+			     __func__,
+			     buffer_index);
+		goto out_kiocb_release;
+	}
+
+	new_op->priv = x;
+	iocb->private = x;
+
+	/*
+	 * Add it to the list of ops to be serviced but don't wait for it to be
+	 * serviced. Return immediately
+	 */
+	service_operation(new_op, __func__, PVFS2_OP_ASYNC);
+	gossip_debug(GOSSIP_FILE_DEBUG,
+		     "%s: queued operation [%llu for %zd]\n",
+		     __func__,
+		     llu(pos),
+		     count);
+	return -EIOCBQUEUED;
+
+out_kiocb_release:
+	kiocb_release(x);
+out_put_bufmap:
+	pvfs_bufmap_put(buffer_index);
+out_put_op:
+	put_op(new_op);
 out_error:
 	return error;
-}
-
-static ssize_t pvfs2_file_aio_read_iovec(struct kiocb *iocb,
-					 const struct iovec *iov,
-					 unsigned long nr_segs,
-					 loff_t offset)
-{
-	struct rw_options rw;
-
-	memset(&rw, 0, sizeof(rw));
-	rw.async = !is_sync_kiocb(iocb);
-	rw.type = PVFS_IO_READ;
-	rw.copy_dest_type = COPY_DEST_ADDRESSES;
-	rw.io.offset = &offset;
-	rw.copy_to_user_addresses = 1;
-	rw.fnstr = __func__;
-	rw.iocb = iocb;
-	rw.file = iocb->ki_filp;
-	if (!rw.file || !(rw.file)->f_mapping)
-		return -EINVAL;
-	rw.inode = (rw.file)->f_mapping->host;
-	rw.pvfs2_inode = PVFS2_I(rw.inode);
-	rw.dest.address.iov = iov;
-	rw.dest.address.nr_segs = nr_segs;
-	rw.readahead_size = 0;
-	g_pvfs2_stats.reads++;
-	return do_aio_read_write(&rw);
 }
 
 static ssize_t pvfs2_file_aio_write_iovec(struct kiocb *iocb,
