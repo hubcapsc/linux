@@ -1466,97 +1466,6 @@ ssize_t pvfs2_inode_read(struct inode *inode,
  */
 
 /*
- * This is the retry routine called by the AIO core to
- * try and see if the I/O operation submitted earlier can be completed
- * at least now :)
- * We can use copy_*() functions here because the kaio
- * threads do a use_mm() and assume the memory context of
- * the user-program that initiated the aio(). whew,
- * that's a big relief.
- */
-static ssize_t pvfs2_aio_retry(struct kiocb *iocb)
-{
-	pvfs2_kiocb *x = NULL;
-	pvfs2_kernel_op_t *op = NULL;
-	ssize_t error = 0;
-
-	x = (pvfs2_kiocb *) iocb->private;
-	if (x  == NULL) {
-		gossip_err("pvfs2_aio_retry: couldn't retrieve pvfs2_kiocb!\n");
-		return -EINVAL;
-	}
-	/* highly unlikely, but somehow paranoid need for checking */
-	op = x->op;
-	if (op == NULL ||
-	    x->kiocb != iocb ||
-	    x->buffer_index < 0) {
-		/*
-		 * Well, if this happens, we are toast!
-		 * What should we cleanup if such a thing happens?
-		 */
-		gossip_err("pvfs2_aio_retry: critical error x->op = %p, iocb = %p, buffer_index = %d\n",
-			   x->op,
-			   x->kiocb,
-			   x->buffer_index);
-		return -EINVAL;
-	}
-	/* lock up the op */
-	spin_lock(&op->lock);
-	/* check the state of the op */
-	if (op_state_waiting(op) || op_state_in_progress(op)) {
-		spin_unlock(&op->lock);
-		return -EIOCBQUEUED;
-	} else {
-		/*
-		 * the daemon has finished servicing this
-		 * operation. It has also staged
-		 * the I/O to the data servers on a write
-		 * (if possible) and put the return value
-		 * of the operation in bytes_copied.
-		 * Similarly, on a read the value stored in
-		 * bytes_copied is the error code or the amount
-		 * of data that was copied to user buffers.
-		 */
-		error = x->bytes_copied;
-		op->priv = NULL;
-		spin_unlock(&op->lock);
-		gossip_debug(GOSSIP_FILE_DEBUG,
-			     "pvfs2_aio_retry: iov %p,"
-			     " size %d return %d bytes\n",
-			     x->iov,
-			     (int)x->bytes_to_be_copied,
-			     (int)error);
-		if (error > 0) {
-			struct inode *inode = iocb->ki_filp->f_mapping->host;
-			pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
-			if (x->rw == PVFS_IO_READ) {
-				file_accessed(iocb->ki_filp);
-			} else {
-				SetMtimeFlag(pvfs2_inode);
-				inode->i_mtime = CURRENT_TIME;
-				mark_inode_dirty_sync(inode);
-			}
-		}
-		/*
-		 * Now we can happily free up the op,
-		 * and put buffer_index also away
-		 */
-		if (x->buffer_index >= 0) {
-			gossip_debug(GOSSIP_FILE_DEBUG,
-				     "pvfs2_aio_retry: put bufmap_index %d\n",
-				     x->buffer_index);
-			pvfs_bufmap_put(x->buffer_index);
-			x->buffer_index = -1;
-		}
-		/* drop refcount of op and deallocate if possible */
-		put_op(op);
-		x->needs_cleanup = 0;
-		/* x is itself deallocated when the destructor is called */
-		return error;
-	}
-}
-
-/*
  * Using the iocb->private->op->tag field,
  * we should try and cancel the I/O
  * operation, and also update res->obj
@@ -1735,6 +1644,8 @@ static ssize_t pvfs2_file_aio_read_iovec(struct kiocb *iocb,
 	ssize_t error;
 	int buffer_index = -1;
 
+	BUG_ON(iocb->private);
+
 	g_pvfs2_stats.reads++;
 
 	/* Compute total and max number of segments after split */
@@ -1799,15 +1710,6 @@ static ssize_t pvfs2_file_aio_read_iovec(struct kiocb *iocb,
 	}
 
 	gossip_debug(GOSSIP_FILE_DEBUG, "Posting asynchronous I/O operation\n");
-
-	x = iocb->private;
-	if (x) {
-		/*
-		 * retry and see what is the status!
-		 * I don't think this path will ever be taken.
-		 */
-		return pvfs2_aio_retry(iocb);
-	}
 
 	new_op = op_alloc(PVFS2_VFS_OP_FILE_IO);
 	if (!new_op)
@@ -1901,6 +1803,8 @@ static ssize_t pvfs2_file_aio_write_iovec(struct kiocb *iocb,
 	size_t count = 0;
 	ssize_t error;
 	int buffer_index = -1;
+	
+	BUG_ON(iocb->private);
 
 	g_pvfs2_stats.writes++;
 
@@ -1973,16 +1877,6 @@ static ssize_t pvfs2_file_aio_write_iovec(struct kiocb *iocb,
 	}
 
 	gossip_debug(GOSSIP_FILE_DEBUG, "Posting asynchronous I/O operation\n");
-
-	x = iocb->private;
-	if (x != NULL) {
-		/*
-		 * retry and see what is the status!
-		 * I don't think this path will ever be taken.
-		 */
-		return pvfs2_aio_retry(iocb);
-	}
-
 
 	new_op = op_alloc(PVFS2_VFS_OP_FILE_IO);
 	if (!new_op) {
