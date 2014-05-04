@@ -842,7 +842,6 @@ ssize_t pvfs2_inode_read(struct inode *inode,
 			 char __user *buf,
 			 size_t count,
 			 loff_t *offset,
-			 int copy_to_user,
 			 loff_t readahead_size)
 {
 	struct rw_options rw;
@@ -852,7 +851,7 @@ ssize_t pvfs2_inode_read(struct inode *inode,
 	rw.async = 0;
 	rw.type = PVFS_IO_READ;
 	rw.readahead_size = readahead_size;
-	rw.copy_to_user_addresses = copy_to_user;
+	rw.copy_to_user_addresses = 0;
 	rw.fnstr = __func__;
 	vec.iov_base = buf;
 	vec.iov_len = count;

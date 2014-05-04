@@ -35,7 +35,6 @@ static int read_one_page(struct page *page)
 					      page_data,
 					      blocksize,
 					      &blockptr_offset,
-					      0,
 					      inode->i_size);
 	}
 	/* only zero remaining unread portions of the page data */

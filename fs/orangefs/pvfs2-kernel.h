@@ -590,7 +590,6 @@ ssize_t pvfs2_inode_read(struct inode *inode,
 			 char *buf,
 			 size_t count,
 			 loff_t *offset,
-			 int copy_to_user,
 			 loff_t readahead_size);
 
 /*
