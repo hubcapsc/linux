@@ -14,11 +14,6 @@
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 
-enum io_type {
-	IO_READV = 0,
-	IO_WRITEV = 1,
-};
-
 struct rw_options;
 
 static ssize_t wait_for_cached_io(struct rw_options *old_rw,
@@ -101,7 +96,7 @@ enum dest_type {
 
 struct rw_options {
 	int async; /* whether or not it is a synchronous I/O operation */
-	enum io_type type; /* whether it is a READ/WRITE operation */
+	enum PVFS_io_type type; /* whether it is a READ/WRITE operation */
 	enum dest_type copy_dest_type; /* whether copying to addresses/pages */
 	struct file *file;
 	struct inode *inode;
@@ -161,7 +156,7 @@ static int precopy_buffers(int buffer_index,
 {
 	int ret = 0;
 
-	if (rw->type == IO_WRITEV) {
+	if (rw->type == PVFS_IO_WRITE) {
 		/*
 		 * copy data from application/kernel by pulling it out
 		 * of the iovec. NOTE: target buffers can be addresses
@@ -216,7 +211,7 @@ static int postcopy_buffers(int buffer_index,
 {
 	int ret = 0;
 
-	if (rw->type == IO_READV) {
+	if (rw->type == PVFS_IO_READ) {
 		/*
 		 * copy data to application/kernel by pushing it out to
 		 * the iovec. NOTE; target buffers can be addresses or
@@ -398,8 +393,7 @@ static ssize_t wait_for_direct_io(struct rw_options *rw,
 	/* synchronous I/O */
 	new_op->upcall.req.io.async_vfs_io = PVFS_VFS_SYNC_IO;
 	new_op->upcall.req.io.readahead_size = (int32_t) rw->readahead_size;
-	new_op->upcall.req.io.io_type =
-		(rw->type == IO_READV) ? PVFS_IO_READ : PVFS_IO_WRITE;
+	new_op->upcall.req.io.io_type = rw->type;
 	new_op->upcall.req.io.refn = rw->pvfs2_inode->refn;
 
 populate_shared_memory:
@@ -485,9 +479,8 @@ populate_shared_memory:
 		else
 			gossip_err("%s: error in %s handle %llu, FILE: %s, returning %ld\n",
 				rw->fnstr,
-				rw->type == IO_READV ?
-					"vectored read from" :
-					"vectored write to",
+				rw->type == PVFS_IO_READ ?
+					"read from" : "write to",
 				llu(get_handle_from_ino(rw->inode)),
 				(rw->file &&
 				 rw->file->f_dentry &&
@@ -1076,7 +1069,7 @@ static ssize_t wait_for_cached_io(struct rw_options *old_rw,
 	loff_t offset;
 
 	memcpy(&rw, old_rw, sizeof(rw));
-	if (rw.type != IO_READV) {
+	if (rw.type != PVFS_IO_READ) {
 		gossip_err("writes are not handled yet!\n");
 		return -EOPNOTSUPP;
 	}
@@ -1206,7 +1199,7 @@ static ssize_t do_readv_writev(struct rw_options *rw)
 		llu(pvfs2_inode->refn.handle),
 		(int)count);
 
-	if (rw->type == IO_WRITEV) {
+	if (rw->type == PVFS_IO_WRITE) {
 		if (!file) {
 			gossip_err("%s: Invalid file pointer\n", rw->fnstr);
 			goto out;
@@ -1236,7 +1229,7 @@ static ssize_t do_readv_writev(struct rw_options *rw)
 			     llu(*offset),
 			     (int)count);
 	}
-	/* endif IO_WRITEV */
+
 	if (count == 0) {
 		ret = 0;
 		goto out;
@@ -1395,7 +1388,7 @@ out:
 		kfree(seg_array);
 	}
 	if (ret > 0 && inode != NULL && pvfs2_inode != NULL) {
-		if (rw->type == IO_READV) {
+		if (rw->type == PVFS_IO_READ) {
 			file_accessed(rw->file);
 		} else {
 			SetMtimeFlag(pvfs2_inode);
@@ -1430,7 +1423,7 @@ ssize_t pvfs2_inode_read(struct inode *inode,
 
 	memset(&rw, 0, sizeof(rw));
 	rw.async = 0;
-	rw.type = IO_READV;
+	rw.type = PVFS_IO_READ;
 	rw.copy_dest_type = COPY_DEST_ADDRESSES;
 	rw.readahead_size = readahead_size;
 	rw.copy_to_user_addresses = copy_to_user;
@@ -1822,7 +1815,7 @@ static ssize_t do_aio_read_write(struct rw_options *rw)
 		goto out_error;
 	}
 	/* Asynchronous I/O */
-	if (rw->type == IO_WRITEV) {
+	if (rw->type == PVFS_IO_WRITE) {
 		int ret;
 		/* perform generic tests for sanity of write arguments */
 		ret = generic_write_checks(filp,
@@ -1866,10 +1859,7 @@ static ssize_t do_aio_read_write(struct rw_options *rw)
 		get_op(new_op);
 		/* Asynchronous I/O */
 		new_op->upcall.req.io.async_vfs_io = PVFS_VFS_ASYNC_IO;
-		new_op->upcall.req.io.io_type =
-			(rw->type == IO_READV) ?
-			PVFS_IO_READ :
-			PVFS_IO_WRITE;
+		new_op->upcall.req.io.io_type = rw->type;
 		new_op->upcall.req.io.refn = pvfs2_inode->refn;
 		error = pvfs_bufmap_get(&buffer_index);
 		if (error < 0) {
@@ -1888,7 +1878,7 @@ static ssize_t do_aio_read_write(struct rw_options *rw)
 		new_op->upcall.req.io.buf_index = buffer_index;
 		new_op->upcall.req.io.count = count;
 		new_op->upcall.req.io.offset = *offset;
-		if (rw->type == IO_WRITEV) {
+		if (rw->type == PVFS_IO_WRITE) {
 			/*
 			 * copy the data from the application for writes.
 			 * We could return -EIOCBRETRY here and have
@@ -1949,10 +1939,7 @@ static ssize_t do_aio_read_write(struct rw_options *rw)
 		 */
 		error = fill_default_kiocb(x,
 					   current,
-					   iocb,
-					   (rw->type == IO_READV) ?
-						PVFS_IO_READ :
-						PVFS_IO_WRITE,
+					   iocb, rw->type,
 					   buffer_index,
 					   new_op,
 					   iov,
@@ -2013,7 +2000,7 @@ static ssize_t pvfs2_file_aio_read_iovec(struct kiocb *iocb,
 
 	memset(&rw, 0, sizeof(rw));
 	rw.async = !is_sync_kiocb(iocb);
-	rw.type = IO_READV;
+	rw.type = PVFS_IO_READ;
 	rw.copy_dest_type = COPY_DEST_ADDRESSES;
 	rw.io.offset = &offset;
 	rw.copy_to_user_addresses = 1;
@@ -2040,7 +2027,7 @@ static ssize_t pvfs2_file_aio_write_iovec(struct kiocb *iocb,
 
 	memset(&rw, 0, sizeof(rw));
 	rw.async = !is_sync_kiocb(iocb);
-	rw.type = IO_WRITEV;
+	rw.type = PVFS_IO_WRITE;
 	rw.copy_dest_type = COPY_DEST_ADDRESSES;
 	rw.readahead_size = 0;
 	rw.io.offset = &offset;
