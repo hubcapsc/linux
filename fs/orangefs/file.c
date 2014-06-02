@@ -844,8 +844,31 @@ ssize_t pvfs2_inode_read(struct inode *inode,
 			 loff_t *offset,
 			 loff_t readahead_size)
 {
+	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
 	struct rw_options rw;
+	size_t bufmap_size;
 	struct iovec vec;
+	ssize_t ret = -EINVAL;
+
+	g_pvfs2_stats.reads++;
+
+	vec.iov_base = buf;
+	vec.iov_len = count;
+
+	bufmap_size = pvfs_bufmap_size_query();
+	if (count > bufmap_size) {
+		gossip_debug(GOSSIP_FILE_DEBUG,
+			     "%s: count is too large (%zd/%zd)!\n",
+			     __func__, count, bufmap_size);
+		return -EINVAL;
+	}
+
+	gossip_debug(GOSSIP_FILE_DEBUG,
+		     "%s(%llu) %zd@%llu\n",
+		     __func__,
+		     llu(pvfs2_inode->refn.handle),
+		     count,
+		     llu(*offset));
 
 	memset(&rw, 0, sizeof(rw));
 	rw.async = 0;
@@ -853,16 +876,24 @@ ssize_t pvfs2_inode_read(struct inode *inode,
 	rw.readahead_size = readahead_size;
 	rw.copy_to_user_addresses = 0;
 	rw.fnstr = __func__;
-	vec.iov_base = buf;
-	vec.iov_len = count;
 	rw.inode = inode;
-	rw.pvfs2_inode = PVFS2_I(inode);
+	rw.pvfs2_inode = pvfs2_inode;
 	rw.file = NULL;
 	rw.dest.address.iov = &vec;
 	rw.dest.address.nr_segs = 1;
 	rw.io.offset = offset;
-	g_pvfs2_stats.reads++;
-	return do_readv_writev(&rw);
+	rw.count = count;
+	ret = wait_for_direct_io(&rw, &vec, 1, count);
+	if (ret > 0)
+		*offset += ret;
+
+	gossip_debug(GOSSIP_FILE_DEBUG,
+		     "%s(%llu): Value(%zd) returned.\n",
+		     __func__,
+		     llu(pvfs2_inode->refn.handle),
+		     ret);
+
+	return ret;
 }
 
 /*
