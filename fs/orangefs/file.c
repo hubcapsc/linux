@@ -22,60 +22,6 @@ do {							\
 	wake_up_interruptible(&op->io_completion_waitq);\
 } while (0)
 
-/* Called when a process requests to open a file.  */
-static int pvfs2_file_open(struct inode *inode, struct file *file)
-{
-	int ret = -EINVAL;
-
-	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "pvfs2_file_open: called on %s (inode is %llu)\n",
-		     file->f_dentry->d_name.name,
-		     llu(get_handle_from_ino(inode)));
-
-	/*
-	   if the file's being opened for append mode, set the file pos
-	   to the end of the file when we retrieve the size (which we
-	   must forcefully do here in this case, afaict atm)
-	 */
-	if (file->f_flags & O_APPEND) {
-		/*
-		 * When we do a getattr in response to an open
-		 * with O_APPEND, all we are interested in is the
-		 * file size. Hence we will set the mask to only
-		 * the size and nothing else. Hopefully, this will
-		 * help us in reducing the number of getattr's
-		 */
-		ret = pvfs2_inode_getattr(inode, PVFS_ATTR_SYS_SIZE);
-		if (ret == 0) {
-			file->f_pos = i_size_read(inode);
-			gossip_debug(GOSSIP_FILE_DEBUG, "f_pos = %ld\n",
-				     (unsigned long)file->f_pos);
-		} else {
-			gossip_debug(GOSSIP_FILE_DEBUG,
-				     "%s:%s:%d call make bad inode\n",
-				     __FILE__,
-				     __func__,
-				     __LINE__);
-			pvfs2_make_bad_inode(inode);
-			gossip_debug(GOSSIP_FILE_DEBUG,
-				     "pvfs2_file_open error ret:%d:\n",
-				     ret);
-			return ret;
-		}
-	}
-
-	/*
-	   fs/open.c: returns 0 after enforcing large file support if
-	   running on a 32 bit system w/o O_LARGFILE flag.
-	 */
-	ret = generic_file_open(inode, file);
-
-	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "pvfs2_file_open returning normally: %d\n",
-		     ret);
-	return ret;
-}
-
 /*
  * Copy to client-core's address space from the buffers specified
  * by the iovec upto total_size bytes.
@@ -525,12 +471,18 @@ static ssize_t do_readv_writev(enum PVFS_io_type type, struct file *file,
 		(int)count);
 
 	if (type == PVFS_IO_WRITE) {
-		if (file->f_pos > i_size_read(inode))
+		if (file->f_flags & O_APPEND) {
+			/*
+			 * Make sure generic_write_checks sees an uptodate
+			 * inode size.
+			 */
+			ret = pvfs2_inode_getattr(inode, PVFS_ATTR_SYS_SIZE);
+			if (ret != 0)
+				goto out;
+		} else if (file->f_pos > i_size_read(inode))
 			pvfs2_i_size_write(inode, file->f_pos);
-		/*
-		 * perform generic linux kernel tests for sanity of write
-		 * arguments
-		 */
+	
+
 		ret = generic_write_checks(file,
 					   offset,
 					   &count,
@@ -1482,7 +1434,7 @@ const struct file_operations pvfs2_file_operations = {
 	.lock = pvfs2_lock,
 	.unlocked_ioctl = pvfs2_ioctl,
 	.mmap = pvfs2_file_mmap,
-	.open = pvfs2_file_open,
+	.open = generic_file_open,
 	.release = pvfs2_file_release,
 	.fsync = pvfs2_fsync,
 };
