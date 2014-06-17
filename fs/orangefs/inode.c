@@ -343,7 +343,7 @@ struct inode *pvfs2_iget(struct super_block *sb, PVFS_object_ref *ref)
 
 	error = pvfs2_inode_getattr(inode, PVFS_ATTR_SYS_ALL_NOHINT);
 	if (error) {
-		iput(inode);
+		iget_failed(inode);
 		return ERR_PTR(error);
 	}
 
