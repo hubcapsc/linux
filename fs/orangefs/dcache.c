@@ -59,14 +59,7 @@ static int pvfs2_d_revalidate_common(struct dentry *dentry)
 		new_op->upcall.req.lookup.sym_follow =
 		    PVFS2_LOOKUP_LINK_NO_FOLLOW;
 		parent = PVFS2_I(parent_inode);
-		if (parent && parent->refn.handle != PVFS_HANDLE_NULL &&
-		    parent->refn.fs_id != PVFS_FS_ID_NULL) {
-			new_op->upcall.req.lookup.parent_refn = parent->refn;
-		} else {
-			gossip_lerr("Critical error: i_ino cannot be relied upon when using iget5/iget4\n");
-			op_release(new_op);
-			goto invalid_exit;
-		}
+		new_op->upcall.req.lookup.parent_refn = parent->refn;
 		strncpy(new_op->upcall.req.lookup.d_name,
 			dentry->d_name.name, PVFS2_NAME_LEN);
 
