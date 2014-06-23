@@ -7,10 +7,78 @@
 #define PVFS2_VERSION_MINOR 9
 #define PVFS2_VERSION_SUB 0
 
+/* khandle stuff  ***********************************************************/
+
+/*
+ * The 2.9 core will put 64 bit handles in here like this:
+ *    1234 0000 0000 5678
+ * The 3.0 and beyond cores will put 128 bit handles in here like this:
+ *    1234 5678 90AB CDEF
+ * The kernel module will always use the first four bytes and
+ * the last four bytes as an inum.
+ */
+typedef struct {
+	unsigned char u[16];
+} PVFS_khandle __attribute__ (( __aligned__ (8)));
+
+/* 
+ * kernel version of an object ref.
+ */
+typedef struct
+{
+	PVFS_khandle khandle;
+	int32_t fs_id;
+	int32_t __pad1;
+} PVFS_object_kref;
+
+/*
+ * compare 2 khandles assumes little endian thus from large address to
+ * small address
+ */
+static __inline__ int PVFS_khandle_cmp(const PVFS_khandle *kh1,
+				       const PVFS_khandle *kh2)
+{
+	int i;
+
+	for (i = 15; i >= 0; i--) {
+		if (kh1->u[i] > kh2->u[i])
+			return 1;
+		if (kh1->u[i] < kh2->u[i])
+			return -1;
+	}
+
+	return 0;
+}
+
+/* copy a khandle to a field of arbitrary size */
+static __inline__ void PVFS_khandle_to(const PVFS_khandle *kh,
+				       void *p, int size)
+{
+	int i;
+	unsigned char *c = p;
+
+	memset(p, 0, size);
+
+	for (i = 0; i < 16 && i < size; i++)
+	        c[i] = kh->u[i];
+}
+
+/* copy a khandle from a field of arbitrary size */
+static __inline__ void PVFS_khandle_from(PVFS_khandle *kh,
+					 void *p, int size)
+{
+	int i;
+	unsigned char *c = p;
+
+	memset(kh, 0, 16);
+
+	for (i = 0; i < 16 && i < size; i++)
+		kh->u[i] = c[i];
+}
+
 /* pvfs2-types.h ************************************************************/
 typedef uint32_t PVFS_uid;
 typedef uint32_t PVFS_gid;
-typedef uint64_t PVFS_handle;
 typedef int32_t PVFS_fs_id;
 typedef uint32_t PVFS_permissions;
 typedef uint64_t PVFS_time;
@@ -314,7 +382,6 @@ DECLARE_ERRNO_MAPPING()
 #define PVFS_MIRROR_FL    0x01000000ULL
 #define PVFS_O_EXECUTE (1 << 0)
 #define PVFS_FS_ID_NULL       ((PVFS_fs_id)0)
-#define PVFS_HANDLE_NULL      ((PVFS_handle)0)
 #define PVFS_ATTR_SYS_UID                   (1 << 0)
 #define PVFS_ATTR_SYS_GID                   (1 << 1)
 #define PVFS_ATTR_SYS_PERM                  (1 << 2)
@@ -434,16 +501,6 @@ struct PVFS_keyval_pair {
 	int32_t val_sz;
 	char val[PVFS_MAX_XATTR_VALUELEN];
 };
-
-/*
- * object reference (uniquely refers to a single file, directory, or
- * symlink).
- */
-typedef struct {
-	PVFS_handle handle;
-	PVFS_fs_id fs_id;
-	int32_t __pad1;
-} PVFS_object_ref;
 
 /* pvfs2-sysint.h ***********************************************************/
 /* Describes attributes for a file, directory, or symlink. */

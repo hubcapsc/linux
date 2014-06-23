@@ -91,9 +91,9 @@ ssize_t pvfs2_inode_getxattr(struct inode *inode, const char *prefix,
 	fsgid = from_kgid(&init_user_ns, current_fsgid());
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
-		     "getxattr on inode %llu, name %s "
+		     "getxattr on inode %pU, name %s "
 		     "(uid %o, gid %o)\n",
-		     llu(get_handle_from_ino(inode)),
+		     get_khandle_from_ino(inode),
 		     name,
 		     fsuid,
 		     fsgid);
@@ -121,9 +121,9 @@ ssize_t pvfs2_inode_getxattr(struct inode *inode, const char *prefix,
 		if (ret == -ENOENT) {
 			ret = -ENODATA;
 			gossip_debug(GOSSIP_XATTR_DEBUG,
-				     "pvfs2_inode_getxattr: inode %llu key %s"
+				     "pvfs2_inode_getxattr: inode %pU key %s"
 				     " does not exist!\n",
-				     llu(get_handle_from_ino(inode)),
+				     get_khandle_from_ino(inode),
 				     (char *)new_op->upcall.req.getxattr.key);
 		}
 		goto out_release_op;
@@ -153,9 +153,9 @@ ssize_t pvfs2_inode_getxattr(struct inode *inode, const char *prefix,
 	memset(buffer, 0, size);
 	memcpy(buffer, new_op->downcall.resp.getxattr.val, length);
 	gossip_debug(GOSSIP_XATTR_DEBUG,
-	     "pvfs2_inode_getxattr: inode %llu "
+	     "pvfs2_inode_getxattr: inode %pU "
 	     "key %s key_sz %d, val_len %d\n",
-	     llu(get_handle_from_ino(inode)),
+	     get_khandle_from_ino(inode),
 	     (char *)new_op->
 		upcall.req.getxattr.key,
 		     (int)new_op->
@@ -286,8 +286,8 @@ int pvfs2_inode_setxattr(struct inode *inode, const char *prefix,
 	}
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
-		     "setxattr on inode %llu, name %s\n",
-		     llu(get_handle_from_ino(inode)),
+		     "setxattr on inode %pU, name %s\n",
+		     get_khandle_from_ino(inode),
 		     name);
 
 	down_write(&pvfs2_inode->xattr_sem);

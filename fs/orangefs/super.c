@@ -139,9 +139,9 @@ static void pvfs2_destroy_inode(struct inode *inode)
 	if (pvfs2_inode) {
 		gossip_debug(GOSSIP_SUPER_DEBUG,
 			     "pvfs2_destroy_inode: deallocated %p"
-			     " destroying inode %llu\n",
+			     " destroying inode %pU\n",
 			     pvfs2_inode,
-			     llu(get_handle_from_ino(inode)));
+			     get_khandle_from_ino(inode));
 
 		atomic_inc(&(PVFS2_SB(inode->i_sb)->pvfs2_inode_dealloc_count));
 		pvfs2_inode_finalize(pvfs2_inode);
@@ -399,9 +399,10 @@ static void pvfs2_dirty_inode(struct inode *inode, int flags)
 {
 	if (inode) {
 		pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
+
 		gossip_debug(GOSSIP_SUPER_DEBUG,
-			     "pvfs2_dirty_inode: %llu\n",
-			     llu(get_handle_from_ino(inode)));
+			     "pvfs2_dirty_inode: %pU\n",
+			     get_khandle_from_ino(inode));
 		SetAtimeFlag(pvfs2_inode);
 	}
 	return;
@@ -422,17 +423,16 @@ struct dentry *pvfs2_fh_to_dentry(struct super_block *sb,
 				  int fh_len,
 				  int fh_type)
 {
-	PVFS_object_ref refn;
+	PVFS_object_kref refn;
 
-	if (fh_len < 3 || fh_type > 2)
+	if (fh_len < 5 || fh_type > 2)
 		return NULL;
 
-	refn.handle = (u64) (fid->raw[0]) << 32;
-	refn.handle |= (u32) fid->raw[1];
-	refn.fs_id = (u32) fid->raw[2];
+	PVFS_khandle_from(&(refn.khandle), fid->raw, 16);
+	refn.fs_id = (u32) fid->raw[4];
 	gossip_debug(GOSSIP_SUPER_DEBUG,
-		     "fh_to_dentry: handle %llu, fs_id %d\n",
-		     refn.handle,
+		     "fh_to_dentry: handle %pU, fs_id %d\n",
+		     &refn.khandle,
 		     refn.fs_id);
 
 	return d_obtain_alias(pvfs2_iget(sb, &refn));
@@ -443,9 +443,9 @@ int pvfs2_encode_fh(struct inode *inode,
 		    int *max_len,
 		    struct inode *parent)
 {
-	int len = parent ? 6 : 3;
+	int len = parent ? 10 : 5;
 	int type = 1;
-	PVFS_object_ref handle;
+	PVFS_object_kref refn;
 
 	if (*max_len < len) {
 		gossip_lerr("fh buffer is too small for encoding\n");
@@ -454,27 +454,26 @@ int pvfs2_encode_fh(struct inode *inode,
 		goto out;
 	}
 
-	handle = PVFS2_I(inode)->refn;
-	gossip_debug(GOSSIP_SUPER_DEBUG,
-		     "Encoding fh: handle %llu, fsid %u\n",
-		     handle.handle,
-		     handle.fs_id);
+	refn = PVFS2_I(inode)->refn;
+	PVFS_khandle_to(&refn.khandle, fh, 16);
+	fh[4] = refn.fs_id;
 
-	fh[0] = handle.handle >> 32;
-	fh[1] = handle.handle & 0xffffffff;
-	fh[2] = handle.fs_id;
+	gossip_debug(GOSSIP_SUPER_DEBUG,
+		     "Encoding fh: handle %pU, fsid %u\n",
+		     &refn.khandle,
+		     refn.fs_id);
+
 
 	if (parent) {
-		handle = PVFS2_I(parent)->refn;
-		fh[3] = handle.handle >> 32;
-		fh[4] = handle.handle & 0xffffffff;
-		fh[5] = handle.fs_id;
+		refn = PVFS2_I(parent)->refn;
+		PVFS_khandle_to(&refn.khandle, (char *) fh + 20, 16);
+		fh[9] = refn.fs_id;
 
 		type = 2;
 		gossip_debug(GOSSIP_SUPER_DEBUG,
-			     "Encoding parent: handle %llu, fsid %u\n",
-			     handle.handle,
-			     handle.fs_id);
+			     "Encoding parent: handle %pU, fsid %u\n",
+			     &refn.khandle,
+			     refn.fs_id);
 	}
 	*max_len = len;
 
@@ -494,7 +493,7 @@ int pvfs2_fill_sb(struct super_block *sb, void *data, int silent)
 	struct dentry *root_dentry = NULL;
 	struct pvfs2_mount_sb_info_t *mount_sb_info =
 		(struct pvfs2_mount_sb_info_t *) data;
-	PVFS_object_ref root_object;
+	PVFS_object_kref root_object;
 
 	/* alloc and init our private pvfs2 sb info */
 	sb->s_fs_info = kmalloc(sizeof(pvfs2_sb_info_t), PVFS2_GFP_FLAGS);
@@ -503,7 +502,7 @@ int pvfs2_fill_sb(struct super_block *sb, void *data, int silent)
 	memset(sb->s_fs_info, 0, sizeof(pvfs2_sb_info_t));
 	PVFS2_SB(sb)->sb = sb;
 
-	PVFS2_SB(sb)->root_handle = mount_sb_info->root_handle;
+	PVFS2_SB(sb)->root_khandle = mount_sb_info->root_khandle;
 	PVFS2_SB(sb)->fs_id = mount_sb_info->fs_id;
 	PVFS2_SB(sb)->id = mount_sb_info->id;
 
@@ -535,11 +534,11 @@ int pvfs2_fill_sb(struct super_block *sb, void *data, int silent)
 	sb->s_blocksize_bits = pvfs_bufmap_shift_query();
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 
-	root_object.handle = PVFS2_SB(sb)->root_handle;
+	root_object.khandle = PVFS2_SB(sb)->root_khandle;
 	root_object.fs_id = PVFS2_SB(sb)->fs_id;
 	gossip_debug(GOSSIP_SUPER_DEBUG,
-		     "get inode %llu, fsid %d\n",
-		     root_object.handle,
+		     "get inode %pU, fsid %d\n",
+		     &root_object.khandle,
 		     root_object.fs_id);
 
 	root = pvfs2_iget(sb, &root_object);
@@ -600,19 +599,17 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
 		if (ret)
 			goto free_op;
 
-		if ((new_op->downcall.resp.fs_mount.fs_id == PVFS_FS_ID_NULL) ||
-		    (new_op->downcall.resp.fs_mount.root_handle ==
-		     PVFS_HANDLE_NULL)) {
+		if (new_op->downcall.resp.fs_mount.fs_id == PVFS_FS_ID_NULL) {
 			gossip_err
-			    ("ERROR: Retrieved null fs_id or root_handle\n");
+			    ("ERROR: Retrieved null fs_id\n");
 			ret = -EINVAL;
 			goto free_op;
 		}
 
 		/* fill in temporary structure passed to fill_sb method */
 		mount_sb_info.data = data;
-		mount_sb_info.root_handle =
-		    new_op->downcall.resp.fs_mount.root_handle;
+		mount_sb_info.root_khandle =
+		    new_op->downcall.resp.fs_mount.root_khandle;
 		mount_sb_info.fs_id = new_op->downcall.resp.fs_mount.fs_id;
 		mount_sb_info.id = new_op->downcall.resp.fs_mount.id;
 

@@ -24,15 +24,15 @@ struct pvfs2_iox_response {
 };
 
 struct pvfs2_lookup_response {
-	PVFS_object_ref refn;
+	PVFS_object_kref refn;
 };
 
 struct pvfs2_create_response {
-	PVFS_object_ref refn;
+	PVFS_object_kref refn;
 };
 
 struct pvfs2_symlink_response {
-	PVFS_object_ref refn;
+	PVFS_object_kref refn;
 };
 
 struct pvfs2_getattr_response {
@@ -41,7 +41,7 @@ struct pvfs2_getattr_response {
 };
 
 struct pvfs2_mkdir_response {
-	PVFS_object_ref refn;
+	PVFS_object_kref refn;
 };
 
 /*
@@ -51,7 +51,7 @@ struct pvfs2_mkdir_response {
 struct pvfs2_dirent {
 	char *d_name;
 	int d_length;
-	PVFS_handle handle;
+	PVFS_khandle khandle;
 };
 
 struct pvfs2_statfs_response {
@@ -65,7 +65,7 @@ struct pvfs2_statfs_response {
 struct pvfs2_fs_mount_response {
 	PVFS_fs_id fs_id;
 	int32_t id;
-	PVFS_handle root_handle;
+	PVFS_khandle root_khandle;
 };
 
 /* the getxattr response is the attribute value */

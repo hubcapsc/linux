@@ -211,8 +211,8 @@ static int copy_attributes_to_inode(struct inode *inode,
 		/* special case: mark the root inode as sticky */
 		inode->i_mode |= S_ISVTX;
 		gossip_debug(GOSSIP_UTILS_DEBUG,
-			     "Marking inode %llu as sticky\n",
-			     llu(get_handle_from_ino(inode)));
+			     "Marking inode %pU as sticky\n",
+			     get_khandle_from_ino(inode));
 	}
 
 	switch (attrs->objtype) {
@@ -248,7 +248,7 @@ static int copy_attributes_to_inode(struct inode *inode,
 		ret = 0;
 		break;
 	default:
-		gossip_err("pvfs2:copy_attributes_to_inode: got invalid attribute type %x\n",
+		gossip_err("pvfs2: copy_attributes_to_inode: got invalid attribute type %x\n",
 			attrs->objtype);
 	}
 
@@ -256,6 +256,7 @@ static int copy_attributes_to_inode(struct inode *inode,
 		     "pvfs2: copy_attributes_to_inode: setting i_mode to %o, i_size to %lu\n",
 		     inode->i_mode,
 		     (unsigned long)i_size_read(inode));
+
 	return ret;
 }
 
@@ -270,7 +271,8 @@ static inline int copy_attributes_from_inode(struct inode *inode,
 	umode_t tmp_mode;
 
 	if (!iattr || !inode || !attrs) {
-		gossip_err("NULL iattr (%p), inode (%p), attrs (%p) in copy_attributes_from_inode!\n",
+		gossip_err("NULL iattr (%p), inode (%p), attrs (%p) "
+			   "in copy_attributes_from_inode!\n",
 			   iattr,
 			   inode,
 			   attrs);
@@ -357,8 +359,10 @@ int pvfs2_inode_getattr(struct inode *inode, uint32_t getattr_mask)
 	pvfs2_kernel_op_t *new_op;
 	int ret = -EINVAL;
 
-	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: called on inode %llu\n",
-		     __func__, llu(get_handle_from_ino(inode)));
+	gossip_debug(GOSSIP_UTILS_DEBUG,
+		     "%s: called on inode %pU\n",
+		     __func__,
+		     get_khandle_from_ino(inode));
 
 	new_op = op_alloc(PVFS2_VFS_OP_GETATTR);
 	if (!new_op)
@@ -396,9 +400,9 @@ int pvfs2_inode_getattr(struct inode *inode, uint32_t getattr_mask)
 
 out:
 	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "Getattr on handle %llu, "
+		     "Getattr on handle %pU, "
 		     "fsid %d\n  (inode ct = %d) returned %d\n",
-		     llu(pvfs2_inode->refn.handle),
+		     &pvfs2_inode->refn.khandle,
 		     pvfs2_inode->refn.fs_id,
 		     (int)atomic_read(&inode->i_count),
 		     ret);
@@ -469,6 +473,7 @@ int pvfs2_flush_inode(struct inode *inode)
 	int atime_flag;
 	int mode_flag;
 	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
+
 	memset(&wbattr, 0, sizeof(wbattr));
 
 	/*
@@ -505,9 +510,9 @@ int pvfs2_flush_inode(struct inode *inode)
 	}
 
 	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "*********** pvfs2_flush_inode: %llu "
+		     "*********** pvfs2_flush_inode: %pU "
 		     "(ia_valid %d)\n",
-		     llu(get_handle_from_ino(inode)),
+		     get_khandle_from_ino(inode),
 		     wbattr.ia_valid);
 	if (wbattr.ia_valid == 0) {
 		gossip_debug(GOSSIP_UTILS_DEBUG,
@@ -516,11 +521,12 @@ int pvfs2_flush_inode(struct inode *inode)
 	}
 
 	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "pvfs2_flush_inode (%llu) writing mode %o\n",
-		     llu(get_handle_from_ino(inode)),
+		     "pvfs2_flush_inode (%pU) writing mode %o\n",
+		     get_khandle_from_ino(inode),
 		     inode->i_mode);
 
 	ret = pvfs2_inode_setattr(inode, &wbattr);
+
 	return ret;
 }
 
@@ -531,9 +537,10 @@ int pvfs2_truncate_inode(struct inode *inode, loff_t size)
 	pvfs2_kernel_op_t *new_op = NULL;
 
 	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "pvfs2: pvfs2_truncate_inode %llu: Handle is %llu | fs_id %d | size is %lu\n",
-		     llu(get_handle_from_ino(inode)),
-		     llu(pvfs2_inode->refn.handle),
+		     "pvfs2: pvfs2_truncate_inode %pU: "
+		     "Handle is %pU | fs_id %d | size is %lu\n",
+		     get_khandle_from_ino(inode),
+		     &pvfs2_inode->refn.khandle,
 		     pvfs2_inode->refn.fs_id,
 		     (unsigned long)size);
 
@@ -633,7 +640,7 @@ int pvfs2_cancel_op_in_progress(uint64_t tag)
  */
 void pvfs2_inode_finalize(pvfs2_inode_t *pvfs2_inode)
 {
-	pvfs2_inode->refn.handle = PVFS_HANDLE_NULL;
+	memset(&pvfs2_inode->refn.khandle, 0, 16);
 	pvfs2_inode->refn.fs_id = PVFS_FS_ID_NULL;
 	pvfs2_inode->last_failed_block_index_read = 0;
 }
@@ -663,12 +670,12 @@ void pvfs2_make_bad_inode(struct inode *inode)
 		 * associated with the root handle in any case.
 		 */
 		gossip_debug(GOSSIP_UTILS_DEBUG,
-			     "*** NOT making bad root inode %llu\n",
-			     llu(get_handle_from_ino(inode)));
+			     "*** NOT making bad root inode %pU\n",
+			     get_khandle_from_ino(inode));
 	} else {
 		gossip_debug(GOSSIP_UTILS_DEBUG,
-			     "*** making bad inode %llu\n",
-			     llu(get_handle_from_ino(inode)));
+			     "*** making bad inode %pU\n",
+			     get_khandle_from_ino(inode));
 		make_bad_inode(inode);
 	}
 }

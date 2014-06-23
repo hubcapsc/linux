@@ -75,7 +75,7 @@ static int pvfs2_d_revalidate_common(struct dentry *dentry)
 					get_interruptible_flag(parent_inode));
 
 		if ((new_op->downcall.status != 0) ||
-		    !match_handle(new_op->downcall.resp.lookup.refn.handle,
+		    !match_handle(new_op->downcall.resp.lookup.refn.khandle,
 				  inode)) {
 			gossip_debug(GOSSIP_DCACHE_DEBUG,
 				"%s:%s:%d "
@@ -87,7 +87,7 @@ static int pvfs2_d_revalidate_common(struct dentry *dentry)
 				    "true" :
 				    "false",
 				(!match_handle
-				    (new_op->downcall.resp.lookup.refn.handle,
+				    (new_op->downcall.resp.lookup.refn.khandle,
 				    inode)) ?
 					"true" :
 					"false");
@@ -109,10 +109,10 @@ static int pvfs2_d_revalidate_common(struct dentry *dentry)
 
 	/* now perform getattr */
 	gossip_debug(GOSSIP_DCACHE_DEBUG,
-		     "%s: doing getattr: inode: %p, handle: %llu\n",
+		     "%s: doing getattr: inode: %p, handle: %pU\n",
 		     __func__,
 		     inode,
-		     llu(get_handle_from_ino(inode)));
+		     get_khandle_from_ino(inode));
 	ret = pvfs2_inode_getattr(inode, PVFS_ATTR_SYS_ALL_NOHINT);
 	gossip_debug(GOSSIP_DCACHE_DEBUG,
 		     "%s: getattr %s (ret = %d), returning %s for dentry i_count=%d\n",

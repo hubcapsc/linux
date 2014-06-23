@@ -41,8 +41,8 @@ static int pvfs2_create(struct inode *dir,
 	ret = service_operation(new_op, __func__, get_interruptible_flag(dir));
 
 	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "Create Got PVFS2 handle %llu on fsid %d (ret=%d)\n",
-		     llu(new_op->downcall.resp.create.refn.handle),
+		     "Create Got PVFS2 handle %pU on fsid %d (ret=%d)\n",
+		     &new_op->downcall.resp.create.refn.khandle,
 		     new_op->downcall.resp.create.refn.fs_id, ret);
 
 	if (ret < 0) {
@@ -61,15 +61,15 @@ static int pvfs2_create(struct inode *dir,
 	}
 
 	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "Assigned file inode new number of %llu\n",
-		     llu(get_handle_from_ino(inode)));
+		     "Assigned file inode new number of %pU\n",
+		     get_khandle_from_ino(inode));
 
 	d_instantiate(dentry, inode);
 	unlock_new_inode(inode);
 
 	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "Inode (Regular File) %llu -> %s\n",
-		     llu(get_handle_from_ino(inode)),
+		     "Inode (Regular File) %pU -> %s\n",
+		     get_khandle_from_ino(inode),
 		     dentry->d_name.name);
 
 	SetMtimeFlag(parent);
@@ -115,19 +115,21 @@ static struct dentry *pvfs2_lookup(struct inode *dir, struct dentry *dentry,
 
 	new_op->upcall.req.lookup.sym_follow = flags & LOOKUP_FOLLOW;
 
-	gossip_debug(GOSSIP_NAME_DEBUG, "%s:%s:%d using parent %llu\n",
-		     __FILE__, __func__, __LINE__, llu(parent->refn.handle));
+	gossip_debug(GOSSIP_NAME_DEBUG, "%s:%s:%d using parent %pU\n",
+		     __FILE__,
+		     __func__,
+		     __LINE__,
+		     &parent->refn.khandle);
 	new_op->upcall.req.lookup.parent_refn = parent->refn;
 
 	strncpy(new_op->upcall.req.lookup.d_name, dentry->d_name.name,
 		PVFS2_NAME_LEN);
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "%s: doing lookup on %s\n"
-		     "  under %llu,%d (follow=%s)\n",
+		     "%s: doing lookup on %s under %pU,%d (follow=%s)\n",
 		     __func__,
 		     new_op->upcall.req.lookup.d_name,
-		     llu(new_op->upcall.req.lookup.parent_refn.handle),
+		     &new_op->upcall.req.lookup.parent_refn.khandle,
 		     new_op->upcall.req.lookup.parent_refn.fs_id,
 		     ((new_op->upcall.req.lookup.sym_follow ==
 		       PVFS2_LOOKUP_LINK_FOLLOW) ? "yes" : "no"));
@@ -135,8 +137,8 @@ static struct dentry *pvfs2_lookup(struct inode *dir, struct dentry *dentry,
 	ret = service_operation(new_op, __func__, get_interruptible_flag(dir));
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "Lookup Got %llu, fsid %d (ret=%d)\n",
-		     llu(new_op->downcall.resp.lookup.refn.handle),
+		     "Lookup Got %pU, fsid %d (ret=%d)\n",
+		     &new_op->downcall.resp.lookup.refn.khandle,
 		     new_op->downcall.resp.lookup.refn.fs_id,
 		     ret);
 
@@ -209,11 +211,11 @@ static int pvfs2_unlink(struct inode *dir, struct dentry *dentry)
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "%s: called on %s\n"
-		     "  (inode %llu): Parent is %llu | fs_id %d\n",
+		     "  (inode %pU): Parent is %pU | fs_id %d\n",
 		     __func__,
 		     dentry->d_name.name,
-		     llu(get_handle_from_ino(inode)),
-		     llu(parent->refn.handle),
+		     get_khandle_from_ino(inode),
+		     &parent->refn.khandle,
 		     parent->refn.fs_id);
 
 	new_op = op_alloc(PVFS2_VFS_OP_REMOVE);
@@ -298,8 +300,8 @@ static int pvfs2_symlink(struct inode *dir,
 	ret = service_operation(new_op, __func__, get_interruptible_flag(dir));
 
 	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "Symlink Got PVFS2 handle %llu on fsid %d (ret=%d)\n",
-		     llu(new_op->downcall.resp.sym.refn.handle),
+		     "Symlink Got PVFS2 handle %pU on fsid %d (ret=%d)\n",
+		     &new_op->downcall.resp.sym.refn.khandle,
 		     new_op->downcall.resp.sym.refn.fs_id, ret);
 
 	if (ret < 0) {
@@ -319,15 +321,15 @@ static int pvfs2_symlink(struct inode *dir,
 	}
 
 	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "Assigned symlink inode new number of %llu\n",
-		     llu(get_handle_from_ino(inode)));
+		     "Assigned symlink inode new number of %pU\n",
+		     get_khandle_from_ino(inode));
 
 	d_instantiate(dentry, inode);
 	unlock_new_inode(inode);
 
 	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "Inode (Symlink) %llu -> %s\n",
-		     llu(get_handle_from_ino(inode)),
+		     "Inode (Symlink) %pU -> %s\n",
+		     get_khandle_from_ino(inode),
 		     dentry->d_name.name);
 
 	SetMtimeFlag(parent);
@@ -361,8 +363,8 @@ static int pvfs2_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	ret = service_operation(new_op, __func__, get_interruptible_flag(dir));
 
 	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "Mkdir Got PVFS2 handle %llu on fsid %d\n",
-		     llu(new_op->downcall.resp.mkdir.refn.handle),
+		     "Mkdir Got PVFS2 handle %pU on fsid %d\n",
+		     &new_op->downcall.resp.mkdir.refn.khandle,
 		     new_op->downcall.resp.mkdir.refn.fs_id);
 
 	if (ret < 0) {
@@ -381,15 +383,15 @@ static int pvfs2_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	}
 
 	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "Assigned dir inode new number of %llu\n",
-		     llu(get_handle_from_ino(inode)));
+		     "Assigned dir inode new number of %pU\n",
+		     get_khandle_from_ino(inode));
 
 	d_instantiate(dentry, inode);
 	unlock_new_inode(inode);
 
 	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "Inode (Directory) %llu -> %s\n",
-		     llu(get_handle_from_ino(inode)),
+		     "Inode (Directory) %pU -> %s\n",
+		     get_khandle_from_ino(inode),
 		     dentry->d_name.name);
 
 	/*

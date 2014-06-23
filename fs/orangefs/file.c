@@ -110,7 +110,7 @@ static ssize_t wait_for_direct_io(enum PVFS_io_type type, struct inode *inode,
 		size_t total_size, loff_t readahead_size, int to_user)
 {
 	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
-	PVFS_handle handle = pvfs2_inode->refn.handle;
+	PVFS_khandle *handle = &pvfs2_inode->refn.khandle;
 	pvfs2_kernel_op_t *new_op = NULL;
 	int buffer_index = -1;
 	ssize_t ret;
@@ -136,9 +136,9 @@ populate_shared_memory:
 		goto out;
 	}
 	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "%s(%llu): GET op %p -> buffer_index %d\n",
+		     "%s(%pU): GET op %p -> buffer_index %d\n",
 		     __func__,
-		     llu(handle),
+		     handle,
 		     new_op,
 		     buffer_index);
 
@@ -148,14 +148,13 @@ populate_shared_memory:
 	new_op->upcall.req.io.offset = *offset;
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "%s(%llu): copy_to_user %d nr_segs %lu, offset: %llu total_size: %zd\n",
+		     "%s(%pU): copy_to_user %d nr_segs %lu, offset: %llu total_size: %zd\n",
 		     __func__,
-		     llu(handle),
+		     handle,
 		     to_user,
 		     nr_segs,
 		     llu(*offset),
 		     total_size);
-
 	/*
 	 * Stage 1: copy the buffers into client-core's address space
 	 * precopy_buffers only pertains to writes.
@@ -168,9 +167,9 @@ populate_shared_memory:
 	}
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "%s(%llu): Calling post_io_request with tag (%llu)\n",
+		     "%s(%pU): Calling post_io_request with tag (%llu)\n",
 		     __func__,
-		     llu(handle),
+		     handle,
 		     llu(new_op->tag));
 
 	/* Stage 2: Service the I/O operation */
@@ -196,7 +195,6 @@ populate_shared_memory:
 
 	if (ret < 0) {
 		handle_io_error(); /* defined in pvfs2-kernel.h */
-
 		/*
 		   don't write an error to syslog on signaled operation
 		   termination unless we've got debugging turned on, as
@@ -207,11 +205,11 @@ populate_shared_memory:
 				     "%s: returning error %ld\n", __func__,
 				     (long)ret);
 		else
-			gossip_err("%s: error in %s handle %llu, returning %zd\n",
+			gossip_err("%s: error in %s handle %pU, returning %zd\n",
 				__func__,
 				type == PVFS_IO_READ ?
 					"read from" : "write to",
-				llu(handle), ret);
+				handle, ret);
 		goto out;
 	}
 
@@ -233,11 +231,10 @@ populate_shared_memory:
 			goto out;
 		}
 	}
-
 	gossip_debug(GOSSIP_FILE_DEBUG,
-	    "%s(%llu): Amount written as returned by the sys-io call:%d\n",
+	    "%s(%pU): Amount written as returned by the sys-io call:%d\n",
 	    __func__,
-	    llu(handle),
+	    handle,
 	    (int)new_op->downcall.resp.io.amt_complete);
 
 	ret = new_op->downcall.resp.io.amt_complete;
@@ -255,9 +252,8 @@ out:
 	if (buffer_index >= 0) {
 		pvfs_bufmap_put(buffer_index);
 		gossip_debug(GOSSIP_FILE_DEBUG,
-			     "%s(%llu): PUT buffer_index %d\n",
-			     __func__, llu(handle),
-			     buffer_index);
+			     "%s(%pU): PUT buffer_index %d\n",
+			     __func__, handle, buffer_index);
 		buffer_index = -1;
 	}
 	if (new_op) {
@@ -437,7 +433,7 @@ static ssize_t do_readv_writev(enum PVFS_io_type type, struct file *file,
 {
 	struct inode *inode = file->f_mapping->host;
 	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
-	PVFS_handle handle = pvfs2_inode->refn.handle;
+	PVFS_khandle *handle = &pvfs2_inode->refn.khandle;
 	ssize_t ret;
 	ssize_t total_count;
 	unsigned int to_free;
@@ -465,9 +461,9 @@ static ssize_t do_readv_writev(enum PVFS_io_type type, struct file *file,
 	}
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
-		"%s-BEGIN(%llu): count(%d) after estimate_max_iovecs.\n",
+		"%s-BEGIN(%pU): count(%d) after estimate_max_iovecs.\n",
 		__func__,
-		llu(handle),
+		handle,
 		(int)count);
 
 	if (type == PVFS_IO_WRITE) {
@@ -494,10 +490,10 @@ static ssize_t do_readv_writev(enum PVFS_io_type type, struct file *file,
 		}
 
 		gossip_debug(GOSSIP_FILE_DEBUG,
-			     "%s(%llu): proceeding with offset : %llu, "
+			     "%s(%pU): proceeding with offset : %llu, "
 			     "size %d\n",
 			     __func__,
-			     llu(handle),
+			     handle,
 			     llu(*offset),
 			     (int)count);
 	}
@@ -563,15 +559,15 @@ static ssize_t do_readv_writev(enum PVFS_io_type type, struct file *file,
 	ptr = iovecptr;
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "%s(%llu) %zd@%llu\n",
+		     "%s(%pU) %zd@%llu\n",
 		     __func__,
-		     llu(handle),
+		     handle,
 		     count,
 		     llu(*offset));
 	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "%s(%llu): new_nr_segs: %lu, seg_count: %lu\n",
+		     "%s(%pU): new_nr_segs: %lu, seg_count: %lu\n",
 		     __func__,
-		     llu(handle),
+		     handle,
 		     new_nr_segs, seg_count);
 
 /* PVFS2_KERNEL_DEBUG is a CFLAGS define. */
@@ -603,23 +599,22 @@ static ssize_t do_readv_writev(enum PVFS_io_type type, struct file *file,
 			(count - total_count));
 
 		gossip_debug(GOSSIP_FILE_DEBUG,
-			     "%s(%llu): size of each_count(%d)\n",
+			     "%s(%pU): size of each_count(%d)\n",
 			     __func__,
-			     llu(handle),
+			     handle,
 			     (int)each_count);
 		gossip_debug(GOSSIP_FILE_DEBUG,
-			     "%s(%llu): BEFORE wait_for_io: offset is %d\n",
+			     "%s(%pU): BEFORE wait_for_io: offset is %d\n",
 			     __func__,
-			     llu(handle),
+			     handle,
 			     (int)*offset);
 
 		ret = wait_for_direct_io(type, inode, offset, ptr,
 				seg_array[seg], each_count, 0, 1);
-
 		gossip_debug(GOSSIP_FILE_DEBUG,
-			     "%s(%llu): return from wait_for_io:%d\n",
+			     "%s(%pU): return from wait_for_io:%d\n",
 			     __func__,
-			     llu(handle),
+			     handle,
 			     (int)ret);
 
 		if (ret < 0)
@@ -633,9 +628,9 @@ static ssize_t do_readv_writev(enum PVFS_io_type type, struct file *file,
 		amt_complete = ret;
 
 		gossip_debug(GOSSIP_FILE_DEBUG,
-			     "%s(%llu): AFTER wait_for_io: offset is %d\n",
+			     "%s(%pU): AFTER wait_for_io: offset is %d\n",
 			     __func__,
-			     llu(handle),
+			     handle,
 			     (int)*offset);
 
 		/*
@@ -664,9 +659,9 @@ out:
 	}
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "%s(%llu): Value(%d) returned.\n",
+		     "%s(%pU): Value(%d) returned.\n",
 		     __func__,
-		     llu(handle),
+		     handle,
 		     (int)ret);
 
 	return ret;
@@ -701,9 +696,9 @@ ssize_t pvfs2_inode_read(struct inode *inode,
 	}
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "%s(%llu) %zd@%llu\n",
+		     "%s(%pU) %zd@%llu\n",
 		     __func__,
-		     llu(pvfs2_inode->refn.handle),
+		     &pvfs2_inode->refn.khandle,
 		     count,
 		     llu(*offset));
 
@@ -713,9 +708,9 @@ ssize_t pvfs2_inode_read(struct inode *inode,
 		*offset += ret;
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "%s(%llu): Value(%zd) returned.\n",
+		     "%s(%pU): Value(%zd) returned.\n",
 		     __func__,
-		     llu(pvfs2_inode->refn.handle),
+		     &pvfs2_inode->refn.khandle,
 		     ret);
 
 	return ret;

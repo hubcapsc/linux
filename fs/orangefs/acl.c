@@ -64,8 +64,10 @@ struct posix_acl *pvfs2_get_acl(struct inode *inode, int type)
 		return ERR_PTR(-ENOMEM);
 	}
 	gossip_debug(GOSSIP_ACL_DEBUG,
-		     "inode %llu, key %s, type %d\n",
-		     llu(get_handle_from_ino(inode)), key, type);
+		     "inode %pU, key %s, type %d\n",
+		     get_khandle_from_ino(inode),
+		     key,
+		     type);
 	ret = pvfs2_inode_getxattr(inode,
 				   "",
 				   key,
@@ -77,8 +79,9 @@ struct posix_acl *pvfs2_get_acl(struct inode *inode, int type)
 	} else if (ret == -ENODATA || ret == -ENOSYS) {
 		acl = NULL;
 	} else {
-		gossip_err("inode %llu retrieving acl's failed with error %d\n",
-			   llu(get_handle_from_ino(inode)), ret);
+		gossip_err("inode %pU retrieving acl's failed with error %d\n",
+			   get_khandle_from_ino(inode),
+			   ret);
 		acl = ERR_PTR(ret);
 	}
 	/* kfree(NULL) is safe, so don't worry if value ever got used */
@@ -149,8 +152,10 @@ static int pvfs2_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 		return -EINVAL;
 	}
 	gossip_debug(GOSSIP_ACL_DEBUG,
-		     "pvfs2_set_acl: inode %llu, key %s type %d\n",
-		     llu(get_handle_from_ino(inode)), name, type);
+		     "pvfs2_set_acl: inode %pU, key %s type %d\n",
+		     get_khandle_from_ino(inode),
+		     name,
+		     type);
 
 	if (acl) {
 		value = kmalloc(PVFS_MAX_XATTR_VALUELEN, GFP_KERNEL);

@@ -35,8 +35,8 @@ static long decode_dirents(char *ptr, pvfs2_readdir_response_t *readdir)
 	for (i = 0; i < readdir->pvfs_dirent_outcount; i++) {
 		dec_string(pptr, &readdir->dirent_array[i].d_name,
 			   &readdir->dirent_array[i].d_length);
-		readdir->dirent_array[i].handle = *(int64_t *) *pptr;
-		*pptr += 8;
+		readdir->dirent_array[i].khandle = *(PVFS_khandle *) *pptr;
+		*pptr += 16;
 	}
 	return (unsigned long)*pptr - (unsigned long)ptr;
 }
@@ -160,9 +160,9 @@ static int pvfs2_readdir(struct file *file, struct dir_context *ctx)
 	new_op->upcall.req.readdir.max_dirent_count = MAX_DIRENT_COUNT_READDIR;
 
 	gossip_debug(GOSSIP_DIR_DEBUG,
-		     "%s: upcall.req.readdir.refn.handle:%llu\n",
+		     "%s: upcall.req.readdir.refn.khandle: %pU\n",
 		     __func__,
-		     llu(new_op->upcall.req.readdir.refn.handle));
+		     &new_op->upcall.req.readdir.refn.khandle);
 
 	/*
 	 * NOTE: the position we send to the readdir upcall is out of
@@ -251,7 +251,7 @@ get_new_buffer_index:
 	}
 
 	if (pos == 0) {
-		ino = get_ino_from_handle(dentry->d_inode);
+		ino = get_ino_from_khandle(dentry->d_inode);
 		gossip_debug(GOSSIP_DIR_DEBUG,
 			     "%s: calling dir_emit of \".\" with pos = %llu\n",
 			     __func__,
@@ -293,8 +293,8 @@ get_new_buffer_index:
 	for (i = 0; i < rhandle.readdir_response.pvfs_dirent_outcount; i++) {
 		len = rhandle.readdir_response.dirent_array[i].d_length;
 		current_entry = rhandle.readdir_response.dirent_array[i].d_name;
-		current_ino = pvfs2_handle_to_ino(
-			rhandle.readdir_response.dirent_array[i].handle);
+		current_ino = pvfs2_khandle_to_ino(
+			&(rhandle.readdir_response.dirent_array[i].khandle));
 
 		gossip_debug(GOSSIP_DIR_DEBUG,
 			     "calling dir_emit for %s with len %d, pos %ld\n",

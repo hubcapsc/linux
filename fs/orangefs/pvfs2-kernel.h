@@ -305,7 +305,7 @@ typedef struct {
 
 /* per inode private pvfs2 info */
 typedef struct {
-	PVFS_object_ref refn;
+	PVFS_object_kref refn;
 	char link_target[PVFS_NAME_MAX];
 	PVFS_size blksize;
 	/*
@@ -369,7 +369,7 @@ struct pvfs2_mount_options_t {
 
 /* per superblock private pvfs2 info */
 typedef struct {
-	PVFS_handle root_handle;
+	PVFS_khandle root_khandle;
 	PVFS_fs_id fs_id;
 	int id;
 	struct pvfs2_mount_options_t mnt_options;
@@ -389,7 +389,7 @@ typedef struct {
 */
 struct pvfs2_mount_sb_info_t {
 	void *data;
-	PVFS_handle root_handle;
+	PVFS_khandle root_khandle;
 	PVFS_fs_id fs_id;
 	int id;
 };
@@ -455,19 +455,30 @@ static inline pvfs2_sb_info_t *PVFS2_SB(struct super_block *sb)
 	return (pvfs2_sb_info_t *) sb->s_fs_info;
 }
 
-static inline ino_t pvfs2_handle_to_ino(PVFS_handle handle)
+/* ino_t descends from "unsigned long", 8 bytes, 64 bits. */
+static inline ino_t pvfs2_khandle_to_ino(PVFS_khandle *khandle)
 {
-	ino_t ino;
+	union {
+		unsigned char u[8];
+		uint64_t ino;
+	} ihandle;
 
-	ino = (ino_t) handle;
-	if (sizeof(ino_t) < sizeof(PVFS_handle))
-		ino ^= handle >> (sizeof(PVFS_handle) - sizeof(ino_t)) * 8;
-	return ino;
+
+	ihandle.u[0] = khandle->u[0];
+	ihandle.u[1] = khandle->u[1];
+	ihandle.u[2] = khandle->u[2];
+	ihandle.u[3] = khandle->u[3];
+	ihandle.u[4] = khandle->u[12];
+	ihandle.u[5] = khandle->u[13];
+	ihandle.u[6] = khandle->u[14];
+	ihandle.u[7] = khandle->u[15];
+
+	return ihandle.ino;
 }
 
-static inline PVFS_handle get_handle_from_ino(struct inode *inode)
+static inline PVFS_khandle *get_khandle_from_ino(struct inode *inode)
 {
-	return PVFS2_I(inode)->refn.handle;
+	return &(PVFS2_I(inode)->refn.khandle);
 }
 
 static inline PVFS_fs_id get_fsid_from_ino(struct inode *inode)
@@ -475,29 +486,48 @@ static inline PVFS_fs_id get_fsid_from_ino(struct inode *inode)
 	return PVFS2_I(inode)->refn.fs_id;
 }
 
-static inline ino_t get_ino_from_handle(struct inode *inode)
+static inline ino_t get_ino_from_khandle(struct inode *inode)
 {
-	PVFS_handle handle;
+	PVFS_khandle *khandle;
 	ino_t ino;
 
-	handle = get_handle_from_ino(inode);
-	ino = pvfs2_handle_to_ino(handle);
+	khandle = get_khandle_from_ino(inode);
+	ino = pvfs2_khandle_to_ino(khandle);
 	return ino;
 }
 
 static inline ino_t get_parent_ino_from_dentry(struct dentry *dentry)
 {
-	return get_ino_from_handle(dentry->d_parent->d_inode);
+	return get_ino_from_khandle(dentry->d_parent->d_inode);
 }
 
 static inline int is_root_handle(struct inode *inode)
 {
-	return PVFS2_SB(inode->i_sb)->root_handle == get_handle_from_ino(inode);
+	gossip_debug(GOSSIP_INODE_DEBUG,
+		     "%s: root handle: %pU, this handle: %pU:\n",
+		     __func__,
+		     &PVFS2_SB(inode->i_sb)->root_khandle,
+		     get_khandle_from_ino(inode));
+
+	if (PVFS_khandle_cmp(&(PVFS2_SB(inode->i_sb)->root_khandle),
+			     get_khandle_from_ino(inode)))
+		return 0;
+	else
+		return 1;
 }
 
-static inline int match_handle(PVFS_handle resp_handle, struct inode *inode)
+static inline int match_handle(PVFS_khandle resp_handle, struct inode *inode)
 {
-	return resp_handle == get_handle_from_ino(inode);
+	gossip_debug(GOSSIP_INODE_DEBUG,
+		     "%s: one handle: %pU, another handle:%pU:\n",
+		     __func__,
+		     &resp_handle,
+		     get_khandle_from_ino(inode));
+
+	if (PVFS_khandle_cmp(&resp_handle, get_khandle_from_ino(inode)))
+		return 0;
+	else
+		return 1;
 }
 
 /*
@@ -557,7 +587,7 @@ void fsid_key_table_finalize(void);
  */
 uint32_t convert_to_pvfs2_mask(unsigned long lite_mask);
 struct inode *pvfs2_new_inode(struct super_block *sb, struct inode *dir,
-		int mode, dev_t dev, PVFS_object_ref *ref);
+		int mode, dev_t dev, PVFS_object_kref *ref);
 
 int pvfs2_setattr(struct dentry *dentry, struct iattr *iattr);
 
@@ -584,7 +614,7 @@ ssize_t pvfs2_listxattr(struct dentry *dentry, char *buffer, size_t size);
 /*
  * defined in namei.c
  */
-struct inode *pvfs2_iget(struct super_block *sb, PVFS_object_ref *ref);
+struct inode *pvfs2_iget(struct super_block *sb, PVFS_object_kref *ref);
 
 ssize_t pvfs2_inode_read(struct inode *inode,
 			 char *buf,

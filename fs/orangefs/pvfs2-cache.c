@@ -325,7 +325,7 @@ pvfs2_inode_t *pvfs2_inode_alloc(void)
 	 * We want to clear everything except for rw_semaphore and the
 	 * vfs_inode.
 	 */
-	pvfs2_inode->refn.handle = PVFS_HANDLE_NULL;
+	memset(&pvfs2_inode->refn.khandle, 0, 16);
 	pvfs2_inode->refn.fs_id = PVFS_FS_ID_NULL;
 	pvfs2_inode->last_failed_block_index_read = 0;
 	memset(pvfs2_inode->link_target, 0, sizeof(pvfs2_inode->link_target));

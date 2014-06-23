@@ -142,9 +142,9 @@ static int pvfs2_setattr_size(struct inode *inode, struct iattr *iattr)
 		return -EPERM;
 
 	gossip_debug(GOSSIP_INODE_DEBUG,
-		     "pvfs2: pvfs2_setattr_size called on inode %llu "
+		     "pvfs2: pvfs2_setattr_size called on inode %pU "
 		     "with size %ld\n",
-		     llu(get_handle_from_ino(inode)),
+		     get_khandle_from_ino(inode),
 		     (long)orig_size);
 
 	/*
@@ -284,11 +284,11 @@ static int pvfs2_init_iops(struct inode *inode)
  * that will be used as a hash-index from where the handle will
  * be searched for in the VFS hash table of inodes.
  */
-static inline ino_t pvfs2_handle_hash(PVFS_object_ref *ref)
+static inline ino_t pvfs2_handle_hash(PVFS_object_kref *ref)
 {
 	if (!ref)
 		return 0;
-	return pvfs2_handle_to_ino(ref->handle);
+	return pvfs2_khandle_to_ino(&(ref->khandle));
 }
 
 /*
@@ -296,7 +296,7 @@ static inline ino_t pvfs2_handle_hash(PVFS_object_ref *ref)
  */
 static int pvfs2_set_inode(struct inode *inode, void *data)
 {
-	PVFS_object_ref *ref = (PVFS_object_ref *) data;
+	PVFS_object_kref *ref = (PVFS_object_kref *) data;
 	pvfs2_inode_t *pvfs2_inode = NULL;
 
 	/* Make sure that we have sane parameters */
@@ -306,7 +306,7 @@ static int pvfs2_set_inode(struct inode *inode, void *data)
 	if (!pvfs2_inode)
 		return 0;
 	pvfs2_inode->refn.fs_id = ref->fs_id;
-	pvfs2_inode->refn.handle = ref->handle;
+	pvfs2_inode->refn.khandle = ref->khandle;
 	return 0;
 }
 
@@ -315,11 +315,11 @@ static int pvfs2_set_inode(struct inode *inode, void *data)
  */
 static int pvfs2_test_inode(struct inode *inode, void *data)
 {
-	PVFS_object_ref *ref = (PVFS_object_ref *) data;
+	PVFS_object_kref *ref = (PVFS_object_kref *) data;
 	pvfs2_inode_t *pvfs2_inode = NULL;
 
 	pvfs2_inode = PVFS2_I(inode);
-	return (pvfs2_inode->refn.handle == ref->handle
+	return (!PVFS_khandle_cmp(&(pvfs2_inode->refn.khandle), &(ref->khandle))
 		&& pvfs2_inode->refn.fs_id == ref->fs_id);
 }
 
@@ -330,7 +330,7 @@ static int pvfs2_test_inode(struct inode *inode, void *data)
  * @sb: the file system super block instance.
  * @ref: The PVFS2 object for which we are trying to locate an inode structure.
  */
-struct inode *pvfs2_iget(struct super_block *sb, PVFS_object_ref *ref)
+struct inode *pvfs2_iget(struct super_block *sb, PVFS_object_kref *ref)
 {
 	struct inode *inode = NULL;
 	unsigned long hash;
@@ -352,11 +352,12 @@ struct inode *pvfs2_iget(struct super_block *sb, PVFS_object_ref *ref)
 	unlock_new_inode(inode);
 
 	gossip_debug(GOSSIP_INODE_DEBUG,
-		     "iget handle %llu, fsid %d hash %ld i_ino %lu\n",
-		     ref->handle,
+		     "iget handle %pU, fsid %d hash %ld i_ino %lu\n",
+		     &ref->khandle,
 		     ref->fs_id,
 		     hash,
 		     inode->i_ino);
+
 	return inode;
 }
 
@@ -364,7 +365,7 @@ struct inode *pvfs2_iget(struct super_block *sb, PVFS_object_ref *ref)
  * Allocate an inode for a newly created file and insert it into the inode hash.
  */
 struct inode *pvfs2_new_inode(struct super_block *sb, struct inode *dir,
-		int mode, dev_t dev, PVFS_object_ref *ref)
+		int mode, dev_t dev, PVFS_object_kref *ref)
 {
 	unsigned long hash = pvfs2_handle_hash(ref);
 	struct inode *inode;
@@ -403,8 +404,8 @@ struct inode *pvfs2_new_inode(struct super_block *sb, struct inode *dir,
 		goto out_iput;
 
 	gossip_debug(GOSSIP_ACL_DEBUG,
-		     "Initializing ACL's for inode %llu\n",
-		     llu(get_handle_from_ino(inode)));
+		     "Initializing ACL's for inode %pU\n",
+		     get_khandle_from_ino(inode));
 	pvfs2_init_acl(inode, dir);
 	return inode;
 
