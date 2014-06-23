@@ -156,21 +156,13 @@ static int pvfs2_readdir(struct file *file, struct dir_context *ctx)
 		return -ENOMEM;
 
 	new_op->uses_shared_memory = 1;
-
-	if (pvfs2_inode && (pvfs2_inode->refn.handle != PVFS_HANDLE_NULL)
-	    && (pvfs2_inode->refn.fs_id != PVFS_FS_ID_NULL)) {
-		new_op->upcall.req.readdir.refn = pvfs2_inode->refn;
-		gossip_debug(GOSSIP_DIR_DEBUG,
-			     "%s: upcall.req.readdir.refn.handle:%llu\n",
-			     __func__,
-			     llu(new_op->upcall.req.readdir.refn.handle));
-	} else {
-		gossip_lerr("Critical error: i_ino cannot be relied on when using iget4/5\n");
-		op_release(new_op);
-		return -EINVAL;
-	}
-
+	new_op->upcall.req.readdir.refn = pvfs2_inode->refn;
 	new_op->upcall.req.readdir.max_dirent_count = MAX_DIRENT_COUNT_READDIR;
+
+	gossip_debug(GOSSIP_DIR_DEBUG,
+		     "%s: upcall.req.readdir.refn.handle:%llu\n",
+		     __func__,
+		     llu(new_op->upcall.req.readdir.refn.handle));
 
 	/*
 	 * NOTE: the position we send to the readdir upcall is out of
