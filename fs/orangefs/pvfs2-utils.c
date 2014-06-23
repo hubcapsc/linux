@@ -413,57 +413,44 @@ out:
  */
 int pvfs2_inode_setattr(struct inode *inode, struct iattr *iattr)
 {
-	int ret = -ENOMEM;
-	pvfs2_kernel_op_t *new_op = NULL;
-	pvfs2_inode_t *pvfs2_inode = NULL;
+	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
+	pvfs2_kernel_op_t *new_op;
+	int ret;
 
-	if (inode) {
-		pvfs2_inode = PVFS2_I(inode);
+	new_op = op_alloc(PVFS2_VFS_OP_SETATTR);
+	if (!new_op)
+		return -ENOMEM;
 
-		new_op = op_alloc(PVFS2_VFS_OP_SETATTR);
-		if (!new_op)
-			return ret;
-
-		new_op->upcall.req.setattr.refn = pvfs2_inode->refn;
-		if ((new_op->upcall.req.setattr.refn.handle == PVFS_HANDLE_NULL)
-		    && (new_op->upcall.req.setattr.refn.fs_id ==
-			PVFS_FS_ID_NULL)) {
-			struct super_block *sb = inode->i_sb;
-			new_op->upcall.req.setattr.refn.handle =
-			    PVFS2_SB(sb)->root_handle;
-			new_op->upcall.req.setattr.refn.fs_id =
-			    PVFS2_SB(sb)->fs_id;
-		}
-		ret = copy_attributes_from_inode(inode,
-			       &new_op->upcall.req.setattr.attributes,
-			       iattr);
-		if (ret < 0) {
-			op_release(new_op);
-			return ret;
-		}
-
-		ret = service_operation(new_op,
-					"pvfs2_inode_setattr",
-					get_interruptible_flag(inode));
-
-		gossip_debug(GOSSIP_UTILS_DEBUG,
-			     "pvfs2_inode_setattr: returning %d\n",
-			     ret);
-
-		/* when request is serviced properly, free req op struct */
+	new_op->upcall.req.setattr.refn = pvfs2_inode->refn;
+	ret = copy_attributes_from_inode(inode,
+		       &new_op->upcall.req.setattr.attributes,
+		       iattr);
+	if (ret < 0) {
 		op_release(new_op);
-
-		/*
-		 * successful setattr should clear the atime, mtime and
-		 * ctime flags.
-		 */
-		if (ret == 0) {
-			ClearAtimeFlag(pvfs2_inode);
-			ClearMtimeFlag(pvfs2_inode);
-			ClearCtimeFlag(pvfs2_inode);
-			ClearModeFlag(pvfs2_inode);
-		}
+		return ret;
 	}
+
+	ret = service_operation(new_op, __func__,
+				get_interruptible_flag(inode));
+
+	gossip_debug(GOSSIP_UTILS_DEBUG,
+		     "pvfs2_inode_setattr: returning %d\n",
+		     ret);
+
+	/* when request is serviced properly, free req op struct */
+	op_release(new_op);
+
+	/*
+	 * successful setattr should clear the atime, mtime and
+	 * ctime flags.
+	 */
+	if (ret == 0) {
+		ClearAtimeFlag(pvfs2_inode);
+		ClearMtimeFlag(pvfs2_inode);
+		ClearCtimeFlag(pvfs2_inode);
+		ClearModeFlag(pvfs2_inode);
+	}
+
 	return ret;
 }
 
