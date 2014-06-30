@@ -527,20 +527,9 @@ static struct xattr_handler pvfs2_xattr_default_handler = {
 	.set = pvfs2_xattr_set_default,
 };
 
-/*
- * NOTES from fs/xattr.c
- * In order to implement different sets of xattr operations for each xattr
- * prefix with the generic xattr API, a filesystem should create a
- * null-terminated array of struct xattr_handler (one for each prefix) and
- * hang a pointer to it off of the s_xattr field of the superblock.
- */
 const struct xattr_handler *pvfs2_xattr_handlers[] = {
-	/*
-	 * ACL xattrs have special prefixes that I am handling separately
-	 * so that we get control when the acl's are set or listed or queried!
-	 */
-	&pvfs2_xattr_acl_access_handler,
-	&pvfs2_xattr_acl_default_handler,
+	&posix_acl_access_xattr_handler,
+	&posix_acl_default_xattr_handler,
 	&pvfs2_xattr_trusted_handler,
 	&pvfs2_xattr_default_handler,
 	NULL

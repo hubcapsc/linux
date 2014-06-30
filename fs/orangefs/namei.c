@@ -455,6 +455,7 @@ static int pvfs2_rename(struct inode *old_dir,
 struct inode_operations pvfs2_dir_inode_operations = {
 	.lookup = pvfs2_lookup,
 	.get_acl = pvfs2_get_acl,
+	.set_acl = pvfs2_set_acl,
 	.create = pvfs2_create,
 	.link = pvfs2_link,
 	.unlink = pvfs2_unlink,

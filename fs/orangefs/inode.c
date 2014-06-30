@@ -195,7 +195,7 @@ int pvfs2_setattr(struct dentry *dentry, struct iattr *iattr)
 
 	if (!ret && (iattr->ia_valid & ATTR_MODE))
 		/* change mod on a file that has ACLs */
-		ret = pvfs2_acl_chmod(inode);
+		ret = posix_acl_chmod(inode, inode->i_mode);
 
 out:
 	gossip_debug(GOSSIP_INODE_DEBUG, "pvfs2_setattr: returning %d\n", ret);
@@ -243,6 +243,7 @@ int pvfs2_getattr(struct vfsmount *mnt,
 /* PVFS2 implementation of VFS inode operations for files */
 struct inode_operations pvfs2_file_inode_operations = {
 	.get_acl = pvfs2_get_acl,
+	.set_acl = pvfs2_set_acl,
 	.setattr = pvfs2_setattr,
 	.getattr = pvfs2_getattr,
 	.setxattr = generic_setxattr,
