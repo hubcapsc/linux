@@ -224,13 +224,11 @@ extern char client_debug_string[PVFS2_MAX_DEBUG_STRING_LEN];
 /*these variables are defined in pvfs2-mod.c*/
 extern unsigned int kernel_mask_set_mod_init;
 
-extern int pvfs2_acl_chmod(struct inode *inode);
 extern int pvfs2_init_acl(struct inode *inode, struct inode *dir);
 extern const struct xattr_handler *pvfs2_xattr_handlers[];
-extern struct xattr_handler pvfs2_xattr_acl_default_handler;
-extern struct xattr_handler pvfs2_xattr_acl_access_handler;
 
 extern struct posix_acl *pvfs2_get_acl(struct inode *inode, int type);
+extern int pvfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type);
 
 int pvfs2_xattr_set_default(struct dentry *dentry,
 			    const char *name,
