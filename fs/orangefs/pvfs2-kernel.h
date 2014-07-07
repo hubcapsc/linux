@@ -542,8 +542,6 @@ void dev_req_release(void *);
 
 int pvfs2_inode_cache_initialize(void);
 int pvfs2_inode_cache_finalize(void);
-pvfs2_inode_t *pvfs2_inode_alloc(void);
-void pvfs2_inode_release(pvfs2_inode_t *);
 
 int kiocb_cache_initialize(void);
 int kiocb_cache_finalize(void);
@@ -650,8 +648,6 @@ int pvfs2_inode_getattr(struct inode *inode, uint32_t mask);
 int pvfs2_inode_setattr(struct inode *inode, struct iattr *iattr);
 
 int pvfs2_truncate_inode(struct inode *inode, loff_t size);
-
-void pvfs2_inode_finalize(pvfs2_inode_t *pvfs2_inode);
 
 void pvfs2_op_initialize(pvfs2_kernel_op_t *op);
 
