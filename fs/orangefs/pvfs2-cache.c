@@ -7,11 +7,6 @@
 #include "hubcap.h"
 #include "pvfs2-kernel.h"
 
-/* A list of all allocated pvfs2 inode objects */
-static DEFINE_SPINLOCK(pvfs2_inode_list_lock);
-
-static LIST_HEAD(pvfs2_inode_list);
-
 /* tags assigned to kernel upcall operations */
 static uint64_t next_tag_value;
 static DEFINE_SPINLOCK(next_tag_value_lock);
@@ -253,22 +248,6 @@ static void pvfs2_inode_cache_ctor(void *req)
 	init_rwsem(&pvfs2_inode->xattr_sem);
 }
 
-static inline void add_to_pinode_list(pvfs2_inode_t *pvfs2_inode)
-{
-	spin_lock(&pvfs2_inode_list_lock);
-	list_add_tail(&pvfs2_inode->list, &pvfs2_inode_list);
-	spin_unlock(&pvfs2_inode_list_lock);
-	return;
-}
-
-static inline void del_from_pinode_list(pvfs2_inode_t *pvfs2_inode)
-{
-	spin_lock(&pvfs2_inode_list_lock);
-	list_del_init(&pvfs2_inode->list);
-	spin_unlock(&pvfs2_inode_list_lock);
-	return;
-}
-
 int pvfs2_inode_cache_initialize(void)
 {
 	pvfs2_inode_cache = kmem_cache_create("pvfs2_inode_cache",
@@ -286,17 +265,6 @@ int pvfs2_inode_cache_initialize(void)
 
 int pvfs2_inode_cache_finalize(void)
 {
-	if (!list_empty(&pvfs2_inode_list)) {
-		gossip_err("pvfs2_inode_cache_finalize: WARNING: releasing unreleased pvfs2 inode objects!\n");
-		while (pvfs2_inode_list.next != &pvfs2_inode_list) {
-			pvfs2_inode_t *pinode =
-			    list_entry(pvfs2_inode_list.next,
-				       pvfs2_inode_t,
-				       list);
-			list_del(pvfs2_inode_list.next);
-			kmem_cache_free(pvfs2_inode_cache, pinode);
-		}
-	}
 	if (pvfs_kmem_cache_destroy(pvfs2_inode_cache) != 0) {
 		gossip_err("Failed to destroy pvfs2_inode_cache\n");
 		return -EINVAL;
@@ -332,15 +300,12 @@ pvfs2_inode_t *pvfs2_inode_alloc(void)
 	pvfs2_inode->revalidate_failed = 0;
 	pvfs2_inode->pinode_flags = 0;
 
-	add_to_pinode_list(pvfs2_inode);
-
 	return pvfs2_inode;
 }
 
 void pvfs2_inode_release(pvfs2_inode_t *pinode)
 {
 	if (pinode) {
-		del_from_pinode_list(pinode);
 		kmem_cache_free(pvfs2_inode_cache, pinode);
 	} else {
 		gossip_err("NULL pointer in pvfs2_inode_release\n");
