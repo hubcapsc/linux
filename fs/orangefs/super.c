@@ -127,7 +127,6 @@ static struct inode *pvfs2_alloc_inode(struct super_block *sb)
 		gossip_debug(GOSSIP_SUPER_DEBUG,
 			     "pvfs2_alloc_inode: allocated %p\n",
 			     pvfs2_inode);
-		atomic_inc(&(PVFS2_SB(sb)->pvfs2_inode_alloc_count));
 	}
 	return new_inode;
 }
@@ -143,7 +142,6 @@ static void pvfs2_destroy_inode(struct inode *inode)
 			     pvfs2_inode,
 			     get_khandle_from_ino(inode));
 
-		atomic_inc(&(PVFS2_SB(inode->i_sb)->pvfs2_inode_dealloc_count));
 		pvfs2_inode_finalize(pvfs2_inode);
 		pvfs2_inode_release(pvfs2_inode);
 	}
@@ -685,8 +683,6 @@ static void pvfs2_flush_sb(struct super_block *sb)
 
 void pvfs2_kill_sb(struct super_block *sb)
 {
-	int count1, count2;
-
 	gossip_debug(GOSSIP_SUPER_DEBUG, "pvfs2_kill_sb: called\n");
 
 	if (sb && !IS_ERR(sb)) {
@@ -712,21 +708,6 @@ void pvfs2_kill_sb(struct super_block *sb)
 		/* release the allocated root dentry */
 		if (sb->s_root)
 			dput(sb->s_root);
-
-		count1 =
-			atomic_read(&(PVFS2_SB(sb)->pvfs2_inode_alloc_count));
-		count2 =
-			atomic_read(&(PVFS2_SB(sb)->pvfs2_inode_dealloc_count));
-
-		if (count1 != count2)
-		  gossip_err("pvfs2_kill_sb: (WARNING) number of inode allocs (%d) != number of inode deallocs (%d)\n",
-			     count1,
-			     count2);
-		else
-		  gossip_debug(GOSSIP_SUPER_DEBUG,
-			       "pvfs2_kill_sb: (OK) number of inode allocs (%d) = number of inode deallocs (%d)\n",
-			       count1,
-			       count2);
 
 		/* free the pvfs2 superblock private data */
 		kfree(PVFS2_SB(sb));
