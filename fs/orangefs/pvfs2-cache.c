@@ -19,9 +19,6 @@ static struct kmem_cache *op_cache;
 /* a cache for device (/dev/pvfs2-req) communication */
 static struct kmem_cache *dev_req_cache;
 
-/* a cache for pvfs2-inode objects (i.e. pvfs2 inode private data) */
-static struct kmem_cache *pvfs2_inode_cache;
-
 /* a cache for pvfs2_kiocb objects (i.e pvfs2 iocb structures ) */
 static struct kmem_cache *pvfs2_kiocb_cache;
 
@@ -229,87 +226,6 @@ void dev_req_release(void *buffer)
 	else
 		gossip_err("NULL pointer passed to dev_req_release\n");
 	return;
-}
-
-static void pvfs2_inode_cache_ctor(void *req)
-{
-	pvfs2_inode_t *pvfs2_inode = req;
-
-	/*
-	 * inode_init_once is from 2.6.x's inode.c; it's normally run
-	 * when an inode is allocated by the system's inode slab
-	 * allocator.  we call it here since we're overloading the
-	 * system's inode allocation with this routine, thus we have
-	 * to init vfs inodes manually
-	 */
-	inode_init_once(&pvfs2_inode->vfs_inode);
-	pvfs2_inode->vfs_inode.i_version = 1;
-	/* Initialize the reader/writer semaphore */
-	init_rwsem(&pvfs2_inode->xattr_sem);
-}
-
-int pvfs2_inode_cache_initialize(void)
-{
-	pvfs2_inode_cache = kmem_cache_create("pvfs2_inode_cache",
-					      sizeof(pvfs2_inode_t),
-					      0,
-					      PVFS2_CACHE_CREATE_FLAGS,
-					      pvfs2_inode_cache_ctor);
-
-	if (!pvfs2_inode_cache) {
-		gossip_err("Cannot create pvfs2_inode_cache\n");
-		return -ENOMEM;
-	}
-	return 0;
-}
-
-int pvfs2_inode_cache_finalize(void)
-{
-	if (pvfs_kmem_cache_destroy(pvfs2_inode_cache) != 0) {
-		gossip_err("Failed to destroy pvfs2_inode_cache\n");
-		return -EINVAL;
-	}
-	return 0;
-}
-
-pvfs2_inode_t *pvfs2_inode_alloc(void)
-{
-	pvfs2_inode_t *pvfs2_inode = NULL;
-	/*
-	 * this allocator has an associated constructor that fills in the
-	 * internal vfs inode structure.  this initialization is extremely
-	 * important and is required since we're allocating the inodes
-	 * ourselves (rather than letting the system inode allocator
-	 * initialize them for us); see inode.c/inode_init_once()
-	 */
-	pvfs2_inode = kmem_cache_alloc(pvfs2_inode_cache,
-				       PVFS2_CACHE_ALLOC_FLAGS);
-	if (pvfs2_inode == NULL) {
-		gossip_err("Failed to allocate pvfs2_inode\n");
-		return NULL;
-	}
-
-	/*
-	 * We want to clear everything except for rw_semaphore and the
-	 * vfs_inode.
-	 */
-	memset(&pvfs2_inode->refn.khandle, 0, 16);
-	pvfs2_inode->refn.fs_id = PVFS_FS_ID_NULL;
-	pvfs2_inode->last_failed_block_index_read = 0;
-	memset(pvfs2_inode->link_target, 0, sizeof(pvfs2_inode->link_target));
-	pvfs2_inode->revalidate_failed = 0;
-	pvfs2_inode->pinode_flags = 0;
-
-	return pvfs2_inode;
-}
-
-void pvfs2_inode_release(pvfs2_inode_t *pinode)
-{
-	if (pinode) {
-		kmem_cache_free(pvfs2_inode_cache, pinode);
-	} else {
-		gossip_err("NULL pointer in pvfs2_inode_release\n");
-	}
 }
 
 int kiocb_cache_initialize(void)

@@ -635,16 +635,6 @@ int pvfs2_cancel_op_in_progress(uint64_t tag)
 	return ret;
 }
 
-/*
- * this is called from super:pvfs2_destroy_inode.
- */
-void pvfs2_inode_finalize(pvfs2_inode_t *pvfs2_inode)
-{
-	memset(&pvfs2_inode->refn.khandle, 0, 16);
-	pvfs2_inode->refn.fs_id = PVFS_FS_ID_NULL;
-	pvfs2_inode->last_failed_block_index_read = 0;
-}
-
 void pvfs2_op_initialize(pvfs2_kernel_op_t *op)
 {
 	if (op) {
