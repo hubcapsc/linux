@@ -22,12 +22,6 @@ static struct kmem_cache *dev_req_cache;
 /* a cache for pvfs2_kiocb objects (i.e pvfs2 iocb structures ) */
 static struct kmem_cache *pvfs2_kiocb_cache;
 
-static int pvfs_kmem_cache_destroy(void *x)
-{
-	kmem_cache_destroy(x);
-	return 0;
-}
-
 int op_cache_initialize(void)
 {
 	op_cache = kmem_cache_create("pvfs2_op_cache",
@@ -50,10 +44,7 @@ int op_cache_initialize(void)
 
 int op_cache_finalize(void)
 {
-	if (pvfs_kmem_cache_destroy(op_cache) != 0) {
-		gossip_err("Failed to destroy pvfs2_op_cache\n");
-		return -EINVAL;
-	}
+	kmem_cache_destroy(op_cache);
 	return 0;
 }
 
@@ -200,10 +191,7 @@ int dev_req_cache_initialize(void)
 
 int dev_req_cache_finalize(void)
 {
-	if (pvfs_kmem_cache_destroy(dev_req_cache) != 0) {
-		gossip_err("Failed to destroy pvfs2_devreqcache\n");
-		return -EINVAL;
-	}
+	kmem_cache_destroy(dev_req_cache);
 	return 0;
 }
 
@@ -245,10 +233,7 @@ int kiocb_cache_initialize(void)
 
 int kiocb_cache_finalize(void)
 {
-	if (pvfs_kmem_cache_destroy(pvfs2_kiocb_cache) != 0) {
-		gossip_err("Failed to destroy pvfs2_devreqcache\n");
-		return -EINVAL;
-	}
+	kmem_cache_destroy(pvfs2_kiocb_cache);
 	return 0;
 }
 
