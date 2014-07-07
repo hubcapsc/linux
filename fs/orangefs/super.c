@@ -8,6 +8,9 @@
 #include "pvfs2-kernel.h"
 #include "pvfs2-bufmap.h"
 
+/* a cache for pvfs2-inode objects (i.e. pvfs2 inode private data) */
+static struct kmem_cache *pvfs2_inode_cache;
+
 /* list for storing pvfs2 specific superblocks in use */
 LIST_HEAD(pvfs2_superblocks);
 
@@ -116,35 +119,53 @@ exit:
 	return 0;
 }
 
+static void pvfs2_inode_cache_ctor(void *req)
+{
+	pvfs2_inode_t *pvfs2_inode = req;
+
+	inode_init_once(&pvfs2_inode->vfs_inode);
+	init_rwsem(&pvfs2_inode->xattr_sem);
+
+	pvfs2_inode->vfs_inode.i_version = 1;
+}
+
 static struct inode *pvfs2_alloc_inode(struct super_block *sb)
 {
-	struct inode *new_inode = NULL;
-	pvfs2_inode_t *pvfs2_inode = NULL;
+	pvfs2_inode_t *pvfs2_inode;
 
-	pvfs2_inode = pvfs2_inode_alloc();
-	if (pvfs2_inode) {
-		new_inode = &pvfs2_inode->vfs_inode;
-		gossip_debug(GOSSIP_SUPER_DEBUG,
-			     "pvfs2_alloc_inode: allocated %p\n",
-			     pvfs2_inode);
+	pvfs2_inode = kmem_cache_alloc(pvfs2_inode_cache,
+				       PVFS2_CACHE_ALLOC_FLAGS);
+	if (pvfs2_inode == NULL) {
+		gossip_err("Failed to allocate pvfs2_inode\n");
+		return NULL;
 	}
-	return new_inode;
+
+	/*
+	 * We want to clear everything except for rw_semaphore and the
+	 * vfs_inode.
+	 */
+	memset(&pvfs2_inode->refn.khandle, 0, 16);
+	pvfs2_inode->refn.fs_id = PVFS_FS_ID_NULL;
+	pvfs2_inode->last_failed_block_index_read = 0;
+	memset(pvfs2_inode->link_target, 0, sizeof(pvfs2_inode->link_target));
+	pvfs2_inode->revalidate_failed = 0;
+	pvfs2_inode->pinode_flags = 0;
+
+	gossip_debug(GOSSIP_SUPER_DEBUG,
+		     "pvfs2_alloc_inode: allocated %p\n",
+		     &pvfs2_inode->vfs_inode);
+	return &pvfs2_inode->vfs_inode;
 }
 
 static void pvfs2_destroy_inode(struct inode *inode)
 {
 	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
 
-	if (pvfs2_inode) {
-		gossip_debug(GOSSIP_SUPER_DEBUG,
-			     "pvfs2_destroy_inode: deallocated %p"
-			     " destroying inode %pU\n",
-			     pvfs2_inode,
-			     get_khandle_from_ino(inode));
+	gossip_debug(GOSSIP_SUPER_DEBUG,
+			"%s: deallocated %p destroying inode %pU\n",
+			__func__, pvfs2_inode, get_khandle_from_ino(inode));
 
-		pvfs2_inode_finalize(pvfs2_inode);
-		pvfs2_inode_release(pvfs2_inode);
-	}
+	kmem_cache_free(pvfs2_inode_cache, pvfs2_inode);
 }
 
 /*
@@ -716,4 +737,25 @@ void pvfs2_kill_sb(struct super_block *sb)
 			     "pvfs2_kill_sb: skipping due to invalid sb\n");
 	}
 	gossip_debug(GOSSIP_SUPER_DEBUG, "pvfs2_kill_sb: returning normally\n");
+}
+
+int pvfs2_inode_cache_initialize(void)
+{
+	pvfs2_inode_cache = kmem_cache_create("pvfs2_inode_cache",
+					      sizeof(pvfs2_inode_t),
+					      0,
+					      PVFS2_CACHE_CREATE_FLAGS,
+					      pvfs2_inode_cache_ctor);
+
+	if (!pvfs2_inode_cache) {
+		gossip_err("Cannot create pvfs2_inode_cache\n");
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+int pvfs2_inode_cache_finalize(void)
+{
+	kmem_cache_destroy(pvfs2_inode_cache);
+	return 0;
 }
