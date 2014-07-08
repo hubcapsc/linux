@@ -710,15 +710,8 @@ void pvfs2_kill_sb(struct super_block *sb)
 	/* remove the sb from our list of pvfs2 specific sb's */
 	remove_pvfs2_sb(sb);
 
-	/* prune dcache based on sb */
-	shrink_dcache_sb(sb);
-
 	/* provided sb cleanup */
-	kill_litter_super(sb);
-
-	/* release the allocated root dentry */
-	if (sb->s_root)
-		dput(sb->s_root);
+	kill_anon_super(sb);
 
 	/* free the pvfs2 superblock private data */
 	kfree(PVFS2_SB(sb));
