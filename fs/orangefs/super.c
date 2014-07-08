@@ -7,6 +7,7 @@
 #include "hubcap.h"
 #include "pvfs2-kernel.h"
 #include "pvfs2-bufmap.h"
+#include <linux/parser.h>
 
 /* a cache for pvfs2-inode objects (i.e. pvfs2 inode private data) */
 static struct kmem_cache *pvfs2_inode_cache;
@@ -16,107 +17,54 @@ LIST_HEAD(pvfs2_superblocks);
 
 DEFINE_SPINLOCK(pvfs2_superblocks_lock);
 
-static char *keywords[] = { "intr", "acl", };
+enum {
+	Opt_intr,
+	Opt_acl,
 
-static int num_possible_keywords = sizeof(keywords) / sizeof(char *);
+	Opt_err
+};
 
-static int parse_mount_options(char *option_str,
-			       struct super_block *sb,
-			       int silent)
+static const match_table_t tokens = {
+	{ Opt_acl,	"acl" },
+	{ Opt_intr,	"intr" },
+	{ Opt_err,	NULL }
+};
+
+
+static int parse_mount_options(struct super_block *sb, char *options,
+		int silent)
 {
-	char *ptr = option_str;
-	pvfs2_sb_info_t *pvfs2_sb = NULL;
-	int i = 0;
-	int j = 0;
-	int num_keywords = 0;
-	int got_device = 0;
+	pvfs2_sb_info_t *pvfs2_sb = PVFS2_SB(sb);
+	substring_t args[MAX_OPT_ARGS];
+	char *p;
 
-	static char options[PVFS2_MAX_NUM_OPTIONS][PVFS2_MAX_MOUNT_OPT_LEN];
+	sb->s_flags &= ~MS_POSIXACL;
+	pvfs2_sb->flags &= ~PVFS2_OPT_INTR;
 
-	if (!silent) {
-		if (option_str)
-			gossip_debug(GOSSIP_SUPER_DEBUG,
-				     "pvfs2: parse_mount_options called with:  %s\n",
-				     option_str);
-		else
-			/* We need a non-NULL option string */
-			goto exit;
-	}
+	while ((p = strsep(&options, ",")) != NULL) {
+		int token;
 
+		if (!*p)
+			continue;
 
-	if (sb && PVFS2_SB(sb)) {
-		memset(options,
-		       0,
-		       (PVFS2_MAX_NUM_OPTIONS * PVFS2_MAX_MOUNT_OPT_LEN));
-
-		pvfs2_sb = PVFS2_SB(sb);
-		memset(&pvfs2_sb->mnt_options,
-		       0,
-		       sizeof(struct pvfs2_mount_options_t));
-
-		while (ptr && (*ptr != '\0')) {
-			options[num_keywords][j++] = *ptr;
-
-			if (j == PVFS2_MAX_MOUNT_OPT_LEN) {
-				gossip_err("Cannot parse mount time options (length exceeded)\n");
-				got_device = 0;
-				goto exit;
-			}
-
-			if (*ptr == ',') {
-				options[num_keywords++][j - 1] = '\0';
-				if (num_keywords == PVFS2_MAX_NUM_OPTIONS) {
-					gossip_err("Cannot parse mount time options (option number exceeded)\n");
-					got_device = 0;
-					goto exit;
-				}
-				j = 0;
-			}
-			ptr++;
-		}
-		num_keywords++;
-
-		for (i = 0; i < num_keywords; i++) {
-		  for (j = 0; j < num_possible_keywords; j++) {
-		    if (strcmp(options[i], keywords[j]) == 0) {
-		      if (strncmp(options[i], "intr", 4) == 0) {
-			if (!silent) {
-			  gossip_debug(GOSSIP_SUPER_DEBUG,
-			    "pvfs2: mount option intr specified\n");
-			}
-			pvfs2_sb->mnt_options.intr = 1;
+		token = match_token(p, tokens, args);
+		switch (token) {
+		case Opt_acl:
+			sb->s_flags |= MS_POSIXACL;
 			break;
-		      } else if (strncmp(options[i], "acl", 3) == 0) {
-			if (!silent) {
-			  gossip_debug(GOSSIP_SUPER_DEBUG,
-			    "pvfs2: mount option acl specified\n");
-			}
-			pvfs2_sb->mnt_options.acl = 1;
+		case Opt_intr:
+			pvfs2_sb->flags |= PVFS2_OPT_INTR;
 			break;
-		      }
-		    }
-		  }
-
-		  /* option string did not match any of the known keywords */
-		  if (j == num_possible_keywords) {
-			/* filter out NULL option strings (older 2.6 kernels
-			 * may leave these after parsing out standard options
-			 * like noatime)
-			 */
-			if (options[i][0] != '\0') {
-				/* in the 2.6 kernel, we don't pass device name
-				 * through this path; we must have gotten an
-				 * unsupported option.
-				 */
-				gossip_err("Error: mount option [%s] is not supported.\n",
-					   options[i]);
-				return -EINVAL;
-			}
-		  }
+		default:
+			goto fail;
 		}
 	}
-exit:
+
 	return 0;
+fail:
+	if (!silent)
+		gossip_err("Error: mount option [%s] is not supported.\n", p);
+	return -EINVAL;
 }
 
 static void pvfs2_inode_cache_ctor(void *req)
@@ -191,7 +139,7 @@ static int pvfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 		return ret;
 	new_op->upcall.req.statfs.fs_id = PVFS2_SB(sb)->fs_id;
 
-	if (PVFS2_SB(sb)->mnt_options.intr)
+	if (PVFS2_SB(sb)->flags & PVFS2_OPT_INTR)
 		flags = PVFS2_OP_INTERRUPTIBLE;
 
 	ret = service_operation(new_op, "pvfs2_statfs", flags);
@@ -284,35 +232,13 @@ static int pvfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 }
 
 /*
- * pvfs2_remount_fs()
- *
- * remount as initiated by VFS layer.  We just need to reparse the mount
+ * Remount as initiated by VFS layer.  We just need to reparse the mount
  * options, no need to signal pvfs2-client-core about it.
  */
 static int pvfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 {
-	int ret = -EINVAL;
-
 	gossip_debug(GOSSIP_SUPER_DEBUG, "pvfs2_remount_fs: called\n");
-
-	if (sb && PVFS2_SB(sb)) {
-		if (data && data[0] != '\0') {
-			ret = parse_mount_options(data, sb, 1);
-			if (ret)
-				return ret;
-
-			/*
-			 * mark the superblock as whether it supports acl's
-			 * or not
-			 */
-			sb->s_flags =
-				((sb->s_flags & ~MS_POSIXACL) |
-				 ((PVFS2_SB(sb)->mnt_options.acl == 1) ?
-					 MS_POSIXACL :
-					 0));
-		}
-	}
-	return 0;
+	return parse_mount_options(sb, data, 1);
 }
 
 /*
@@ -495,20 +421,10 @@ int pvfs2_fill_sb(struct super_block *sb, void *data, int silent)
 	PVFS2_SB(sb)->id = mount_sb_info->id;
 
 	if (mount_sb_info->data) {
-		ret = parse_mount_options((char *)mount_sb_info->data,
-					  sb,
+		ret = parse_mount_options(sb, mount_sb_info->data,
 					  silent);
 		if (ret)
 			return ret;
-
-		/* mark the superblock as whether it supports acl's or not */
-		sb->s_flags =
-			((sb->s_flags & ~MS_POSIXACL) |
-			 ((PVFS2_SB(sb)->mnt_options.acl == 1) ?
-				MS_POSIXACL :
-				0));
-	} else {
-		sb->s_flags &= ~MS_POSIXACL;
 	}
 
 	/* Hang the xattr handlers off the superblock */
