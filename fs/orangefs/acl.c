@@ -16,11 +16,6 @@ struct posix_acl *pvfs2_get_acl(struct inode *inode, int type)
 	int ret;
 	char *key = NULL, *value = NULL;
 
-	/* Won't work if you don't mount with the right set of options */
-	if (get_acl_flag(inode) == 0) {
-		gossip_debug(GOSSIP_ACL_DEBUG, "pvfs2_get_acl: ACL options disabled on this FS!\n");
-		return ERR_PTR(-EOPNOTSUPP);
-	}
 	switch (type) {
 	case ACL_TYPE_ACCESS:
 		key = PVFS2_XATTR_NAME_ACL_ACCESS;
@@ -77,12 +72,6 @@ int pvfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	void *value = NULL;
 	size_t size = 0;
 	const char *name = NULL;
-
-	if (get_acl_flag(inode) == 0) {
-		gossip_debug(GOSSIP_ACL_DEBUG,
-			"%s: ACL options disabled on this FS!\n", __func__);
-		return -EOPNOTSUPP;
-	}
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:
