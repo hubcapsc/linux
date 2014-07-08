@@ -697,46 +697,31 @@ free_op:
 	return mnt_sb_d;
 }
 
-static void pvfs2_flush_sb(struct super_block *sb)
-{
-	return;
-}
-
 void pvfs2_kill_sb(struct super_block *sb)
 {
 	gossip_debug(GOSSIP_SUPER_DEBUG, "pvfs2_kill_sb: called\n");
 
-	if (sb && !IS_ERR(sb)) {
-		/*
-		 * Flush any dirty inodes atimes, mtimes to server
-		 */
-		pvfs2_flush_sb(sb);
-		/*
-		 * issue the unmount to userspace to tell it to remove the
-		 * dynamic mount info it has for this superblock
-		 */
-		pvfs2_unmount_sb(sb);
+	/*
+	 * issue the unmount to userspace to tell it to remove the
+	 * dynamic mount info it has for this superblock
+	 */
+	pvfs2_unmount_sb(sb);
 
-		/* remove the sb from our list of pvfs2 specific sb's */
-		remove_pvfs2_sb(sb);
+	/* remove the sb from our list of pvfs2 specific sb's */
+	remove_pvfs2_sb(sb);
 
-		/* prune dcache based on sb */
-		shrink_dcache_sb(sb);
+	/* prune dcache based on sb */
+	shrink_dcache_sb(sb);
 
-		/* provided sb cleanup */
-		kill_litter_super(sb);
+	/* provided sb cleanup */
+	kill_litter_super(sb);
 
-		/* release the allocated root dentry */
-		if (sb->s_root)
-			dput(sb->s_root);
+	/* release the allocated root dentry */
+	if (sb->s_root)
+		dput(sb->s_root);
 
-		/* free the pvfs2 superblock private data */
-		kfree(PVFS2_SB(sb));
-	} else {
-		gossip_debug(GOSSIP_SUPER_DEBUG,
-			     "pvfs2_kill_sb: skipping due to invalid sb\n");
-	}
-	gossip_debug(GOSSIP_SUPER_DEBUG, "pvfs2_kill_sb: returning normally\n");
+	/* free the pvfs2 superblock private data */
+	kfree(PVFS2_SB(sb));
 }
 
 int pvfs2_inode_cache_initialize(void)
