@@ -789,9 +789,6 @@ do {								\
 #define get_interruptible_flag(inode) \
 	((PVFS2_SB(inode->i_sb)->mnt_options.intr ? PVFS2_OP_INTERRUPTIBLE : 0))
 
-#define get_acl_flag(inode) \
-	(PVFS2_SB(inode->i_sb)->mnt_options.acl)
-
 #define add_pvfs2_sb(sb)						\
 do {									\
 	gossip_debug(GOSSIP_SUPER_DEBUG,				\
