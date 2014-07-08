@@ -347,30 +347,13 @@ typedef struct {
 #define SetModeFlag(pinode)   set_bit(P_MODE_FLAG, &(pinode)->pinode_flags)
 #define ModeFlag(pinode)      test_bit(P_MODE_FLAG, &(pinode)->pinode_flags)
 
-/*
- * mount options. only accepted mount options are listed.
- */
-struct pvfs2_mount_options_t {
-	/*
-	 * intr option (if set) is inspired by the nfs intr option that
-	 * interrupts the operation in progress if a signal is received,
-	 * and ignores the signal otherwise (if not set).
-	 */
-	int intr;
-
-	/*
-	 * acl option (if set) is inspired by the ext2 acl option that
-	 * requires the file system to honor acl's
-	 */
-	int acl;
-};
-
 /* per superblock private pvfs2 info */
 typedef struct {
 	PVFS_khandle root_khandle;
 	PVFS_fs_id fs_id;
 	int id;
-	struct pvfs2_mount_options_t mnt_options;
+	int flags;
+#define PVFS2_OPT_INTR	0x01
 	char devname[PVFS_MAX_SERVER_ADDR_LEN];
 	struct super_block *sb;
 	int mount_pending;
@@ -786,7 +769,8 @@ do {								\
 } while (0)
 
 #define get_interruptible_flag(inode) \
-	((PVFS2_SB(inode->i_sb)->mnt_options.intr ? PVFS2_OP_INTERRUPTIBLE : 0))
+	((PVFS2_SB(inode->i_sb)->flags & PVFS2_OPT_INTR) ? \
+		PVFS2_OP_INTERRUPTIBLE : 0)
 
 #define add_pvfs2_sb(sb)						\
 do {									\
