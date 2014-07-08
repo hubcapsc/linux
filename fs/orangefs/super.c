@@ -419,85 +419,77 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
 		     "pvfs2_mount: called with devname %s\n",
 		     devname);
 
-	if (devname) {
-		new_op = op_alloc(PVFS2_VFS_OP_FS_MOUNT);
-		if (!new_op) {
-			ret = -ENOMEM;
-			return ERR_PTR(ret);
-		}
-		strncpy(new_op->upcall.req.fs_mount.pvfs2_config_server,
-			devname,
-			PVFS_MAX_SERVER_ADDR_LEN);
-
-		gossip_debug(GOSSIP_SUPER_DEBUG,
-			     "Attempting PVFS2 Mount via host %s\n",
-			     new_op->upcall.req.fs_mount.pvfs2_config_server);
-
-		ret = service_operation(new_op, "pvfs2_mount", 0);
-
-		gossip_debug(GOSSIP_SUPER_DEBUG,
-			     "pvfs2_mount: mount got return value of %d\n",
-			     ret);
-		if (ret)
-			goto free_op;
-
-		if (new_op->downcall.resp.fs_mount.fs_id == PVFS_FS_ID_NULL) {
-			gossip_err
-			    ("ERROR: Retrieved null fs_id\n");
-			ret = -EINVAL;
-			goto free_op;
-		}
-
-		/* fill in temporary structure passed to fill_sb method */
-		mount_sb_info.data = data;
-		mount_sb_info.root_khandle =
-		    new_op->downcall.resp.fs_mount.root_khandle;
-		mount_sb_info.fs_id = new_op->downcall.resp.fs_mount.fs_id;
-		mount_sb_info.id = new_op->downcall.resp.fs_mount.id;
-
-		/*
-		 * the mount_sb_info structure looks odd, but it's used because
-		 * the private sb info isn't allocated until we call
-		 * pvfs2_fill_sb, yet we have the info we need to fill it with
-		 * here.  so we store it temporarily and pass all of the info
-		 * to fill_sb where it's properly copied out
-		 */
-		mnt_sb_d = mount_nodev(fst,
-				       flags,
-				       (void *)&mount_sb_info,
-				       pvfs2_fill_sb);
-		if (!IS_ERR(mnt_sb_d)) {
-			sb = mnt_sb_d->d_sb;
-		} else {
-			sb = ERR_CAST(mnt_sb_d);
-			goto free_op;
-		}
-
-		if (sb && !IS_ERR(sb) && (PVFS2_SB(sb))) {
-			/*
-			 * on successful mount, store the devname and data
-			 * used
-			 */
-			strncpy(PVFS2_SB(sb)->devname,
-				devname,
-				PVFS_MAX_SERVER_ADDR_LEN);
-
-			/* mount_pending must be cleared */
-			PVFS2_SB(sb)->mount_pending = 0;
-			/*
-			 * finally, add this sb to our list of known pvfs2
-			 * sb's
-			 */
-			add_pvfs2_sb(sb);
-		} else {
-			ret = -EINVAL;
-			gossip_err("got Invalid superblock from mount_nodev (%p)\n",
-				   sb);
-		}
-		op_release(new_op);
-	} else {
+	if (!devname) {
 		gossip_err("ERROR: device name not specified.\n");
+		return ERR_PTR(-EINVAL);
 	}
+	
+	new_op = op_alloc(PVFS2_VFS_OP_FS_MOUNT);
+	if (!new_op)
+		return ERR_PTR(-ENOMEM);
+
+	strncpy(new_op->upcall.req.fs_mount.pvfs2_config_server,
+		devname,
+		PVFS_MAX_SERVER_ADDR_LEN);
+
+	gossip_debug(GOSSIP_SUPER_DEBUG,
+		     "Attempting PVFS2 Mount via host %s\n",
+		     new_op->upcall.req.fs_mount.pvfs2_config_server);
+
+	ret = service_operation(new_op, "pvfs2_mount", 0);
+	gossip_debug(GOSSIP_SUPER_DEBUG,
+		     "pvfs2_mount: mount got return value of %d\n", ret);
+	if (ret)
+		goto free_op;
+
+	if (new_op->downcall.resp.fs_mount.fs_id == PVFS_FS_ID_NULL) {
+		gossip_err("ERROR: Retrieved null fs_id\n");
+		ret = -EINVAL;
+		goto free_op;
+	}
+
+	/* fill in temporary structure passed to fill_sb method */
+	mount_sb_info.data = data;
+	mount_sb_info.root_khandle =
+		new_op->downcall.resp.fs_mount.root_khandle;
+	mount_sb_info.fs_id = new_op->downcall.resp.fs_mount.fs_id;
+	mount_sb_info.id = new_op->downcall.resp.fs_mount.id;
+
+	/*
+	 * the mount_sb_info structure looks odd, but it's used because
+	 * the private sb info isn't allocated until we call
+	 * pvfs2_fill_sb, yet we have the info we need to fill it with
+	 * here.  so we store it temporarily and pass all of the info
+	 * to fill_sb where it's properly copied out
+	 */
+	mnt_sb_d = mount_nodev(fst,
+			       flags,
+			       (void *)&mount_sb_info,
+			       pvfs2_fill_sb);
+	if (IS_ERR(mnt_sb_d)) {
+		sb = ERR_CAST(mnt_sb_d);
+		goto free_op;
+	}
+
+	sb = mnt_sb_d->d_sb;
+
+	/*
+	 * on successful mount, store the devname and data
+	 * used
+	 */
+	strncpy(PVFS2_SB(sb)->devname,
+		devname,
+		PVFS_MAX_SERVER_ADDR_LEN);
+
+	/* mount_pending must be cleared */
+	PVFS2_SB(sb)->mount_pending = 0;
+
+	/*
+	 * finally, add this sb to our list of known pvfs2
+	 * sb's
+	 */
+	add_pvfs2_sb(sb);
+	op_release(new_op);
 	return mnt_sb_d;
 
 free_op:
@@ -507,8 +499,7 @@ free_op:
 		gossip_err("Look at pvfs2-client-core log file (typically /tmp/pvfs2-client.log) for more details\n");
 	}
 
-	if (new_op)
-		op_release(new_op);
+	op_release(new_op);
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
 		     "pvfs2_mount: returning dentry %p\n",
