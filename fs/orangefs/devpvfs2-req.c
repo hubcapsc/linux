@@ -749,8 +749,7 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 					     "Remounting SB %p\n",
 					     pvfs2_sb);
 
-				ret = pvfs2_remount(pvfs2_sb->sb, NULL,
-						    pvfs2_sb->data);
+				ret = pvfs2_remount(pvfs2_sb->sb);
 				if (ret) {
 					gossip_debug(GOSSIP_DEV_DEBUG,
 						     "SB %p remount failed\n",
