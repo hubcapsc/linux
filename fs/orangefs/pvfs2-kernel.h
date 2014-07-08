@@ -371,7 +371,6 @@ typedef struct {
 	PVFS_fs_id fs_id;
 	int id;
 	struct pvfs2_mount_options_t mnt_options;
-	char data[PVFS2_MAX_MOUNT_OPT_LEN];
 	char devname[PVFS_MAX_SERVER_ADDR_LEN];
 	struct super_block *sb;
 	int mount_pending;
@@ -570,7 +569,7 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
 			   void *data);
 
 void pvfs2_kill_sb(struct super_block *sb);
-int pvfs2_remount(struct super_block *sb, int *flags, char *data);
+int pvfs2_remount(struct super_block *sb);
 
 int fsid_key_table_initialize(void);
 void fsid_key_table_finalize(void);

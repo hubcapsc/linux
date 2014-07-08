@@ -311,11 +311,6 @@ static int pvfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 					 MS_POSIXACL :
 					 0));
 		}
-
-		if (data)
-			strncpy(PVFS2_SB(sb)->data,
-				data,
-				PVFS2_MAX_MOUNT_OPT_LEN);
 	}
 	return 0;
 }
@@ -335,71 +330,45 @@ static int pvfs2_remount_fs(struct super_block *sb, int *flags, char *data)
  * the client regains all of the mount information from us.
  * NOTE: this function assumes that the request_semaphore is already acquired!
  */
-int pvfs2_remount(struct super_block *sb, int *flags, char *data)
+int pvfs2_remount(struct super_block *sb)
 {
+	pvfs2_kernel_op_t *new_op;
 	int ret = -EINVAL;
-	pvfs2_kernel_op_t *new_op = NULL;
 
 	gossip_debug(GOSSIP_SUPER_DEBUG, "pvfs2_remount: called\n");
 
-	if (sb && PVFS2_SB(sb)) {
-		if (data && data[0] != '\0') {
-			ret = parse_mount_options(data, sb, 1);
-			if (ret)
-				return ret;
+	new_op = op_alloc(PVFS2_VFS_OP_FS_MOUNT);
+	if (!new_op)
+		return -ENOMEM;
+	strncpy(new_op->upcall.req.fs_mount.pvfs2_config_server,
+		PVFS2_SB(sb)->devname,
+		PVFS_MAX_SERVER_ADDR_LEN);
 
-			/*
-			 * mark the superblock as whether it supports acl's
-			 * or not
-			 */
-			sb->s_flags =
-				((sb->s_flags & ~MS_POSIXACL) |
-				 ((PVFS2_SB(sb)->mnt_options.acl == 1) ?
-					MS_POSIXACL :
-					0));
-		}
+	gossip_debug(GOSSIP_SUPER_DEBUG,
+		     "Attempting PVFS2 Remount via host %s\n",
+		     new_op->upcall.req.fs_mount.pvfs2_config_server);
 
-		new_op = op_alloc(PVFS2_VFS_OP_FS_MOUNT);
-		if (!new_op)
-			return -ENOMEM;
-		strncpy(new_op->upcall.req.fs_mount.pvfs2_config_server,
-			PVFS2_SB(sb)->devname,
-			PVFS_MAX_SERVER_ADDR_LEN);
-
-		gossip_debug(GOSSIP_SUPER_DEBUG,
-			     "Attempting PVFS2 Remount via host %s\n",
-			     new_op->upcall.req.fs_mount.pvfs2_config_server);
-
+	/*
+	 * we assume that the calling function has already acquire the
+	 * request_semaphore to prevent other operations from bypassing
+	 * this one
+	 */
+	ret = service_operation(new_op, "pvfs2_remount",
+		PVFS2_OP_PRIORITY | PVFS2_OP_NO_SEMAPHORE);
+	gossip_debug(GOSSIP_SUPER_DEBUG,
+		     "pvfs2_remount: mount got return value of %d\n",
+		     ret);
+	if (ret == 0) {
 		/*
-		 * we assume that the calling function has already acquire the
-		 * request_semaphore to prevent other operations from bypassing
-		 * this one
+		 * store the id assigned to this sb -- it's just a
+		 * short-lived mapping that the system interface uses
+		 * to map this superblock to a particular mount entry
 		 */
-		ret = service_operation(new_op,
-					"pvfs2_remount",
-					(PVFS2_OP_PRIORITY |
-					 PVFS2_OP_NO_SEMAPHORE));
-
-		gossip_debug(GOSSIP_SUPER_DEBUG,
-			     "pvfs2_remount: mount got return value of %d\n",
-			     ret);
-		if (ret == 0) {
-			/*
-			 * store the id assigned to this sb -- it's just a
-			 * short-lived mapping that the system interface uses
-			 * to map this superblock to a particular mount entry
-			 */
-			PVFS2_SB(sb)->id = new_op->downcall.resp.fs_mount.id;
-
-			if (data)
-				strncpy(PVFS2_SB(sb)->data,
-					data,
-					PVFS2_MAX_MOUNT_OPT_LEN);
-			PVFS2_SB(sb)->mount_pending = 0;
-		}
-
-		op_release(new_op);
+		PVFS2_SB(sb)->id = new_op->downcall.resp.fs_mount.id;
+		PVFS2_SB(sb)->mount_pending = 0;
 	}
+
+	op_release(new_op);
 	return ret;
 }
 
@@ -658,10 +627,6 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
 			strncpy(PVFS2_SB(sb)->devname,
 				devname,
 				PVFS_MAX_SERVER_ADDR_LEN);
-			if (data)
-				strncpy(PVFS2_SB(sb)->data,
-					data,
-					PVFS2_MAX_MOUNT_OPT_LEN);
 
 			/* mount_pending must be cleared */
 			PVFS2_SB(sb)->mount_pending = 0;
