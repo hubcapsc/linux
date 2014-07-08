@@ -144,89 +144,30 @@ static int pvfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 	ret = service_operation(new_op, "pvfs2_statfs", flags);
 
-	if (new_op->downcall.status > -1) {
-		gossip_debug(GOSSIP_SUPER_DEBUG,
-			     "pvfs2_statfs: got %ld blocks available | "
-			     "%ld blocks total | %ld block size\n",
-			     (long)new_op->downcall.resp.statfs.blocks_avail,
-			     (long)new_op->downcall.resp.statfs.blocks_total,
-			     (long)new_op->downcall.resp.statfs.block_size);
+	if (new_op->downcall.status < 0)
+		goto out_op_release;
 
-		buf->f_type = sb->s_magic;
-		/* stash the fsid as well */
-		memcpy(&buf->f_fsid,
-		       &(PVFS2_SB(sb)->fs_id),
-		       sizeof(PVFS2_SB(sb)->fs_id));
-		buf->f_bsize = new_op->downcall.resp.statfs.block_size;
-		buf->f_namelen = PVFS2_NAME_LEN;
+	gossip_debug(GOSSIP_SUPER_DEBUG,
+		     "pvfs2_statfs: got %ld blocks available | "
+		     "%ld blocks total | %ld block size\n",
+		     (long)new_op->downcall.resp.statfs.blocks_avail,
+		     (long)new_op->downcall.resp.statfs.blocks_total,
+		     (long)new_op->downcall.resp.statfs.block_size);
 
-		buf->f_blocks =
-		    (sector_t) new_op->downcall.resp.statfs.blocks_total;
-		buf->f_bfree =
-		    (sector_t) new_op->downcall.resp.statfs.blocks_avail;
-		buf->f_bavail =
-		    (sector_t) new_op->downcall.resp.statfs.blocks_avail;
-		buf->f_files =
-		    (sector_t) new_op->downcall.resp.statfs.files_total;
-		buf->f_ffree =
-		    (sector_t) new_op->downcall.resp.statfs.files_avail;
+	buf->f_type = sb->s_magic;
+	memcpy(&buf->f_fsid, &PVFS2_SB(sb)->fs_id, sizeof(buf->f_fsid));
+	buf->f_bsize = new_op->downcall.resp.statfs.block_size;
+	buf->f_namelen = PVFS2_NAME_LEN;
 
-		do {
-			struct statfs tmp_statfs;
+	buf->f_blocks = (sector_t) new_op->downcall.resp.statfs.blocks_total;
+	buf->f_bfree = (sector_t) new_op->downcall.resp.statfs.blocks_avail;
+	buf->f_bavail = (sector_t) new_op->downcall.resp.statfs.blocks_avail;
+	buf->f_files = (sector_t) new_op->downcall.resp.statfs.files_total;
+	buf->f_ffree = (sector_t) new_op->downcall.resp.statfs.files_avail;
+	buf->f_frsize = sb->s_blocksize;
 
-			buf->f_frsize = sb->s_blocksize;
-
-			gossip_debug(GOSSIP_SUPER_DEBUG,
-				     "sizeof(kstatfs)=%d\n",
-				     (int)sizeof(struct kstatfs));
-			gossip_debug(GOSSIP_SUPER_DEBUG,
-				     "sizeof(kstatfs->f_blocks)=%d\n",
-				     (int)sizeof(buf->f_blocks));
-			gossip_debug(GOSSIP_SUPER_DEBUG,
-				     "sizeof(statfs)=%d\n",
-				     (int)sizeof(struct statfs));
-			gossip_debug(GOSSIP_SUPER_DEBUG,
-				     "sizeof(statfs->f_blocks)=%d\n",
-				     (int)sizeof(tmp_statfs.f_blocks));
-			gossip_debug(GOSSIP_SUPER_DEBUG,
-				     "sizeof(sector_t)=%d\n",
-				     (int)sizeof(sector_t));
-
-			if ((sizeof(struct statfs) != sizeof(struct kstatfs)) &&
-			    (sizeof(tmp_statfs.f_blocks) == 4)) {
-				/*
-				 * in this case, we need to truncate the values
-				 * here to be no bigger than the max 4 byte
-				 * long value because the kernel will return an
-				 * overflow if it's larger otherwise. see
-				 * vfs_statfs_native in open.c for the actual
-				 * overflow checks made.
-				 */
-				buf->f_blocks &= 0x00000000FFFFFFFFULL;
-				buf->f_bfree &= 0x00000000FFFFFFFFULL;
-				buf->f_bavail &= 0x00000000FFFFFFFFULL;
-				buf->f_files &= 0x00000000FFFFFFFFULL;
-				buf->f_ffree &= 0x00000000FFFFFFFFULL;
-
-				gossip_debug(GOSSIP_SUPER_DEBUG,
-					     "pvfs2_statfs (T) got %lu"
-					     " files total | %lu "
-					     "files_avail\n",
-					     (unsigned long)buf->f_files,
-					     (unsigned long)buf->f_ffree);
-			} else {
-				gossip_debug(GOSSIP_SUPER_DEBUG,
-					     "pvfs2_statfs (N) got %lu"
-					     " files total | %lu "
-					     "files_avail\n",
-					     (unsigned long)buf->f_files,
-					     (unsigned long)buf->f_ffree);
-			}
-		} while (0);
-	}
-
+out_op_release:
 	op_release(new_op);
-
 	gossip_debug(GOSSIP_SUPER_DEBUG, "pvfs2_statfs: returning %d\n", ret);
 	return ret;
 }
