@@ -252,15 +252,12 @@ void fsid_key_table_finalize(void)
 /* Called whenever the VFS dirties the inode in response to atime updates */
 static void pvfs2_dirty_inode(struct inode *inode, int flags)
 {
-	if (inode) {
-		pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
+	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
 
-		gossip_debug(GOSSIP_SUPER_DEBUG,
-			     "pvfs2_dirty_inode: %pU\n",
-			     get_khandle_from_ino(inode));
-		SetAtimeFlag(pvfs2_inode);
-	}
-	return;
+	gossip_debug(GOSSIP_SUPER_DEBUG,
+		     "pvfs2_dirty_inode: %pU\n",
+		     get_khandle_from_ino(inode));
+	SetAtimeFlag(pvfs2_inode);
 }
 
 struct super_operations pvfs2_s_ops = {
