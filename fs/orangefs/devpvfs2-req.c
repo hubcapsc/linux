@@ -627,14 +627,6 @@ static int pvfs2_devreq_release(struct inode *inode, struct file *file)
 	unmounted = mark_all_pending_mounts();
 	gossip_debug(GOSSIP_DEV_DEBUG, "PVFS2 Device Close: Filesystem(s) %s\n",
 		     (unmounted ? "UNMOUNTED" : "MOUNTED"));
-	/*
-	 * prune dcache here to get rid of entries that may no longer exist
-	 * on device re-open, assuming that the sb has been properly filled
-	 * (may not have been if a mount wasn't attempted)
-	 */
-	if (unmounted && inode && inode->i_sb)
-		shrink_dcache_sb(inode->i_sb);
-
 	mutex_unlock(&devreq_mutex);
 
 	/*
