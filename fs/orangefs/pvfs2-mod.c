@@ -61,9 +61,8 @@ MODULE_PARM_DESC(hash_table_size,
 MODULE_PARM_DESC(fake_mmap_shared,
 		 "perform mmap with MAP_SHARED flag as if called with MAP_PRIVATE");
 
-struct file_system_type pvfs2_fs_type = {
+static struct file_system_type pvfs2_fs_type = {
 	.name = "pvfs2",
-/* only define mount if the kernel no longer supports get_sb */
 	.mount = pvfs2_mount,
 	.kill_sb = pvfs2_kill_sb,
 	.owner = THIS_MODULE,
