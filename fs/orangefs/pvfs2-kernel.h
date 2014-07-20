@@ -667,7 +667,6 @@ extern struct list_head *htable_ops_in_progress;
 extern spinlock_t htable_ops_in_progress_lock;
 extern int hash_table_size;
 
-extern struct file_system_type pvfs2_fs_type;
 extern const struct address_space_operations pvfs2_address_operations;
 extern struct backing_dev_info pvfs2_backing_dev_info;
 extern struct inode_operations pvfs2_file_inode_operations;

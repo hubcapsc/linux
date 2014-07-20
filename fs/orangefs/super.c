@@ -371,7 +371,6 @@ int pvfs2_fill_sb(struct super_block *sb, void *data, int silent)
 	sb->s_magic = PVFS2_SUPER_MAGIC;
 	sb->s_op = &pvfs2_s_ops;
 	sb->s_d_op = &pvfs2_dentry_operations;
-	sb->s_type = &pvfs2_fs_type;
 
 	sb->s_blocksize = pvfs_bufmap_size_query();
 	sb->s_blocksize_bits = pvfs_bufmap_shift_query();
