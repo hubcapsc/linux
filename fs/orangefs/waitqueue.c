@@ -83,7 +83,7 @@ retry_servicing:
 		mask_blocked_signals(&orig_sigset);
 
 	if (!(flags & PVFS2_OP_NO_SEMAPHORE)) {
-		ret = down_interruptible(&request_semaphore);
+		ret = mutex_lock_interruptible(&request_mutex);
 		/*
 		 * check to see if we were interrupted while waiting for
 		 * semaphore
@@ -126,7 +126,7 @@ retry_servicing:
 	}
 
 	if (!(flags & PVFS2_OP_NO_SEMAPHORE))
-		up(&request_semaphore);
+		mutex_unlock(&request_mutex);
 
 	/*
 	 * If we are asked to service an asynchronous operation from
