@@ -83,7 +83,7 @@ module_param(slot_timeout_secs, int, 0);
 module_param(fake_mmap_shared, int, 0);
 
 /* synchronizes the request device file */
-struct semaphore devreq_semaphore;
+struct mutex devreq_mutex;
 
 /*
   blocks non-priority requests from being queued for servicing.  this
@@ -91,7 +91,7 @@ struct semaphore devreq_semaphore;
   for now it's only being used to stall the op addition to the request
   list
 */
-struct semaphore request_semaphore;
+struct mutex request_mutex;
 
 /* hash table for storing operations waiting for matching downcall */
 struct list_head *htable_ops_in_progress = NULL;
@@ -223,8 +223,8 @@ static int __init pvfs2_init(void)
 		goto cleanup_kiocb;
 	}
 
-	sema_init(&devreq_semaphore, 1);
-	sema_init(&request_semaphore, 1);
+	mutex_init(&devreq_mutex);
+	mutex_init(&request_mutex);
 
 	htable_ops_in_progress =
 	    kcalloc(hash_table_size, sizeof(struct list_head), GFP_KERNEL);

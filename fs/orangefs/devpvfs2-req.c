@@ -78,7 +78,7 @@ static int pvfs2_devreq_open(struct inode *inode, struct file *file)
 	}
 	ret = -EACCES;
 	gossip_debug(GOSSIP_DEV_DEBUG, "pvfs2-client-core: opening device\n");
-	down(&devreq_semaphore);
+	mutex_lock(&devreq_mutex);
 
 	if (open_access_count == 0) {
 		ret = generic_file_open(inode, file);
@@ -92,7 +92,7 @@ static int pvfs2_devreq_open(struct inode *inode, struct file *file)
 	} else {
 		DUMP_DEVICE_ERROR();
 	}
-	up(&devreq_semaphore);
+	mutex_unlock(&devreq_mutex);
 
 	gossip_debug(GOSSIP_DEV_DEBUG,
 		     "pvfs2-client-core: open device complete (ret = %d)\n",
@@ -612,7 +612,7 @@ int fs_mount_pending(int32_t fsid)
  * NOTE: gets called when the last reference to this device is dropped.
  * Using the open_access_count variable, we enforce a reference count
  * on this file so that it can be opened by only one process at a time.
- * the devreq_semaphore is used to make sure all i/o has completed
+ * the devreq_mutex is used to make sure all i/o has completed
  * before we call pvfs_bufmap_finalize, and similar such tricky
  * situations
  */
@@ -624,7 +624,7 @@ static int pvfs2_devreq_release(struct inode *inode, struct file *file)
 		     "%s:pvfs2-client-core: exiting, closing device\n",
 		     __func__);
 
-	down(&devreq_semaphore);
+	mutex_lock(&devreq_mutex);
 	pvfs_bufmap_finalize();
 
 	open_access_count--;
@@ -642,7 +642,7 @@ static int pvfs2_devreq_release(struct inode *inode, struct file *file)
 	if (unmounted && inode && inode->i_sb)
 		shrink_dcache_sb(inode->i_sb);
 
-	up(&devreq_semaphore);
+	mutex_unlock(&devreq_mutex);
 
 	/*
 	 * Walk through the list of ops in the request list, mark them
@@ -667,9 +667,9 @@ int is_daemon_in_service(void)
 	 * What this function does is checks if client-core is alive
 	 * based on the access count we maintain on the device.
 	 */
-	down(&devreq_semaphore);
+	mutex_lock(&devreq_mutex);
 	in_service = open_access_count == 1 ? 0 : -EIO;
-	up(&devreq_semaphore);
+	mutex_unlock(&devreq_mutex);
 	return in_service;
 }
 
@@ -740,7 +740,7 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 		 * all of the remounts are serviced (to avoid ops between
 		 * mounts to fail)
 		 */
-		ret = down_interruptible(&request_semaphore);
+		ret = mutex_lock_interruptible(&request_mutex);
 		if (ret < 0)
 			return ret;
 		gossip_debug(GOSSIP_DEV_DEBUG,
@@ -764,7 +764,7 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 		}
 		gossip_debug(GOSSIP_DEV_DEBUG,
 			     "pvfs2_devreq_ioctl: priority remount complete\n");
-		up(&request_semaphore);
+		mutex_unlock(&request_mutex);
 		return ret;
 	case PVFS_DEV_DEBUG:
 		ret = copy_from_user(&mask_info,
