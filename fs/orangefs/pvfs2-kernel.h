@@ -652,8 +652,8 @@ uint64_t pvfs2_convert_time_field(void *time_ptr);
 
 int pvfs2_normalize_to_errno(int32_t error_code);
 
-extern struct semaphore devreq_semaphore;
-extern struct semaphore request_semaphore;
+extern struct mutex devreq_mutex;
+extern struct mutex request_mutex;
 extern int debug;
 extern int op_timeout_secs;
 extern int slot_timeout_secs;

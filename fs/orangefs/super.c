@@ -195,7 +195,7 @@ static int pvfs2_remount_fs(struct super_block *sb, int *flags, char *data)
  * is waiting for servicing.  this means that the pvfs2-client won't
  * fail to start several times for all other pending operations before
  * the client regains all of the mount information from us.
- * NOTE: this function assumes that the request_semaphore is already acquired!
+ * NOTE: this function assumes that the request_mutex is already acquired!
  */
 int pvfs2_remount(struct super_block *sb)
 {
@@ -217,7 +217,7 @@ int pvfs2_remount(struct super_block *sb)
 
 	/*
 	 * we assume that the calling function has already acquire the
-	 * request_semaphore to prevent other operations from bypassing
+	 * request_mutex to prevent other operations from bypassing
 	 * this one
 	 */
 	ret = service_operation(new_op, "pvfs2_remount",
