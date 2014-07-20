@@ -82,13 +82,8 @@ static int pvfs2_devreq_open(struct inode *inode, struct file *file)
 
 	if (open_access_count == 0) {
 		ret = generic_file_open(inode, file);
-		if (ret == 0) {
-			ret = (try_module_get(pvfs2_fs_type.owner) ? 0 : 1);
-			if (ret == 0)
-				open_access_count++;
-			else
-				gossip_err("PVFS2 Device Error: Cannot obtain reference for device file\n");
-		}
+		if (ret == 0)
+			open_access_count++;
 	} else {
 		DUMP_DEVICE_ERROR();
 	}
@@ -629,8 +624,6 @@ static int pvfs2_devreq_release(struct inode *inode, struct file *file)
 
 	open_access_count--;
 
-	module_put(pvfs2_fs_type.owner);
-
 	unmounted = mark_all_pending_mounts();
 	gossip_debug(GOSSIP_DEV_DEBUG, "PVFS2 Device Close: Filesystem(s) %s\n",
 		     (unmounted ? "UNMOUNTED" : "MOUNTED"));
@@ -970,6 +963,7 @@ static unsigned int pvfs2_devreq_poll(struct file *file,
 }
 
 const struct file_operations pvfs2_devreq_file_operations = {
+	.owner = THIS_MODULE,
 	.read = pvfs2_devreq_read,
 	.aio_write = pvfs2_devreq_aio_write,
 	.open = pvfs2_devreq_open,
