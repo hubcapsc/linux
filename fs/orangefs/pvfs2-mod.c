@@ -66,13 +66,6 @@ static struct file_system_type pvfs2_fs_type = {
 	.mount = pvfs2_mount,
 	.kill_sb = pvfs2_kill_sb,
 	.owner = THIS_MODULE,
-/*
-  NOTE: the FS_REQUIRES_DEV flag is used to honor NFS exporting,
-  though we're not really requiring a device.  pvfs2_get_sb is still
-  get_sb_nodev and we're using kill_litter_super instead of
-  kill_block_super.
-*/
-	.fs_flags = FS_REQUIRES_DEV,
 };
 
 module_param(hash_table_size, int, 0);
