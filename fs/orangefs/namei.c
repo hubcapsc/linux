@@ -8,7 +8,7 @@
  *  Linux VFS namei operations.
  */
 
-#include "hubcap.h"
+#include "protocol.h"
 #include "pvfs2-kernel.h"
 
 /*
