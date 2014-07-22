@@ -4,7 +4,7 @@
  * See COPYING in top-level directory.
  */
 
-#include "hubcap.h"
+#include "protocol.h"
 #include "pvfs2-kernel.h"
 
 /* tags assigned to kernel upcall operations */
