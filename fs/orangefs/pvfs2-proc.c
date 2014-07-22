@@ -59,7 +59,7 @@ static int pvfs2_proc_debug_mask_handler(ctl_table *ctl,
 					 loff_t *ppos)
 {
 	int ret = 0;
-	pvfs2_kernel_op_t *new_op = NULL;
+	struct pvfs2_kernel_op *new_op = NULL;
 
 	gossip_debug(GOSSIP_PROC_DEBUG,
 		     "Executing pvfs2_proc_debug_mask_handler...\n");
@@ -155,7 +155,7 @@ static int pvfs2_param_proc_handler(ctl_table *ctl,
 				    size_t *lenp,
 				    loff_t *ppos)
 {
-	pvfs2_kernel_op_t *new_op = NULL;
+	struct pvfs2_kernel_op *new_op = NULL;
 	struct pvfs2_param_extra *extra = ctl->extra1;
 	int val = 0;
 	int ret = 0;
@@ -211,7 +211,7 @@ static int pvfs2_pc_proc_handler(ctl_table *ctl,
 				 size_t *lenp,
 				 loff_t *ppos)
 {
-	pvfs2_kernel_op_t *new_op = NULL;
+	struct pvfs2_kernel_op *new_op = NULL;
 	int ret;
 	int pos = 0;
 	int to_copy = 0;

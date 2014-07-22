@@ -109,9 +109,9 @@ static ssize_t wait_for_direct_io(enum PVFS_io_type type, struct inode *inode,
 		loff_t *offset, struct iovec *vec, unsigned long nr_segs,
 		size_t total_size, loff_t readahead_size, int to_user)
 {
-	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
-	PVFS_khandle *handle = &pvfs2_inode->refn.khandle;
-	pvfs2_kernel_op_t *new_op = NULL;
+	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
+	struct pvfs2_khandle *handle = &pvfs2_inode->refn.khandle;
+	struct pvfs2_kernel_op *new_op = NULL;
 	int buffer_index = -1;
 	ssize_t ret;
 
@@ -432,8 +432,8 @@ static ssize_t do_readv_writev(enum PVFS_io_type type, struct file *file,
 		loff_t *offset, const struct iovec *iov, unsigned long nr_segs)
 {
 	struct inode *inode = file->f_mapping->host;
-	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
-	PVFS_khandle *handle = &pvfs2_inode->refn.khandle;
+	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
+	struct pvfs2_khandle *handle = &pvfs2_inode->refn.khandle;
 	ssize_t ret;
 	ssize_t total_count;
 	unsigned int to_free;
@@ -677,7 +677,7 @@ ssize_t pvfs2_inode_read(struct inode *inode,
 			 loff_t *offset,
 			 loff_t readahead_size)
 {
-	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
+	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
 	size_t bufmap_size;
 	struct iovec vec;
 	ssize_t ret = -EINVAL;
@@ -754,17 +754,17 @@ ssize_t pvfs2_inode_read(struct inode *inode,
  */
 static int pvfs2_aio_cancel(struct kiocb *iocb)
 {
-	pvfs2_kiocb *x = NULL;
+	struct pvfs2_kiocb_s *x = NULL;
 	if (iocb == NULL) {
 		gossip_err("pvfs2_aio_cancel: Invalid parameter %p!\n", iocb);
 		return -EINVAL;
 	}
-	x = (pvfs2_kiocb *) iocb->private;
+	x = (struct pvfs2_kiocb_s *) iocb->private;
 	if (x == NULL) {
 		gossip_err("pvfs2_aio_cancel: cannot retrieve pvfs2_kiocb structure!\n");
 		return -EINVAL;
 	} else {
-		pvfs2_kernel_op_t *op = NULL;
+		struct pvfs2_kernel_op *op = NULL;
 		/*
 		 * Do some sanity checks
 		 */
@@ -870,12 +870,12 @@ static int pvfs2_aio_cancel(struct kiocb *iocb)
 }
 
 static inline int
-fill_default_kiocb(pvfs2_kiocb *x,
+fill_default_kiocb(struct pvfs2_kiocb_s *x,
 		   struct task_struct *tsk,
 		   struct kiocb *iocb,
 		   int rw,
 		   int buffer_index,
-		   pvfs2_kernel_op_t *op,
+		   struct pvfs2_kernel_op *op,
 		   const struct iovec *iovec,
 		   unsigned long nr_segs,
 		   loff_t offset,
@@ -912,9 +912,9 @@ static ssize_t pvfs2_file_aio_read_iovec(struct kiocb *iocb,
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
-	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
-	pvfs2_kernel_op_t *new_op;
-	pvfs2_kiocb *x;
+	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
+	struct pvfs2_kernel_op *new_op;
+	struct pvfs2_kiocb_s *x;
 	unsigned long max_new_nr_segs;
 	size_t count = 0;
 	ssize_t error;
@@ -1053,9 +1053,9 @@ static ssize_t pvfs2_file_aio_write_iovec(struct kiocb *iocb,
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
-	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
-	pvfs2_kernel_op_t *new_op;
-	pvfs2_kiocb *x;
+	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
+	struct pvfs2_kernel_op *new_op;
+	struct pvfs2_kiocb_s *x;
 	unsigned long max_new_nr_segs;
 	size_t count = 0;
 	ssize_t error;
@@ -1342,8 +1342,8 @@ int pvfs2_file_release(struct inode *inode, struct file *file)
 int pvfs2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	int ret = -EINVAL;
-	pvfs2_inode_t *pvfs2_inode = PVFS2_I(file->f_dentry->d_inode);
-	pvfs2_kernel_op_t *new_op = NULL;
+	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(file->f_dentry->d_inode);
+	struct pvfs2_kernel_op *new_op = NULL;
 
 	/* required call */
 	filemap_write_and_wait_range(file->f_mapping, start, end);

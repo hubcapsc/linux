@@ -34,7 +34,7 @@ static const match_table_t tokens = {
 static int parse_mount_options(struct super_block *sb, char *options,
 		int silent)
 {
-	pvfs2_sb_info_t *pvfs2_sb = PVFS2_SB(sb);
+	struct pvfs2_sb_info_s *pvfs2_sb = PVFS2_SB(sb);
 	substring_t args[MAX_OPT_ARGS];
 	char *p;
 
@@ -69,7 +69,7 @@ fail:
 
 static void pvfs2_inode_cache_ctor(void *req)
 {
-	pvfs2_inode_t *pvfs2_inode = req;
+	struct pvfs2_inode_s *pvfs2_inode = req;
 
 	inode_init_once(&pvfs2_inode->vfs_inode);
 	init_rwsem(&pvfs2_inode->xattr_sem);
@@ -79,7 +79,7 @@ static void pvfs2_inode_cache_ctor(void *req)
 
 static struct inode *pvfs2_alloc_inode(struct super_block *sb)
 {
-	pvfs2_inode_t *pvfs2_inode;
+	struct pvfs2_inode_s *pvfs2_inode;
 
 	pvfs2_inode = kmem_cache_alloc(pvfs2_inode_cache,
 				       PVFS2_CACHE_ALLOC_FLAGS);
@@ -107,7 +107,7 @@ static struct inode *pvfs2_alloc_inode(struct super_block *sb)
 
 static void pvfs2_destroy_inode(struct inode *inode)
 {
-	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
+	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
 			"%s: deallocated %p destroying inode %pU\n",
@@ -123,7 +123,7 @@ static void pvfs2_destroy_inode(struct inode *inode)
 static int pvfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	int ret = -ENOMEM;
-	pvfs2_kernel_op_t *new_op = NULL;
+	struct pvfs2_kernel_op *new_op = NULL;
 	int flags = 0;
 	struct super_block *sb = NULL;
 
@@ -199,7 +199,7 @@ static int pvfs2_remount_fs(struct super_block *sb, int *flags, char *data)
  */
 int pvfs2_remount(struct super_block *sb)
 {
-	pvfs2_kernel_op_t *new_op;
+	struct pvfs2_kernel_op *new_op;
 	int ret = -EINVAL;
 
 	gossip_debug(GOSSIP_SUPER_DEBUG, "pvfs2_remount: called\n");
@@ -252,7 +252,7 @@ void fsid_key_table_finalize(void)
 /* Called whenever the VFS dirties the inode in response to atime updates */
 static void pvfs2_dirty_inode(struct inode *inode, int flags)
 {
-	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
+	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
 		     "pvfs2_dirty_inode: %pU\n",
@@ -348,10 +348,11 @@ int pvfs2_fill_sb(struct super_block *sb, void *data, int silent)
 	PVFS_object_kref root_object;
 
 	/* alloc and init our private pvfs2 sb info */
-	sb->s_fs_info = kmalloc(sizeof(pvfs2_sb_info_t), PVFS2_GFP_FLAGS);
+	sb->s_fs_info =
+		kmalloc(sizeof(struct pvfs2_sb_info_s), PVFS2_GFP_FLAGS);
 	if (!PVFS2_SB(sb))
 		return -ENOMEM;
-	memset(sb->s_fs_info, 0, sizeof(pvfs2_sb_info_t));
+	memset(sb->s_fs_info, 0, sizeof(struct pvfs2_sb_info_s));
 	PVFS2_SB(sb)->sb = sb;
 
 	PVFS2_SB(sb)->root_khandle = mount_sb_info->root_khandle;
@@ -411,7 +412,7 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
 {
 	int ret = -EINVAL;
 	struct super_block *sb = ERR_PTR(-EINVAL);
-	pvfs2_kernel_op_t *new_op;
+	struct pvfs2_kernel_op *new_op;
 	struct pvfs2_mount_sb_info_t mount_sb_info;
 	struct dentry *mnt_sb_d = ERR_PTR(-EINVAL);
 
@@ -530,7 +531,7 @@ void pvfs2_kill_sb(struct super_block *sb)
 int pvfs2_inode_cache_initialize(void)
 {
 	pvfs2_inode_cache = kmem_cache_create("pvfs2_inode_cache",
-					      sizeof(pvfs2_inode_t),
+					      sizeof(struct pvfs2_inode_s),
 					      0,
 					      PVFS2_CACHE_CREATE_FLAGS,
 					      pvfs2_inode_cache_ctor);

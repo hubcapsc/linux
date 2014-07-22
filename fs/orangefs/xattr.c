@@ -64,8 +64,8 @@ static inline int convert_to_internal_xattr_flags(int setxattr_flags)
 ssize_t pvfs2_inode_getxattr(struct inode *inode, const char *prefix,
 		const char *name, void *buffer, size_t size)
 {
-	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
-	pvfs2_kernel_op_t *new_op = NULL;
+	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
+	struct pvfs2_kernel_op *new_op = NULL;
 	ssize_t ret = -ENOMEM;
 	ssize_t length = 0;
 	int fsuid;
@@ -176,8 +176,8 @@ static int pvfs2_inode_removexattr(struct inode *inode,
 			    const char *name,
 			    int flags)
 {
-	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
-	pvfs2_kernel_op_t *new_op = NULL;
+	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
+	struct pvfs2_kernel_op *new_op = NULL;
 	int ret = -ENOMEM;
 
 	down_write(&pvfs2_inode->xattr_sem);
@@ -234,8 +234,8 @@ out_unlock:
 int pvfs2_inode_setxattr(struct inode *inode, const char *prefix,
 		const char *name, const void *value, size_t size, int flags)
 {
-	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
-	pvfs2_kernel_op_t *new_op;
+	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
+	struct pvfs2_kernel_op *new_op;
 	int internal_flag = 0;
 	int ret = -ENOMEM;
 
@@ -347,9 +347,9 @@ out_unlock:
 ssize_t pvfs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
 	struct inode *inode = dentry->d_inode;
-	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
-	pvfs2_kernel_op_t *new_op;
-	PVFS_ds_position token = PVFS_ITERATE_START;
+	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
+	struct pvfs2_kernel_op *new_op;
+	uint64_t token = PVFS_ITERATE_START;
 	ssize_t ret = -ENOMEM;
 	ssize_t total = 0;
 	ssize_t length = 0;
