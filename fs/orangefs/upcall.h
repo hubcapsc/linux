@@ -18,7 +18,7 @@ struct pvfs2_io_request_t {
 	int32_t count;
 	int32_t __pad1;
 	int64_t offset;
-	PVFS_object_kref refn;
+	struct pvfs2_object_kref refn;
 	enum PVFS_io_type io_type;
 	int32_t readahead_size;
 };
@@ -26,7 +26,7 @@ struct pvfs2_io_request_t {
 struct pvfs2_iox_request_t {
 	int32_t buf_index;
 	int32_t count;
-	PVFS_object_kref refn;
+	struct pvfs2_object_kref refn;
 	enum PVFS_io_type io_type;
 	int32_t __pad1;
 };
@@ -34,55 +34,55 @@ struct pvfs2_iox_request_t {
 struct pvfs2_lookup_request_t {
 	int32_t sym_follow;
 	int32_t __pad1;
-	PVFS_object_kref parent_refn;
+	struct pvfs2_object_kref parent_refn;
 	char d_name[PVFS2_NAME_LEN];
 };
 
 struct pvfs2_create_request_t {
-	PVFS_object_kref parent_refn;
-	PVFS_sys_attr attributes;
+	struct pvfs2_object_kref parent_refn;
+	struct PVFS_sys_attr_s attributes;
 	char d_name[PVFS2_NAME_LEN];
 };
 
 struct pvfs2_symlink_request_t {
-	PVFS_object_kref parent_refn;
-	PVFS_sys_attr attributes;
+	struct pvfs2_object_kref parent_refn;
+	struct PVFS_sys_attr_s attributes;
 	char entry_name[PVFS2_NAME_LEN];
 	char target[PVFS2_NAME_LEN];
 };
 
 struct pvfs2_getattr_request_t {
-	PVFS_object_kref refn;
+	struct pvfs2_object_kref refn;
 	uint32_t mask;
 	uint32_t __pad1;
 };
 
 struct pvfs2_setattr_request_t {
-	PVFS_object_kref refn;
-	PVFS_sys_attr attributes;
+	struct pvfs2_object_kref refn;
+	struct PVFS_sys_attr_s attributes;
 };
 
 struct pvfs2_remove_request_t {
-	PVFS_object_kref parent_refn;
+	struct pvfs2_object_kref parent_refn;
 	char d_name[PVFS2_NAME_LEN];
 };
 
 struct pvfs2_mkdir_request_t {
-	PVFS_object_kref parent_refn;
-	PVFS_sys_attr attributes;
+	struct pvfs2_object_kref parent_refn;
+	struct PVFS_sys_attr_s attributes;
 	char d_name[PVFS2_NAME_LEN];
 };
 
 struct pvfs2_readdir_request_t {
-	PVFS_object_kref refn;
-	PVFS_ds_position token;
+	struct pvfs2_object_kref refn;
+	uint64_t token;
 	int32_t max_dirent_count;
 	int32_t buf_index;
 };
 
 struct pvfs2_readdirplus_request_t {
-	PVFS_object_kref refn;
-	PVFS_ds_position token;
+	struct pvfs2_object_kref refn;
+	uint64_t token;
 	int32_t max_dirent_count;
 	uint32_t mask;
 	int32_t buf_index;
@@ -90,24 +90,24 @@ struct pvfs2_readdirplus_request_t {
 };
 
 struct pvfs2_rename_request_t {
-	PVFS_object_kref old_parent_refn;
-	PVFS_object_kref new_parent_refn;
+	struct pvfs2_object_kref old_parent_refn;
+	struct pvfs2_object_kref new_parent_refn;
 	char d_old_name[PVFS2_NAME_LEN];
 	char d_new_name[PVFS2_NAME_LEN];
 };
 
 struct pvfs2_statfs_request_t {
-	PVFS_fs_id fs_id;
+	int32_t fs_id;
 	int32_t __pad1;
 };
 
 struct pvfs2_truncate_request_t {
-	PVFS_object_kref refn;
-	PVFS_size size;
+	struct pvfs2_object_kref refn;
+	int64_t size;
 };
 
 struct pvfs2_mmap_ra_cache_flush_request_t {
-	PVFS_object_kref refn;
+	struct pvfs2_object_kref refn;
 };
 
 struct pvfs2_fs_mount_request_t {
@@ -116,33 +116,33 @@ struct pvfs2_fs_mount_request_t {
 
 struct pvfs2_fs_umount_request_t {
 	int32_t id;
-	PVFS_fs_id fs_id;
+	int32_t fs_id;
 	char pvfs2_config_server[PVFS_MAX_SERVER_ADDR_LEN];
 };
 
 struct pvfs2_getxattr_request_t {
-	PVFS_object_kref refn;
+	struct pvfs2_object_kref refn;
 	int32_t key_sz;
 	int32_t __pad1;
 	char key[PVFS_MAX_XATTR_NAMELEN];
 };
 
 struct pvfs2_setxattr_request_t {
-	PVFS_object_kref refn;
+	struct pvfs2_object_kref refn;
 	struct PVFS_keyval_pair keyval;
 	int32_t flags;
 	int32_t __pad1;
 };
 
 struct pvfs2_listxattr_request_t {
-	PVFS_object_kref refn;
+	struct pvfs2_object_kref refn;
 	int32_t requested_count;
 	int32_t __pad1;
-	PVFS_ds_position token;
+	uint64_t token;
 };
 
 struct pvfs2_removexattr_request_t {
-	PVFS_object_kref refn;
+	struct pvfs2_object_kref refn;
 	int32_t key_sz;
 	int32_t __pad1;
 	char key[PVFS_MAX_XATTR_NAMELEN];
@@ -153,7 +153,7 @@ struct pvfs2_op_cancel_t {
 };
 
 struct pvfs2_fsync_request_t {
-	PVFS_object_kref refn;
+	struct pvfs2_object_kref refn;
 };
 
 enum pvfs2_param_request_type {
@@ -203,19 +203,19 @@ struct pvfs2_perf_count_request_t {
 };
 
 struct pvfs2_fs_key_request_t {
-	PVFS_fs_id fsid;
+	int32_t fsid;
 	int32_t __pad1;
 };
 
 /* typedef pvfs2_upcall_t exposed to client-core (userland) */
-typedef struct {
+typedef struct pvfs2_upcall_s {
 	int32_t type;
-	PVFS_uid uid;
-	PVFS_gid gid;
+	uint32_t uid;
+	uint32_t gid;
 	int pid;
 	int tgid;
 	/* currently trailer is used only by readx/writex (iox) */
-	PVFS_size trailer_size;
+	int64_t trailer_size;
 	PVFS2_ALIGN_VAR(char *, trailer_buf);
 
 	union {

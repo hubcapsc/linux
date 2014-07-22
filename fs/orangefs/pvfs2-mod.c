@@ -278,7 +278,7 @@ err:
 static void __exit pvfs2_exit(void)
 {
 	int i = 0;
-	pvfs2_kernel_op_t *cur_op = NULL;
+	struct pvfs2_kernel_op *cur_op = NULL;
 
 	gossip_debug(GOSSIP_INIT_DEBUG, "pvfs2: pvfs2_exit called\n");
 
@@ -290,7 +290,8 @@ static void __exit pvfs2_exit(void)
 	spin_lock(&pvfs2_request_list_lock);
 	while (!list_empty(&pvfs2_request_list)) {
 		cur_op = list_entry(pvfs2_request_list.next,
-				    pvfs2_kernel_op_t, list);
+				    struct pvfs2_kernel_op,
+				    list);
 		list_del(&cur_op->list);
 		gossip_debug(GOSSIP_INIT_DEBUG,
 			     "Freeing unhandled upcall request type %d\n",
@@ -302,7 +303,7 @@ static void __exit pvfs2_exit(void)
 	for (i = 0; i < hash_table_size; i++)
 		while (!list_empty(&htable_ops_in_progress[i])) {
 			cur_op = list_entry(htable_ops_in_progress[i].next,
-					    pvfs2_kernel_op_t,
+					    struct pvfs2_kernel_op,
 					    list);
 			op_release(cur_op);
 		}
@@ -328,8 +329,8 @@ void purge_inprogress_ops(void)
 	int i;
 
 	for (i = 0; i < hash_table_size; i++) {
-		pvfs2_kernel_op_t *op;
-		pvfs2_kernel_op_t *next;
+		struct pvfs2_kernel_op *op;
+		struct pvfs2_kernel_op *next;
 
 		list_for_each_entry_safe(op,
 					 next,

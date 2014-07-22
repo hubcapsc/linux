@@ -36,7 +36,7 @@ static int hash_func(uint64_t tag, int table_size)
 	return tag % ((unsigned int)table_size);
 }
 
-static void pvfs2_devreq_add_op(pvfs2_kernel_op_t *op)
+static void pvfs2_devreq_add_op(struct pvfs2_kernel_op *op)
 {
 	int index = hash_func(op->tag, hash_table_size);
 
@@ -45,9 +45,9 @@ static void pvfs2_devreq_add_op(pvfs2_kernel_op_t *op)
 	spin_unlock(&htable_ops_in_progress_lock);
 }
 
-static pvfs2_kernel_op_t *pvfs2_devreq_remove_op(uint64_t tag)
+static struct pvfs2_kernel_op *pvfs2_devreq_remove_op(uint64_t tag)
 {
-	pvfs2_kernel_op_t *op, *next;
+	struct pvfs2_kernel_op *op, *next;
 	int index;
 
 	index = hash_func(tag, hash_table_size);
@@ -106,7 +106,7 @@ static ssize_t pvfs2_devreq_read(struct file *file,
 {
 	int ret = 0;
 	ssize_t len = 0;
-	pvfs2_kernel_op_t *cur_op = NULL;
+	struct pvfs2_kernel_op *cur_op = NULL;
 	static int32_t magic = PVFS2_DEVREQ_MAGIC;
 	int32_t proto_ver = PVFS_KERNEL_PROTO_VERSION;
 
@@ -115,11 +115,11 @@ static ssize_t pvfs2_devreq_read(struct file *file,
 		gossip_err("pvfs2: blocking reads are not supported! (pvfs2-client-core bug)\n");
 		return -EINVAL;
 	} else {
-		pvfs2_kernel_op_t *op = NULL, *temp = NULL;
+		struct pvfs2_kernel_op *op = NULL, *temp = NULL;
 		/* get next op (if any) from top of list */
 		spin_lock(&pvfs2_request_list_lock);
 		list_for_each_entry_safe(op, temp, &pvfs2_request_list, list) {
-			PVFS_fs_id fsid = fsid_of_op(op);
+			int32_t fsid = fsid_of_op(op);
 			/*
 			 * Check if this op's fsid is known and needs
 			 * remounting
@@ -209,7 +209,7 @@ static ssize_t pvfs2_devreq_read(struct file *file,
 						  sizeof(int32_t) +
 						  sizeof(uint64_t),
 						&cur_op->upcall,
-						sizeof(pvfs2_upcall_t));
+						sizeof(struct pvfs2_upcall_s));
 				    }
 				}
 			    }
@@ -264,7 +264,7 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 				   unsigned long count,
 				   loff_t *offset)
 {
-	pvfs2_kernel_op_t *op = NULL;
+	struct pvfs2_kernel_op *op = NULL;
 	void *buffer = NULL;
 	void *ptr = NULL;
 	unsigned long i = 0;
@@ -340,9 +340,11 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 		get_op(op);
 		/* cut off magic and tag from payload size */
 		payload_size -= (2 * sizeof(int32_t) + sizeof(uint64_t));
-		if (payload_size <= sizeof(pvfs2_downcall_t))
+		if (payload_size <= sizeof(struct pvfs2_downcall))
 			/* copy the passed in downcall into the op */
-			memcpy(&op->downcall, ptr, sizeof(pvfs2_downcall_t));
+			memcpy(&op->downcall,
+			       ptr,
+			       sizeof(struct pvfs2_downcall));
 		else
 			gossip_debug(GOSSIP_DEV_DEBUG,
 				     "writev: Ignoring %d bytes\n",
@@ -469,7 +471,8 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 		} else if (op->upcall.type == PVFS2_VFS_OP_FILE_IO &&
 			   op->upcall.req.io.async_vfs_io ==
 				PVFS_VFS_ASYNC_IO) {
-			pvfs2_kiocb *x = (pvfs2_kiocb *) op->priv;
+			struct pvfs2_kiocb_s *x =
+				(struct pvfs2_kiocb_s *) op->priv;
 			if (x == NULL ||
 			    x->iov == NULL ||
 			    x->op != op ||
@@ -571,7 +574,7 @@ static ssize_t pvfs2_devreq_aio_write(struct kiocb *kiocb,
 static int mark_all_pending_mounts(void)
 {
 	int unmounted = 1;
-	pvfs2_sb_info_t *pvfs2_sb = NULL;
+	struct pvfs2_sb_info_s *pvfs2_sb = NULL;
 
 	spin_lock(&pvfs2_superblocks_lock);
 	list_for_each_entry(pvfs2_sb, &pvfs2_superblocks, list) {
@@ -589,10 +592,10 @@ static int mark_all_pending_mounts(void)
  *           0 if already mounted
  *           1 if needs remount
  */
-int fs_mount_pending(PVFS_fs_id fsid)
+int fs_mount_pending(int32_t fsid)
 {
 	int mount_pending = -1;
-	pvfs2_sb_info_t *pvfs2_sb = NULL;
+	struct pvfs2_sb_info_s *pvfs2_sb = NULL;
 
 	spin_lock(&pvfs2_superblocks_lock);
 	list_for_each_entry(pvfs2_sb, &pvfs2_superblocks, list) {
@@ -698,7 +701,7 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 	int ret = 0;
 	struct dev_mask_info_t mask_info = { 0 };
 	struct list_head *tmp = NULL;
-	pvfs2_sb_info_t *pvfs2_sb = NULL;
+	struct pvfs2_sb_info_s *pvfs2_sb = NULL;
 
 
 	/* mtmoore: add locking here */
@@ -743,7 +746,8 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 		gossip_debug(GOSSIP_DEV_DEBUG,
 			     "pvfs2_devreq_ioctl: priority remount in progress\n");
 		list_for_each(tmp, &pvfs2_superblocks) {
-			pvfs2_sb = list_entry(tmp, pvfs2_sb_info_t, list);
+			pvfs2_sb =
+				list_entry(tmp, struct pvfs2_sb_info_s, list);
 			if (pvfs2_sb && (pvfs2_sb->sb)) {
 				gossip_debug(GOSSIP_DEV_DEBUG,
 					     "Remounting SB %p\n",

@@ -24,24 +24,24 @@ struct pvfs2_iox_response {
 };
 
 struct pvfs2_lookup_response {
-	PVFS_object_kref refn;
+	struct pvfs2_object_kref refn;
 };
 
 struct pvfs2_create_response {
-	PVFS_object_kref refn;
+	struct pvfs2_object_kref refn;
 };
 
 struct pvfs2_symlink_response {
-	PVFS_object_kref refn;
+	struct pvfs2_object_kref refn;
 };
 
 struct pvfs2_getattr_response {
-	PVFS_sys_attr attributes;
+	struct PVFS_sys_attr_s attributes;
 	char link_target[PVFS2_NAME_LEN];
 };
 
 struct pvfs2_mkdir_response {
-	PVFS_object_kref refn;
+	struct pvfs2_object_kref refn;
 };
 
 /*
@@ -51,7 +51,7 @@ struct pvfs2_mkdir_response {
 struct pvfs2_dirent {
 	char *d_name;
 	int d_length;
-	PVFS_khandle khandle;
+	struct pvfs2_khandle khandle;
 };
 
 struct pvfs2_statfs_response {
@@ -63,9 +63,9 @@ struct pvfs2_statfs_response {
 };
 
 struct pvfs2_fs_mount_response {
-	PVFS_fs_id fs_id;
+	int32_t fs_id;
 	int32_t id;
-	PVFS_khandle root_khandle;
+	struct pvfs2_khandle root_khandle;
 };
 
 /* the getxattr response is the attribute value */
@@ -79,7 +79,7 @@ struct pvfs2_getxattr_response {
 struct pvfs2_listxattr_response {
 	int32_t returned_count;
 	int32_t __pad1;
-	PVFS_ds_position token;
+	uint64_t token;
 	char key[PVFS_MAX_XATTR_LISTLEN * PVFS_MAX_XATTR_NAMELEN];
 	int32_t keylen;
 	int32_t __pad2;
@@ -103,13 +103,13 @@ struct pvfs2_fs_key_response {
 };
 
 /*
- * this typedef is exposed to the client core (userland).
+ * this typedef is exposed to the client core (userspace).
  */
-typedef struct {
+typedef struct pvfs2_downcall {
 	int32_t type;
-	PVFS_error status;
+	int32_t status;
 	/* currently trailer is used only by readdir */
-	PVFS_size trailer_size;
+	int64_t trailer_size;
 	PVFS2_ALIGN_VAR(char *, trailer_buf);
 
 	union {
@@ -131,10 +131,10 @@ typedef struct {
 } pvfs2_downcall_t;
 
 /*
- * this typedef is exposed to the client core (userland).
+ * this typedef is exposed to the client core (userspace).
  */
-typedef struct {
-	PVFS_ds_position token;
+typedef struct pvfs2_readdir_response {
+	uint64_t token;
 	uint64_t directory_version;
 	uint32_t  __pad2;
 	uint32_t pvfs_dirent_outcount;

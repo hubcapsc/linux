@@ -67,7 +67,7 @@ struct posix_acl *pvfs2_get_acl(struct inode *inode, int type)
 
 int pvfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 {
-	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
+	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
 	int error = 0;
 	void *value = NULL;
 	size_t size = 0;
@@ -143,7 +143,7 @@ out:
 
 int pvfs2_init_acl(struct inode *inode, struct inode *dir)
 {
-	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
+	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
 	struct posix_acl *default_acl, *acl;
 	umode_t mode = inode->i_mode;
 	int error = 0;

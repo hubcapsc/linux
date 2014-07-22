@@ -94,8 +94,8 @@
 } while (0)
 
 struct read_write_x {
-	PVFS_offset off;
-	PVFS_size len;
+	int64_t off;
+	int64_t len;
 };
 
 #endif
