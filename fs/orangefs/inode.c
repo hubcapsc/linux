@@ -153,7 +153,7 @@ static int pvfs2_setattr_size(struct inode *inode, struct iattr *iattr)
 	 */
 	if (pvfs2_truncate_inode(inode, inode->i_size) == 0
 	    && (orig_size != i_size_read(inode))) {
-		pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
+		struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
 		SetMtimeFlag(pvfs2_inode);
 		inode->i_mtime = CURRENT_TIME;
 		mark_inode_dirty_sync(inode);
@@ -211,7 +211,7 @@ int pvfs2_getattr(struct vfsmount *mnt,
 {
 	int ret = -ENOENT;
 	struct inode *inode = dentry->d_inode;
-	pvfs2_inode_t *pvfs2_inode = NULL;
+	struct pvfs2_inode_s *pvfs2_inode = NULL;
 
 	gossip_debug(GOSSIP_INODE_DEBUG,
 		     "pvfs2_getattr: called on %s\n",
@@ -298,7 +298,7 @@ static inline ino_t pvfs2_handle_hash(PVFS_object_kref *ref)
 static int pvfs2_set_inode(struct inode *inode, void *data)
 {
 	PVFS_object_kref *ref = (PVFS_object_kref *) data;
-	pvfs2_inode_t *pvfs2_inode = NULL;
+	struct pvfs2_inode_s *pvfs2_inode = NULL;
 
 	/* Make sure that we have sane parameters */
 	if (!data || !inode)
@@ -317,7 +317,7 @@ static int pvfs2_set_inode(struct inode *inode, void *data)
 static int pvfs2_test_inode(struct inode *inode, void *data)
 {
 	PVFS_object_kref *ref = (PVFS_object_kref *) data;
-	pvfs2_inode_t *pvfs2_inode = NULL;
+	struct pvfs2_inode_s *pvfs2_inode = NULL;
 
 	pvfs2_inode = PVFS2_I(inode);
 	return (!PVFS_khandle_cmp(&(pvfs2_inode->refn.khandle), &(ref->khandle))

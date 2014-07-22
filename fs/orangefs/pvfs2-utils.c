@@ -8,9 +8,9 @@
 #include "pvfs2-dev-proto.h"
 #include "pvfs2-bufmap.h"
 
-PVFS_fs_id fsid_of_op(pvfs2_kernel_op_t *op)
+int32_t fsid_of_op(struct pvfs2_kernel_op *op)
 {
-	PVFS_fs_id fsid = PVFS_FS_ID_NULL;
+	int32_t fsid = PVFS_FS_ID_NULL;
 	if (op) {
 		switch (op->upcall.type) {
 		case PVFS2_VFS_OP_FILE_IO:
@@ -77,7 +77,8 @@ PVFS_fs_id fsid_of_op(pvfs2_kernel_op_t *op)
 	return fsid;
 }
 
-static void pvfs2_set_inode_flags(struct inode *inode, PVFS_sys_attr *attrs)
+static void pvfs2_set_inode_flags(struct inode *inode,
+				  struct PVFS_sys_attr_s *attrs)
 {
 	if (attrs->flags & PVFS_IMMUTABLE_FL)
 		inode->i_flags |= S_IMMUTABLE;
@@ -99,12 +100,12 @@ static void pvfs2_set_inode_flags(struct inode *inode, PVFS_sys_attr *attrs)
 
 /* NOTE: symname is ignored unless the inode is a sym link */
 static int copy_attributes_to_inode(struct inode *inode,
-			     PVFS_sys_attr *attrs,
-			     char *symname)
+				    struct PVFS_sys_attr_s *attrs,
+				    char *symname)
 {
 	int ret = -1;
 	int perm_mode = 0;
-	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
+	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
 	loff_t inode_size = 0;
 	loff_t rounded_up_size = 0;
 
@@ -265,7 +266,7 @@ static int copy_attributes_to_inode(struct inode *inode,
  * anything, so don't bother copying it into the sys_attr object here.
  */
 static inline int copy_attributes_from_inode(struct inode *inode,
-					     PVFS_sys_attr *attrs,
+					     struct PVFS_sys_attr_s *attrs,
 					     struct iattr *iattr)
 {
 	umode_t tmp_mode;
@@ -355,8 +356,8 @@ static inline int copy_attributes_from_inode(struct inode *inode,
  */
 int pvfs2_inode_getattr(struct inode *inode, uint32_t getattr_mask)
 {
-	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
-	pvfs2_kernel_op_t *new_op;
+	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
+	struct pvfs2_kernel_op *new_op;
 	int ret = -EINVAL;
 
 	gossip_debug(GOSSIP_UTILS_DEBUG,
@@ -417,8 +418,8 @@ out:
  */
 int pvfs2_inode_setattr(struct inode *inode, struct iattr *iattr)
 {
-	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
-	pvfs2_kernel_op_t *new_op;
+	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
+	struct pvfs2_kernel_op *new_op;
 	int ret;
 
 	new_op = op_alloc(PVFS2_VFS_OP_SETATTR);
@@ -472,7 +473,7 @@ int pvfs2_flush_inode(struct inode *inode)
 	int ctime_flag;
 	int atime_flag;
 	int mode_flag;
-	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
+	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
 
 	memset(&wbattr, 0, sizeof(wbattr));
 
@@ -533,8 +534,8 @@ int pvfs2_flush_inode(struct inode *inode)
 int pvfs2_truncate_inode(struct inode *inode, loff_t size)
 {
 	int ret = -EINVAL;
-	pvfs2_inode_t *pvfs2_inode = PVFS2_I(inode);
-	pvfs2_kernel_op_t *new_op = NULL;
+	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
+	struct pvfs2_kernel_op *new_op = NULL;
 
 	gossip_debug(GOSSIP_UTILS_DEBUG,
 		     "pvfs2: pvfs2_truncate_inode %pU: "
@@ -549,7 +550,7 @@ int pvfs2_truncate_inode(struct inode *inode, loff_t size)
 		return -ENOMEM;
 
 	new_op->upcall.req.truncate.refn = pvfs2_inode->refn;
-	new_op->upcall.req.truncate.size = (PVFS_size) size;
+	new_op->upcall.req.truncate.size = (int64_t) size;
 
 	ret = service_operation(new_op,
 				"pvfs2_truncate_inode",
@@ -571,7 +572,7 @@ int pvfs2_truncate_inode(struct inode *inode, loff_t size)
 int pvfs2_unmount_sb(struct super_block *sb)
 {
 	int ret = -EINVAL;
-	pvfs2_kernel_op_t *new_op = NULL;
+	struct pvfs2_kernel_op *new_op = NULL;
 
 	gossip_debug(GOSSIP_UTILS_DEBUG,
 		     "pvfs2_unmount_sb called on sb %p\n",
@@ -610,7 +611,7 @@ int pvfs2_unmount_sb(struct super_block *sb)
 int pvfs2_cancel_op_in_progress(uint64_t tag)
 {
 	int ret = -EINVAL;
-	pvfs2_kernel_op_t *new_op = NULL;
+	struct pvfs2_kernel_op *new_op = NULL;
 
 	gossip_debug(GOSSIP_UTILS_DEBUG,
 		     "pvfs2_cancel_op_in_progress called on tag %llu\n",
@@ -635,7 +636,7 @@ int pvfs2_cancel_op_in_progress(uint64_t tag)
 	return ret;
 }
 
-void pvfs2_op_initialize(pvfs2_kernel_op_t *op)
+void pvfs2_op_initialize(struct pvfs2_kernel_op *op)
 {
 	if (op) {
 		spin_lock(&op->lock);
@@ -702,18 +703,18 @@ void unmask_blocked_signals(sigset_t *orig_sigset)
 	spin_unlock_irqrestore(&pvfs2_current_signal_lock, irqflags);
 }
 
-PVFS_time pvfs2_convert_time_field(void *time_ptr)
+uint64_t pvfs2_convert_time_field(void *time_ptr)
 {
-	PVFS_time pvfs2_time;
+	uint64_t pvfs2_time;
 	struct timespec *tspec = (struct timespec *)time_ptr;
-	pvfs2_time = (PVFS_time) ((time_t) tspec->tv_sec);
+	pvfs2_time = (uint64_t) ((time_t) tspec->tv_sec);
 	return pvfs2_time;
 }
 
 /* macro defined in include/pvfs2-types.h */
 DECLARE_ERRNO_MAPPING_AND_FN();
 
-int pvfs2_normalize_to_errno(PVFS_error error_code)
+int pvfs2_normalize_to_errno(int32_t error_code)
 {
 	if (error_code > 0) {
 		gossip_err("pvfs2: error status receieved.\n");
