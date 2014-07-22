@@ -10,17 +10,18 @@
 
 struct readdir_handle_t {
 	int buffer_index;
-	pvfs2_readdir_response_t readdir_response;
+	struct pvfs2_readdir_response readdir_response;
 	void *dents_buf;
 };
 
 /*
  * decode routine needed by kmod to make sense of the shared page for readdirs.
  */
-static long decode_dirents(char *ptr, pvfs2_readdir_response_t *readdir)
+static long decode_dirents(char *ptr, struct pvfs2_readdir_response *readdir)
 {
 	int i;
-	pvfs2_readdir_response_t *rd = (pvfs2_readdir_response_t *) ptr;
+	struct pvfs2_readdir_response *rd =
+		(struct pvfs2_readdir_response *) ptr;
 	char *buf = ptr;
 	char **pptr = &buf;
 
@@ -31,11 +32,12 @@ static long decode_dirents(char *ptr, pvfs2_readdir_response_t *readdir)
 					GFP_KERNEL);
 	if (readdir->dirent_array == NULL)
 		return -ENOMEM;
-	*pptr += offsetof(pvfs2_readdir_response_t, dirent_array);
+	*pptr += offsetof(struct pvfs2_readdir_response, dirent_array);
 	for (i = 0; i < readdir->pvfs_dirent_outcount; i++) {
 		dec_string(pptr, &readdir->dirent_array[i].d_name,
 			   &readdir->dirent_array[i].d_length);
-		readdir->dirent_array[i].khandle = *(PVFS_khandle *) *pptr;
+		readdir->dirent_array[i].khandle =
+			*(struct pvfs2_khandle *) *pptr;
 		*pptr += 16;
 	}
 	return (unsigned long)*pptr - (unsigned long)ptr;
@@ -114,12 +116,12 @@ static int pvfs2_readdir(struct file *file, struct dir_context *ctx)
 {
 	int ret = 0;
 	int buffer_index;
-	PVFS_ds_position *ptoken = file->private_data;
-	PVFS_ds_position pos = 0;
+	uint64_t *ptoken = file->private_data;
+	uint64_t pos = 0;
 	ino_t ino = 0;
 	struct dentry *dentry = file->f_dentry;
-	pvfs2_kernel_op_t *new_op = NULL;
-	pvfs2_inode_t *pvfs2_inode = PVFS2_I(dentry->d_inode);
+	struct pvfs2_kernel_op *new_op = NULL;
+	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(dentry->d_inode);
 	int buffer_full = 0;
 	struct readdir_handle_t rhandle;
 	int i = 0;
@@ -134,7 +136,7 @@ static int pvfs2_readdir(struct file *file, struct dir_context *ctx)
 		      lld(ctx->pos),
 		      llu(*ptoken));
 
-	pos = (PVFS_ds_position) ctx->pos;
+	pos = (uint64_t) ctx->pos;
 
 	/* are we done? */
 	if (pos == PVFS_READDIR_END) {
@@ -377,9 +379,9 @@ get_new_buffer_index:
 
 static int pvfs2_dir_open(struct inode *inode, struct file *file)
 {
-	PVFS_ds_position *ptoken;
+	uint64_t *ptoken;
 
-	file->private_data = kmalloc(sizeof(PVFS_ds_position), GFP_KERNEL);
+	file->private_data = kmalloc(sizeof(uint64_t), GFP_KERNEL);
 	if (!file->private_data)
 		return -ENOMEM;
 

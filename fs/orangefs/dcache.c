@@ -20,8 +20,8 @@ static int pvfs2_d_revalidate_common(struct dentry *dentry)
 	int ret = 0;
 	struct inode *inode;
 	struct inode *parent_inode = NULL;
-	pvfs2_kernel_op_t *new_op = NULL;
-	pvfs2_inode_t *parent = NULL;
+	struct pvfs2_kernel_op *new_op = NULL;
+	struct pvfs2_inode_s *parent = NULL;
 
 	gossip_debug(GOSSIP_DCACHE_DEBUG, "%s: called on dentry %p.\n",
 		     __func__, dentry);

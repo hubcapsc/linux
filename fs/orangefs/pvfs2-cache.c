@@ -25,7 +25,7 @@ static struct kmem_cache *pvfs2_kiocb_cache;
 int op_cache_initialize(void)
 {
 	op_cache = kmem_cache_create("pvfs2_op_cache",
-				     sizeof(pvfs2_kernel_op_t),
+				     sizeof(struct pvfs2_kernel_op),
 				     0,
 				     PVFS2_CACHE_CREATE_FLAGS,
 				     NULL);
@@ -48,7 +48,7 @@ int op_cache_finalize(void)
 	return 0;
 }
 
-char *get_opname_string(pvfs2_kernel_op_t *new_op)
+char *get_opname_string(struct pvfs2_kernel_op *new_op)
 {
 	if (new_op) {
 		int32_t type = new_op->upcall.type;
@@ -108,13 +108,13 @@ char *get_opname_string(pvfs2_kernel_op_t *new_op)
 	return "OP_UNKNOWN?";
 }
 
-static pvfs2_kernel_op_t *op_alloc_common(int32_t op_linger, int32_t type)
+static struct pvfs2_kernel_op *op_alloc_common(int32_t op_linger, int32_t type)
 {
-	pvfs2_kernel_op_t *new_op = NULL;
+	struct pvfs2_kernel_op *new_op = NULL;
 
 	new_op = kmem_cache_alloc(op_cache, PVFS2_CACHE_ALLOC_FLAGS);
 	if (new_op) {
-		memset(new_op, 0, sizeof(pvfs2_kernel_op_t));
+		memset(new_op, 0, sizeof(struct pvfs2_kernel_op));
 
 		INIT_LIST_HEAD(&new_op->list);
 		spin_lock_init(&new_op->lock);
@@ -150,17 +150,17 @@ static pvfs2_kernel_op_t *op_alloc_common(int32_t op_linger, int32_t type)
 	return new_op;
 }
 
-pvfs2_kernel_op_t *op_alloc(int32_t type)
+struct pvfs2_kernel_op *op_alloc(int32_t type)
 {
 	return op_alloc_common(1, type);
 }
 
-pvfs2_kernel_op_t *op_alloc_trailer(int32_t type)
+struct pvfs2_kernel_op *op_alloc_trailer(int32_t type)
 {
 	return op_alloc_common(2, type);
 }
 
-void op_release(pvfs2_kernel_op_t *pvfs2_op)
+void op_release(struct pvfs2_kernel_op *pvfs2_op)
 {
 	if (pvfs2_op) {
 		gossip_debug(GOSSIP_CACHE_DEBUG,
@@ -219,7 +219,7 @@ void dev_req_release(void *buffer)
 int kiocb_cache_initialize(void)
 {
 	pvfs2_kiocb_cache = kmem_cache_create("pvfs2_kiocbcache",
-					      sizeof(pvfs2_kiocb),
+					      sizeof(struct pvfs2_kiocb_s),
 					      0,
 					      PVFS2_CACHE_CREATE_FLAGS,
 					      NULL);
@@ -237,19 +237,19 @@ int kiocb_cache_finalize(void)
 	return 0;
 }
 
-pvfs2_kiocb *kiocb_alloc(void)
+struct pvfs2_kiocb_s *kiocb_alloc(void)
 {
-	pvfs2_kiocb *x = NULL;
+	struct pvfs2_kiocb_s *x = NULL;
 
 	x = kmem_cache_alloc(pvfs2_kiocb_cache, PVFS2_CACHE_ALLOC_FLAGS);
 	if (x == NULL)
 		gossip_err("kiocb_alloc: kmem_cache_alloc failed!\n");
 	else
-		memset(x, 0, sizeof(pvfs2_kiocb));
+		memset(x, 0, sizeof(struct pvfs2_kiocb_s));
 	return x;
 }
 
-void kiocb_release(pvfs2_kiocb *x)
+void kiocb_release(struct pvfs2_kiocb_s *x)
 {
 	if (x)
 		kmem_cache_free(pvfs2_kiocb_cache, x);

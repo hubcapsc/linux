@@ -17,16 +17,15 @@
  * The kernel module will always use the first four bytes and
  * the last four bytes as an inum.
  */
-typedef struct {
+typedef struct pvfs2_khandle {
 	unsigned char u[16];
 } PVFS_khandle __attribute__ (( __aligned__ (8)));
 
 /* 
  * kernel version of an object ref.
  */
-typedef struct
-{
-	PVFS_khandle khandle;
+typedef struct pvfs2_object_kref {
+	struct pvfs2_khandle khandle;
 	int32_t fs_id;
 	int32_t __pad1;
 } PVFS_object_kref;
@@ -35,8 +34,8 @@ typedef struct
  * compare 2 khandles assumes little endian thus from large address to
  * small address
  */
-static __inline__ int PVFS_khandle_cmp(const PVFS_khandle *kh1,
-				       const PVFS_khandle *kh2)
+static __inline__ int PVFS_khandle_cmp(const struct pvfs2_khandle *kh1,
+				       const struct pvfs2_khandle *kh2)
 {
 	int i;
 
@@ -51,7 +50,7 @@ static __inline__ int PVFS_khandle_cmp(const PVFS_khandle *kh1,
 }
 
 /* copy a khandle to a field of arbitrary size */
-static __inline__ void PVFS_khandle_to(const PVFS_khandle *kh,
+static __inline__ void PVFS_khandle_to(const struct pvfs2_khandle *kh,
 				       void *p, int size)
 {
 	int i;
@@ -64,7 +63,7 @@ static __inline__ void PVFS_khandle_to(const PVFS_khandle *kh,
 }
 
 /* copy a khandle from a field of arbitrary size */
-static __inline__ void PVFS_khandle_from(PVFS_khandle *kh,
+static __inline__ void PVFS_khandle_from(struct pvfs2_khandle *kh,
 					 void *p, int size)
 {
 	int i;
@@ -98,11 +97,11 @@ typedef int64_t PVFS_offset;
 
 /* 7 bits are used for the errno mapped error codes */
 #define PVFS_ERROR_CODE(__error) \
-((__error) & (PVFS_error)(0x7f|PVFS_ERROR_BIT))
+((__error) & (int32_t)(0x7f|PVFS_ERROR_BIT))
 #define PVFS_ERROR_CLASS(__error) \
-((__error) & ~((PVFS_error)(0x7f|PVFS_ERROR_BIT|PVFS_NON_ERRNO_ERROR_BIT)))
+((__error) & ~((int32_t)(0x7f|PVFS_ERROR_BIT|PVFS_NON_ERRNO_ERROR_BIT)))
 #define PVFS_NON_ERRNO_ERROR_CODE(__error) \
-((__error) & (PVFS_error)(127|PVFS_ERROR_BIT|PVFS_NON_ERRNO_ERROR_BIT))
+((__error) & (int32_t)(127|PVFS_ERROR_BIT|PVFS_NON_ERRNO_ERROR_BIT))
 
 /* PVFS2 error codes, compliments of asm/errno.h */
 #define PVFS_EPERM            E(1)	/* Operation not permitted */
@@ -219,7 +218,7 @@ typedef int64_t PVFS_offset;
 	 PVFS_ERROR_DEV)
 
 #define DECLARE_ERRNO_MAPPING()                       \
-PVFS_error PINT_errno_mapping[PVFS_ERRNO_MAX + 1] = { \
+int32_t PINT_errno_mapping[PVFS_ERRNO_MAX + 1] = { \
 	0,     /* leave this one empty */                 \
 	EPERM, /* 1 */                                    \
 	ENOENT,                                           \
@@ -295,7 +294,7 @@ const char *PINT_non_errno_strerror_mapping[] = {     \
 	"Path contains non-PVFS elements",                \
 	"Security error",                                 \
 };                                                    \
-PVFS_error PINT_non_errno_mapping[] = {               \
+int32_t PINT_non_errno_mapping[] = {               \
 	0,     /* leave this one empty */                 \
 	PVFS_ECANCEL,   /* 1 */                           \
 	PVFS_EDEVINIT,  /* 2 */                           \
@@ -318,12 +317,12 @@ PVFS_error PINT_non_errno_mapping[] = {               \
  *   passed in value will be returned unchanged.
  */
 #define DECLARE_ERRNO_MAPPING_AND_FN()					\
-extern PVFS_error PINT_errno_mapping[];					\
-extern PVFS_error PINT_non_errno_mapping[];				\
+extern int32_t PINT_errno_mapping[];					\
+extern int32_t PINT_non_errno_mapping[];				\
 extern const char *PINT_non_errno_strerror_mapping[];			\
-PVFS_error PVFS_get_errno_mapping(PVFS_error error)			\
+int32_t PVFS_get_errno_mapping(int32_t error)			\
 {									\
-	PVFS_error ret = error, mask = 0;				\
+	int32_t ret = error, mask = 0;				\
 	int32_t positive = ((error > -1) ? 1 : 0);			\
 	if (IS_PVFS_NON_ERRNO_ERROR((positive ? error : -error))) {	\
 		mask = (PVFS_NON_ERRNO_ERROR_BIT |			\
@@ -344,9 +343,9 @@ PVFS_error PVFS_get_errno_mapping(PVFS_error error)			\
 	}								\
 	return ret;							\
 }									\
-PVFS_error PVFS_errno_to_error(int err)					\
+int32_t PVFS_errno_to_error(int err)					\
 {									\
-	PVFS_error e = 0;						\
+	int32_t e = 0;						\
 									\
 	for (; e < PVFS_ERRNO_MAX; ++e)					\
 		if (PINT_errno_mapping[e] == err)			\
@@ -381,7 +380,7 @@ DECLARE_ERRNO_MAPPING()
 #define PVFS_NOATIME_FL   FS_NOATIME_FL
 #define PVFS_MIRROR_FL    0x01000000ULL
 #define PVFS_O_EXECUTE (1 << 0)
-#define PVFS_FS_ID_NULL       ((PVFS_fs_id)0)
+#define PVFS_FS_ID_NULL       ((int32_t)0)
 #define PVFS_ATTR_SYS_UID                   (1 << 0)
 #define PVFS_ATTR_SYS_GID                   (1 << 1)
 #define PVFS_ATTR_SYS_PERM                  (1 << 2)
@@ -453,7 +452,7 @@ enum PVFS_io_type {
 /*
  * If this enum is modified the server parameters related to the precreate pool
  * batch and low threshold sizes may need to be modified  to reflect this
- * change. Also, the PVFS_DS_TYPE_COUNT #define below must be updated
+ * change.
  */
 typedef enum {
 	PVFS_TYPE_NONE = 0,
@@ -479,17 +478,17 @@ struct PVFS_certificate {
  * private key.
  */
 struct PVFS_credential {
-	PVFS_uid userid;	/* user id */
+	uint32_t userid;	/* user id */
 	uint32_t num_groups;	/* length of group_array */
-	PVFS_gid *group_array;	/* groups for which the user is a member */
+	uint32_t *group_array;	/* groups for which the user is a member */
 	char *issuer;		/* alias of the issuing server */
-	PVFS_time timeout;	/* seconds after epoch to time out */
+	uint64_t timeout;	/* seconds after epoch to time out */
 	uint32_t sig_size;	/* length of the signature in bytes */
 	unsigned char *signature;	/* digital signature */
 	struct PVFS_certificate certificate;	/* user certificate buffer */
 };
 #define extra_size_PVFS_credential (PVFS_REQ_LIMIT_GROUPS	*	\
-				    sizeof(PVFS_gid)		+	\
+				    sizeof(uint32_t)		+	\
 				    PVFS_REQ_LIMIT_ISSUER	+	\
 				    PVFS_REQ_LIMIT_SIGNATURE	+	\
 				    extra_size_PVFS_certificate)
@@ -505,13 +504,13 @@ struct PVFS_keyval_pair {
 /* pvfs2-sysint.h ***********************************************************/
 /* Describes attributes for a file, directory, or symlink. */
 struct PVFS_sys_attr_s {
-	PVFS_uid owner;
-	PVFS_gid group;
-	PVFS2_ALIGN_VAR(PVFS_permissions, perms);
-	PVFS_time atime;
-	PVFS_time mtime;
-	PVFS_time ctime;
-	PVFS_size size;
+	uint32_t owner;
+	uint32_t group;
+	PVFS2_ALIGN_VAR(uint32_t, perms);
+	uint64_t atime;
+	uint64_t mtime;
+	uint64_t ctime;
+	int64_t size;
 
 	/* NOTE: caller must free if valid */
 	PVFS2_ALIGN_VAR(char *, link_target); /* caller must free if valid */
@@ -536,11 +535,11 @@ struct PVFS_sys_attr_s {
 	/* NOTE: caller must free if valid */
 	PVFS2_ALIGN_VAR(char *, dist_params);
 
-	PVFS_size dirent_count;
+	int64_t dirent_count;
 	PVFS_ds_type objtype;
-	PVFS_flags flags;
+	uint64_t flags;
 	uint32_t mask;
-	PVFS_size blksize;
+	int64_t blksize;
 };
 typedef struct PVFS_sys_attr_s PVFS_sys_attr;
 
