@@ -8,7 +8,7 @@
  *  Linux VFS extended attribute operations.
  */
 
-#include "hubcap.h"
+#include "protocol.h"
 #include "pvfs2-kernel.h"
 #include "pvfs2-bufmap.h"
 #include <linux/posix_acl_xattr.h>

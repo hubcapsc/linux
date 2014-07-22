@@ -7,7 +7,7 @@
  * See COPYING in top-level directory.
  */
 
-#include "hubcap.h"
+#include "protocol.h"
 #include "pvfs2-kernel.h"
 
 #include <linux/sysctl.h>
