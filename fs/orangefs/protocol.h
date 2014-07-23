@@ -454,7 +454,7 @@ enum PVFS_io_type {
  * batch and low threshold sizes may need to be modified  to reflect this
  * change.
  */
-typedef enum {
+enum pvfs2_ds_type {
 	PVFS_TYPE_NONE = 0,
 	PVFS_TYPE_METAFILE = (1 << 0),
 	PVFS_TYPE_DATAFILE = (1 << 1),
@@ -462,7 +462,7 @@ typedef enum {
 	PVFS_TYPE_SYMLINK = (1 << 3),
 	PVFS_TYPE_DIRDATA = (1 << 4),
 	PVFS_TYPE_INTERNAL = (1 << 5)	/* for the server's private use */
-} PVFS_ds_type;
+};
 
 /*
  * PVFS_certificate simply stores a buffer with the buffer size.
@@ -536,7 +536,7 @@ struct PVFS_sys_attr_s {
 	PVFS2_ALIGN_VAR(char *, dist_params);
 
 	int64_t dirent_count;
-	PVFS_ds_type objtype;
+	enum pvfs2_ds_type objtype;
 	uint64_t flags;
 	uint32_t mask;
 	int64_t blksize;
