@@ -14,17 +14,19 @@
 /* Returns 1 if dentry can still be trusted, else 0. */
 static int pvfs2_revalidate_lookup(struct dentry *dentry)
 {
-	struct inode *parent_inode = dentry->d_parent->d_inode;
+	struct dentry *parent_dentry = dget_parent(dentry);
+	struct inode *parent_inode = parent_dentry->d_inode;
 	struct pvfs2_inode_s *parent = PVFS2_I(parent_inode);
 	struct inode *inode = dentry->d_inode;
 	struct pvfs2_kernel_op *new_op;
 	int ret = 0;
+	int err = 0;
 
 	gossip_debug(GOSSIP_DCACHE_DEBUG, "%s: attempting lookup.\n", __func__);
 
 	new_op = op_alloc(PVFS2_VFS_OP_LOOKUP);
 	if (!new_op)
-		return 0;
+		goto out_put_parent;
 
 	new_op->upcall.req.lookup.sym_follow = PVFS2_LOOKUP_LINK_NO_FOLLOW;
 	new_op->upcall.req.lookup.parent_refn = parent->refn;
@@ -37,7 +39,7 @@ static int pvfs2_revalidate_lookup(struct dentry *dentry)
 		     __LINE__,
 		     get_interruptible_flag(parent_inode));
 
-	ret = service_operation(new_op, "pvfs2_lookup",
+	err = service_operation(new_op, "pvfs2_lookup",
 			get_interruptible_flag(parent_inode));
 
 	if (new_op->downcall.status != 0 ||
@@ -51,19 +53,21 @@ static int pvfs2_revalidate_lookup(struct dentry *dentry)
 			new_op->downcall.status ? "true" : "false",
 			match_handle(new_op->downcall.resp.lookup.refn.khandle,
 					inode) ? "false" : "true");
-		op_release(new_op);
-
 		gossip_debug(GOSSIP_DCACHE_DEBUG,
 			     "%s:%s:%d setting revalidate_failed = 1\n",
 			     __FILE__, __func__, __LINE__);
 		/* set a flag that we can detect later in d_delete() */
 		PVFS2_I(inode)->revalidate_failed = 1;
 		d_drop(dentry);
-		return 0;
+		goto out_release_op;
 	}
 
+	ret = 1;
+out_release_op:
 	op_release(new_op);
-	return 1;
+out_put_parent:
+	dput(parent_dentry);
+	return ret;
 }
 
 /*
@@ -91,15 +95,6 @@ static int pvfs2_d_revalidate(struct dentry *dentry, unsigned int flags)
 
 	gossip_debug(GOSSIP_DCACHE_DEBUG, "%s: inode valid.\n", __func__);
 	inode = dentry->d_inode;
-
-	/* find parent inode */
-	if (!dentry->d_parent) {
-		gossip_debug(GOSSIP_DCACHE_DEBUG, "%s: parent not found.\n",
-			     __func__);
-		goto invalid_exit;
-	}
-
-	gossip_debug(GOSSIP_DCACHE_DEBUG, "%s: parent found.\n", __func__);
 
 	/*
 	 * first perform a lookup to make sure that the object not only
