@@ -96,7 +96,6 @@ static struct inode *pvfs2_alloc_inode(struct super_block *sb)
 	pvfs2_inode->refn.fs_id = PVFS_FS_ID_NULL;
 	pvfs2_inode->last_failed_block_index_read = 0;
 	memset(pvfs2_inode->link_target, 0, sizeof(pvfs2_inode->link_target));
-	pvfs2_inode->revalidate_failed = 0;
 	pvfs2_inode->pinode_flags = 0;
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
