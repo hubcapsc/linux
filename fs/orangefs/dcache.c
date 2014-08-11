@@ -41,6 +41,8 @@ static int pvfs2_revalidate_lookup(struct dentry *dentry)
 
 	err = service_operation(new_op, "pvfs2_lookup",
 			get_interruptible_flag(parent_inode));
+	if (err)
+		goto out_drop;
 
 	if (new_op->downcall.status != 0 ||
 	    !match_handle(new_op->downcall.resp.lookup.refn.khandle, inode)) {
@@ -56,10 +58,7 @@ static int pvfs2_revalidate_lookup(struct dentry *dentry)
 		gossip_debug(GOSSIP_DCACHE_DEBUG,
 			     "%s:%s:%d setting revalidate_failed = 1\n",
 			     __FILE__, __func__, __LINE__);
-		/* set a flag that we can detect later in d_delete() */
-		PVFS2_I(inode)->revalidate_failed = 1;
-		d_drop(dentry);
-		goto out_release_op;
+		goto out_drop;
 	}
 
 	ret = 1;
@@ -68,6 +67,11 @@ out_release_op:
 out_put_parent:
 	dput(parent_dentry);
 	return ret;
+out_drop:
+	/* set a flag that we can detect later in d_delete() */
+	PVFS2_I(inode)->revalidate_failed = 1;
+	d_drop(dentry);
+	goto out_release_op;
 }
 
 /*
