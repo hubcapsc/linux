@@ -83,8 +83,8 @@ static int pvfs2_d_revalidate(struct dentry *dentry, unsigned int flags)
 		     __func__, dentry);
 
 	/* find inode from dentry */
-	if (!dentry || !dentry->d_inode) {
-		gossip_debug(GOSSIP_DCACHE_DEBUG, "%s: inode not valid.\n",
+	if (!dentry->d_inode) {
+		gossip_debug(GOSSIP_DCACHE_DEBUG, "%s: negative dentry.\n",
 			     __func__);
 		goto invalid_exit;
 	}
@@ -93,7 +93,7 @@ static int pvfs2_d_revalidate(struct dentry *dentry, unsigned int flags)
 	inode = dentry->d_inode;
 
 	/* find parent inode */
-	if (!dentry || !dentry->d_parent) {
+	if (!dentry->d_parent) {
 		gossip_debug(GOSSIP_DCACHE_DEBUG, "%s: parent not found.\n",
 			     __func__);
 		goto invalid_exit;
