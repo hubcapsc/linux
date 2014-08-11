@@ -134,29 +134,52 @@ const struct address_space_operations pvfs2_address_operations = {
 
 static int pvfs2_setattr_size(struct inode *inode, struct iattr *iattr)
 {
+	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
+	struct pvfs2_kernel_op *new_op;
 	loff_t orig_size = i_size_read(inode);
+	int ret = -EINVAL;
+
+	gossip_debug(GOSSIP_UTILS_DEBUG,
+		     "%s: %pU: Handle is %pU | fs_id %d | size is %llu\n",
+		     __func__,
+		     get_khandle_from_ino(inode),
+		     &pvfs2_inode->refn.khandle,
+		     pvfs2_inode->refn.fs_id,
+		     iattr->ia_size);
 
 	truncate_setsize(inode, iattr->ia_size);
 
-	gossip_debug(GOSSIP_INODE_DEBUG,
-		     "pvfs2: pvfs2_setattr_size called on inode %pU "
-		     "with size %ld\n",
-		     get_khandle_from_ino(inode),
-		     (long)orig_size);
+	new_op = op_alloc(PVFS2_VFS_OP_TRUNCATE);
+	if (!new_op)
+		return -ENOMEM;
+
+	new_op->upcall.req.truncate.refn = pvfs2_inode->refn;
+	new_op->upcall.req.truncate.size = (int64_t) iattr->ia_size;
+
+	ret = service_operation(new_op, __func__,
+				get_interruptible_flag(inode));
+
+	/*
+	 * the truncate has no downcall members to retrieve, but
+	 * the status value tells us if it went through ok or not
+	 */
+	gossip_debug(GOSSIP_UTILS_DEBUG,
+		     "pvfs2: pvfs2_truncate got return value of %d\n",
+		     ret);
+
+	op_release(new_op);
 
 	/*
 	 * successful truncate when size changes also requires mtime updates
 	 * although the mtime updates are propagated lazily!
 	 */
-	if (pvfs2_truncate_inode(inode, inode->i_size) == 0
-	    && (orig_size != i_size_read(inode))) {
-		struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
+	if (ret == 0 && orig_size != i_size_read(inode)) {
 		SetMtimeFlag(pvfs2_inode);
 		inode->i_mtime = CURRENT_TIME;
 		mark_inode_dirty_sync(inode);
 	}
 
-	return 0;
+	return ret;
 }
 
 /*

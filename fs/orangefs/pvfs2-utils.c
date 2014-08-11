@@ -531,44 +531,6 @@ int pvfs2_flush_inode(struct inode *inode)
 	return ret;
 }
 
-int pvfs2_truncate_inode(struct inode *inode, loff_t size)
-{
-	int ret = -EINVAL;
-	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
-	struct pvfs2_kernel_op *new_op = NULL;
-
-	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "pvfs2: pvfs2_truncate_inode %pU: "
-		     "Handle is %pU | fs_id %d | size is %lu\n",
-		     get_khandle_from_ino(inode),
-		     &pvfs2_inode->refn.khandle,
-		     pvfs2_inode->refn.fs_id,
-		     (unsigned long)size);
-
-	new_op = op_alloc(PVFS2_VFS_OP_TRUNCATE);
-	if (!new_op)
-		return -ENOMEM;
-
-	new_op->upcall.req.truncate.refn = pvfs2_inode->refn;
-	new_op->upcall.req.truncate.size = (int64_t) size;
-
-	ret = service_operation(new_op,
-				"pvfs2_truncate_inode",
-				get_interruptible_flag(inode));
-
-	/*
-	 * the truncate has no downcall members to retrieve, but
-	 * the status value tells us if it went through ok or not
-	 */
-	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "pvfs2: pvfs2_truncate got return value of %d\n",
-		     ret);
-
-	op_release(new_op);
-
-	return ret;
-}
-
 int pvfs2_unmount_sb(struct super_block *sb)
 {
 	int ret = -EINVAL;
