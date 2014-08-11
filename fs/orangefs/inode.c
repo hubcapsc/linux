@@ -138,9 +138,6 @@ static int pvfs2_setattr_size(struct inode *inode, struct iattr *iattr)
 
 	truncate_setsize(inode, iattr->ia_size);
 
-	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
-		return -EPERM;
-
 	gossip_debug(GOSSIP_INODE_DEBUG,
 		     "pvfs2: pvfs2_setattr_size called on inode %pU "
 		     "with size %ld\n",
