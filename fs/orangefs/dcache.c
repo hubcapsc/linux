@@ -56,7 +56,7 @@ static int pvfs2_revalidate_lookup(struct dentry *dentry)
 			match_handle(new_op->downcall.resp.lookup.refn.khandle,
 					inode) ? "false" : "true");
 		gossip_debug(GOSSIP_DCACHE_DEBUG,
-			     "%s:%s:%d setting revalidate_failed = 1\n",
+			     "%s:%s:%d revalidate failed\n",
 			     __FILE__, __func__, __LINE__);
 		goto out_drop;
 	}
@@ -68,8 +68,6 @@ out_put_parent:
 	dput(parent_dentry);
 	return ret;
 out_drop:
-	/* set a flag that we can detect later in d_delete() */
-	PVFS2_I(inode)->revalidate_failed = 1;
 	d_drop(dentry);
 	goto out_release_op;
 }
@@ -137,26 +135,6 @@ invalid_exit:
 	return 0;
 }
 
-static int pvfs2_d_delete(const struct dentry *dentry)
-{
-	gossip_debug(GOSSIP_DCACHE_DEBUG,
-		     "%s: called on dentry %p.\n", __func__, dentry);
-	if (dentry->d_inode
-	    && PVFS2_I(dentry->d_inode)->revalidate_failed == 1) {
-		gossip_debug(GOSSIP_DCACHE_DEBUG,
-			     "%s: returning 1 (bad inode).\n",
-			     __func__);
-		return 1;
-	} else {
-		gossip_debug(GOSSIP_DCACHE_DEBUG,
-			     "%s: returning 0 (inode looks ok).\n",
-			     __func__);
-		return 0;
-	}
-}
-
-/* PVFS2 implementation of VFS dentry operations */
 const struct dentry_operations pvfs2_dentry_operations = {
 	.d_revalidate = pvfs2_d_revalidate,
-	.d_delete = pvfs2_d_delete,
 };
