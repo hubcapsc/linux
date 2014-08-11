@@ -11,9 +11,6 @@
 #include "protocol.h"
 #include "pvfs2-kernel.h"
 
-static void __attribute__ ((unused)) print_dentry(struct dentry *entry,
-						  int ret);
-
 /* should return 1 if dentry can still be trusted, else 0 */
 static int pvfs2_d_revalidate_common(struct dentry *dentry)
 {
@@ -167,35 +164,3 @@ const struct dentry_operations pvfs2_dentry_operations = {
 	.d_revalidate = pvfs2_d_revalidate,
 	.d_delete = pvfs2_d_delete,
 };
-
-/* print_dentry()
- *
- * Available for debugging purposes.  Please remove the unused attribute
- * before invoking
- */
-static void __attribute__ ((unused)) print_dentry(struct dentry *entry, int ret)
-{
-	unsigned int local_count = 0;
-	if (!entry) {
-		pr_info("--- dentry %p: no entry, ret: %d\n", entry, ret);
-		return;
-	}
-
-	if (!entry->d_inode) {
-		pr_info("--- dentry %p: no d_inode, ret: %d\n", entry, ret);
-		return;
-	}
-
-	if (!entry->d_parent) {
-		pr_info("--- dentry %p: no d_parent, ret: %d\n", entry, ret);
-		return;
-	}
-
-	spin_lock(&entry->d_lock);
-	local_count = entry->d_lockref.count;
-	spin_unlock(&entry->d_lock);
-
-	pr_info("--- dentry %p: d_count: %d, name: %s, parent: %p, parent name: %s, ret: %d\n",
-	     entry, local_count, entry->d_name.name, entry->d_parent,
-	     entry->d_parent->d_name.name, ret);
-}
