@@ -314,7 +314,6 @@ typedef struct pvfs2_inode_s {
 
 	struct inode vfs_inode;
 	sector_t last_failed_block_index_read;
-	int revalidate_failed;
 
 	/*
 	 * State of in-memory attributes not yet flushed to disk associated
