@@ -633,8 +633,6 @@ int pvfs2_inode_getattr(struct inode *inode, uint32_t mask);
 
 int pvfs2_inode_setattr(struct inode *inode, struct iattr *iattr);
 
-int pvfs2_truncate_inode(struct inode *inode, loff_t size);
-
 void pvfs2_op_initialize(struct pvfs2_kernel_op *op);
 
 void pvfs2_make_bad_inode(struct inode *inode);
