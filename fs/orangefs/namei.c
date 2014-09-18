@@ -159,7 +159,7 @@ static struct dentry *pvfs2_lookup(struct inode *dir, struct dentry *dentry,
 
 			gossip_debug(GOSSIP_NAME_DEBUG,
 				     "pvfs2_lookup: Adding *negative* dentry "
-				     "%p\n for %s\n",
+				     "%p for %s\n",
 				     dentry,
 				     dentry->d_name.name);
 
