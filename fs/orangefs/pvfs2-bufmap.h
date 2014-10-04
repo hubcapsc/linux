@@ -15,6 +15,11 @@ struct pvfs_bufmap_desc {
 	struct list_head list_link;
 };
 
+struct pvfs2_bufmap;
+
+struct pvfs2_bufmap *pvfs2_bufmap_ref(void);
+void pvfs2_bufmap_unref(struct pvfs2_bufmap *bufmap);
+
 /*
  * pvfs_bufmap_size_query is now an inline function because buffer
  * sizes are not hardcoded
@@ -29,51 +34,42 @@ int get_bufmap_init(void);
 
 void pvfs_bufmap_finalize(void);
 
-int pvfs_bufmap_get(int *buffer_index);
+int pvfs_bufmap_get(struct pvfs2_bufmap **mapp, int *buffer_index);
 
-void pvfs_bufmap_put(int buffer_index);
+void pvfs_bufmap_put(struct pvfs2_bufmap *bufmap, int buffer_index);
 
-int readdir_index_get(int *buffer_index);
+int readdir_index_get(struct pvfs2_bufmap **mapp, int *buffer_index);
 
-void readdir_index_put(int buffer_index);
+void readdir_index_put(struct pvfs2_bufmap *bufmap, int buffer_index);
 
-int pvfs_bufmap_copy_from_user(int buffer_index,
-			       void __user *from,
-			       size_t size);
-
-int pvfs_bufmap_copy_iovec_from_user(int buffer_index,
+int pvfs_bufmap_copy_iovec_from_user(struct pvfs2_bufmap *bufmap,
+				     int buffer_index,
 				     const struct iovec *iov,
 				     unsigned long nr_segs,
 				     size_t size);
 
-int pvfs_bufmap_copy_iovec_from_kernel(int buffer_index,
+int pvfs_bufmap_copy_iovec_from_kernel(struct pvfs2_bufmap *bufmap,
+				       int buffer_index,
 				       const struct iovec *iov,
 				       unsigned long nr_segs,
 				       size_t size);
 
-int pvfs_bufmap_copy_to_user(void __user *to, int buffer_index, size_t size);
-
-int pvfs_bufmap_copy_to_user_iovec(int buffer_index,
+int pvfs_bufmap_copy_to_user_iovec(struct pvfs2_bufmap *bufmap,
+				   int buffer_index,
 				   const struct iovec *iov,
 				   unsigned long nr_segs,
 				   size_t size);
 
-int pvfs_bufmap_copy_to_kernel_iovec(int buffer_index,
+int pvfs_bufmap_copy_to_kernel_iovec(struct pvfs2_bufmap *bufmap,
+				     int buffer_index,
 				     const struct iovec *iov,
 				     unsigned long nr_segs,
 				     size_t size);
 
-int pvfs_bufmap_copy_to_kernel(void *to, int buffer_index, size_t size);
-
-size_t pvfs_bufmap_copy_to_user_task(struct task_struct *tsk,
-				     void __user *to,
-				     size_t size,
-				     int buffer_index,
-				     int *buffer_index_offset);
-
 size_t pvfs_bufmap_copy_to_user_task_iovec(struct task_struct *tsk,
 					   struct iovec *iovec,
 					   unsigned long nr_segs,
+					   struct pvfs2_bufmap *bufmap,
 					   int buffer_index,
 					   size_t bytes_to_be_copied);
 

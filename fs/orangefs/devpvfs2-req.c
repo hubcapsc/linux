@@ -502,6 +502,7 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 					    (x->tsk,
 					     x->iov,
 					     x->nr_segs,
+					     x->bufmap,
 					     x->buffer_index,
 					     bytes_copied);
 				}

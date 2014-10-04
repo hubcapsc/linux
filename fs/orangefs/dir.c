@@ -71,7 +71,8 @@ static long readdir_handle_ctor(struct readdir_handle_t *rhandle, void *buf,
 	return ret;
 }
 
-static void readdir_handle_dtor(struct readdir_handle_t *rhandle)
+static void readdir_handle_dtor(struct pvfs2_bufmap *bufmap,
+		struct readdir_handle_t *rhandle)
 {
 	if (rhandle == NULL)
 		return;
@@ -81,7 +82,7 @@ static void readdir_handle_dtor(struct readdir_handle_t *rhandle)
 	rhandle->readdir_response.dirent_array = NULL;
 
 	if (rhandle->buffer_index >= 0) {
-		readdir_index_put(rhandle->buffer_index);
+		readdir_index_put(bufmap, rhandle->buffer_index);
 		rhandle->buffer_index = -1;
 	}
 	if (rhandle->dents_buf) {
@@ -113,6 +114,7 @@ static void readdir_handle_dtor(struct readdir_handle_t *rhandle)
  */
 static int pvfs2_readdir(struct file *file, struct dir_context *ctx)
 {
+	struct pvfs2_bufmap *bufmap = NULL;
 	int ret = 0;
 	int buffer_index;
 	uint64_t *ptoken = file->private_data;
@@ -178,7 +180,7 @@ static int pvfs2_readdir(struct file *file, struct dir_context *ctx)
 	new_op->upcall.req.readdir.token = *ptoken;
 
 get_new_buffer_index:
-	ret = readdir_index_get(&buffer_index);
+	ret = readdir_index_get(&bufmap, &buffer_index);
 	if (ret < 0) {
 		gossip_lerr("pvfs2_readdir: readdir_index_get() failure (%d)\n",
 			    ret);
@@ -204,16 +206,14 @@ get_new_buffer_index:
 		gossip_debug(GOSSIP_DIR_DEBUG,
 			"%s: Getting new buffer_index for retry of readdir..\n",
 			 __func__);
+		readdir_index_put(bufmap, buffer_index);
 		goto get_new_buffer_index;
 	}
 
 	if (ret == -EIO && op_state_purged(new_op)) {
-		/*
-		 * pvfs2-client is down.  Readdir shared memory area has
-		 * been wiped clean.  No need to "put" back the buffer_index.
-		 */
 		gossip_err("%s: Client is down. Aborting readdir call.\n",
 			__func__);
+		readdir_index_put(bufmap, buffer_index);
 		goto out_free_op;
 	}
 
@@ -221,7 +221,7 @@ get_new_buffer_index:
 		gossip_debug(GOSSIP_DIR_DEBUG,
 			     "Readdir request failed.  Status:%d\n",
 			     new_op->downcall.status);
-		readdir_index_put(buffer_index);
+		readdir_index_put(bufmap, buffer_index);
 		if (ret >= 0)
 			ret = new_op->downcall.status;
 		goto out_free_op;
@@ -235,7 +235,7 @@ get_new_buffer_index:
 		gossip_err("pvfs2_readdir: Could not decode trailer buffer into a readdir response %d\n",
 			ret);
 		ret = bytes_decoded;
-		readdir_index_put(buffer_index);
+		readdir_index_put(bufmap, buffer_index);
 		goto out_free_op;
 	}
 
@@ -359,7 +359,7 @@ get_new_buffer_index:
 		     lld(ctx->pos));
 
 out_destroy_handle:
-	readdir_handle_dtor(&rhandle);
+	readdir_handle_dtor(bufmap, &rhandle);
 out_free_op:
 	op_release(new_op);
 	gossip_debug(GOSSIP_DIR_DEBUG, "pvfs2_readdir returning %d\n", ret);
