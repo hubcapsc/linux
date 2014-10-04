@@ -63,7 +63,6 @@ static long readdir_handle_ctor(struct readdir_handle_t *rhandle, void *buf,
 	ret = decode_dirents(buf, &rhandle->readdir_response);
 	if (ret < 0) {
 		gossip_err("Could not decode readdir from buffer %ld\n", ret);
-		readdir_index_put(rhandle->buffer_index);
 		rhandle->buffer_index = -1;
 		gossip_debug(GOSSIP_DIR_DEBUG, "vfree %p\n", buf);
 		vfree(buf);
@@ -183,8 +182,7 @@ get_new_buffer_index:
 	if (ret < 0) {
 		gossip_lerr("pvfs2_readdir: readdir_index_get() failure (%d)\n",
 			    ret);
-		op_release(new_op);
-		return ret;
+		goto out_free_op;
 	}
 	new_op->upcall.req.readdir.buf_index = buffer_index;
 
@@ -216,8 +214,7 @@ get_new_buffer_index:
 		 */
 		gossip_err("%s: Client is down. Aborting readdir call.\n",
 			__func__);
-		op_release(new_op);
-		return ret;
+		goto out_free_op;
 	}
 
 	if (ret < 0 || new_op->downcall.status != 0) {
@@ -225,8 +222,9 @@ get_new_buffer_index:
 			     "Readdir request failed.  Status:%d\n",
 			     new_op->downcall.status);
 		readdir_index_put(buffer_index);
-		op_release(new_op);
-		return ((ret < 0 ? ret : new_op->downcall.status));
+		if (ret >= 0)
+			ret = new_op->downcall.status;
+		goto out_free_op;
 	}
 
 	bytes_decoded =
@@ -238,8 +236,7 @@ get_new_buffer_index:
 			ret);
 		ret = bytes_decoded;
 		readdir_index_put(buffer_index);
-		op_release(new_op);
-		return ret;
+		goto out_free_op;
 	}
 
 	if (bytes_decoded != new_op->downcall.trailer_size) {
@@ -247,9 +244,7 @@ get_new_buffer_index:
 			bytes_decoded,
 			(long)new_op->downcall.trailer_size);
 		ret = -EINVAL;
-		readdir_handle_dtor(&rhandle);
-		op_release(new_op);
-		return ret;
+		goto out_destroy_handle;
 	}
 
 	if (pos == 0) {
@@ -259,11 +254,8 @@ get_new_buffer_index:
 			     __func__,
 			     llu(pos));
 		ret = dir_emit(ctx, ".", 1, ino, DT_DIR);
-		if (ret < 0) {
-			readdir_handle_dtor(&rhandle);
-			op_release(new_op);
-			return ret;
-		}
+		if (ret < 0)
+			goto out_destroy_handle;
 		ctx->pos++;
 		gossip_ldebug(GOSSIP_DIR_DEBUG,
 			      "%s: ctx->pos:%lld\n",
@@ -279,11 +271,8 @@ get_new_buffer_index:
 			     __func__,
 			     llu(pos));
 		ret = dir_emit(ctx, "..", 2, ino, DT_DIR);
-		if (ret < 0) {
-			readdir_handle_dtor(&rhandle);
-			op_release(new_op);
-			return ret;
-		}
+		if (ret < 0)
+			goto out_destroy_handle;
 		ctx->pos++;
 		gossip_ldebug(GOSSIP_DIR_DEBUG,
 			      "%s: ctx->pos:%lld\n",
@@ -369,11 +358,11 @@ get_new_buffer_index:
 		     llu(*ptoken),
 		     lld(ctx->pos));
 
+out_destroy_handle:
 	readdir_handle_dtor(&rhandle);
+out_free_op:
 	op_release(new_op);
-
 	gossip_debug(GOSSIP_DIR_DEBUG, "pvfs2_readdir returning %d\n", ret);
-
 	return ret;
 }
 
