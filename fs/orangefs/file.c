@@ -29,8 +29,12 @@ do {							\
  *       can futher be kernel-space or user-space addresses.
  *       or it can pointers to struct page's
  */
-static int precopy_buffers(int buffer_index, const struct iovec *vec,
-		unsigned long nr_segs, size_t total_size, int from_user)
+static int precopy_buffers(struct pvfs2_bufmap *bufmap,
+			   int buffer_index,
+			   const struct iovec *vec,
+			   unsigned long nr_segs,
+			   size_t total_size,
+			   int from_user)
 {
 	int ret = 0;
 
@@ -41,6 +45,7 @@ static int precopy_buffers(int buffer_index, const struct iovec *vec,
 	/* Are we copying from User Virtual Addresses? */
 	if (from_user)
 		ret = pvfs_bufmap_copy_iovec_from_user(
+			bufmap,
 			buffer_index,
 			vec,
 			nr_segs,
@@ -48,6 +53,7 @@ static int precopy_buffers(int buffer_index, const struct iovec *vec,
 	/* Are we copying from Kernel Virtual Addresses? */
 	else
 		ret = pvfs_bufmap_copy_iovec_from_kernel(
+			bufmap,
 			buffer_index,
 			vec,
 			nr_segs,
@@ -66,7 +72,8 @@ static int precopy_buffers(int buffer_index, const struct iovec *vec,
  *       can futher be kernel-space or user-space addresses.
  *       or it can pointers to struct page's
  */
-static int postcopy_buffers(int buffer_index,
+static int postcopy_buffers(struct pvfs2_bufmap *bufmap,
+			    int buffer_index,
 			    const struct iovec *vec,
 			    int nr_segs,
 			    size_t total_size,
@@ -83,6 +90,7 @@ static int postcopy_buffers(int buffer_index,
 		/* Are we copying to User Virtual Addresses? */
 		if (to_user)
 			ret = pvfs_bufmap_copy_to_user_iovec(
+				bufmap,
 				buffer_index,
 				vec,
 				nr_segs,
@@ -90,6 +98,7 @@ static int postcopy_buffers(int buffer_index,
 		/* Are we copying to Kern Virtual Addresses? */
 		else
 			ret = pvfs_bufmap_copy_to_kernel_iovec(
+				bufmap,
 				buffer_index,
 				vec,
 				nr_segs,
@@ -111,6 +120,7 @@ static ssize_t wait_for_direct_io(enum PVFS_io_type type, struct inode *inode,
 {
 	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
 	struct pvfs2_khandle *handle = &pvfs2_inode->refn.khandle;
+	struct pvfs2_bufmap *bufmap = NULL;
 	struct pvfs2_kernel_op *new_op = NULL;
 	int buffer_index = -1;
 	ssize_t ret;
@@ -128,7 +138,7 @@ static ssize_t wait_for_direct_io(enum PVFS_io_type type, struct inode *inode,
 
 populate_shared_memory:
 	/* get a shared buffer index */
-	ret = pvfs_bufmap_get(&buffer_index);
+	ret = pvfs_bufmap_get(&bufmap, &buffer_index);
 	if (ret < 0) {
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s: pvfs_bufmap_get failure (%ld)\n",
@@ -160,8 +170,12 @@ populate_shared_memory:
 	 * precopy_buffers only pertains to writes.
 	 */
 	if (type == PVFS_IO_WRITE) {
-		ret = precopy_buffers(buffer_index, vec, nr_segs,
-				total_size, to_user);
+		ret = precopy_buffers(bufmap,
+				      buffer_index,
+				      vec,
+				      nr_segs,
+				      total_size,
+				      to_user);
 		if (ret < 0)
 			goto out;
 	}
@@ -187,6 +201,7 @@ populate_shared_memory:
 	 * a new shared memory location.
 	 */
 	if (ret == -EAGAIN && op_state_purged(new_op)) {
+		pvfs_bufmap_put(bufmap, buffer_index);
 		gossip_debug(GOSSIP_WAIT_DEBUG,
 			     "%s:going to repopulate_shared_memory.\n",
 			     __func__);
@@ -218,9 +233,12 @@ populate_shared_memory:
 	 * postcopy_buffers only pertains to reads.
 	 */
 	if (type == PVFS_IO_READ) {
-		ret = postcopy_buffers(buffer_index, vec, nr_segs,
-			       new_op->downcall.resp.io.amt_complete,
-			       to_user);
+		ret = postcopy_buffers(bufmap,
+				       buffer_index,
+				       vec,
+				       nr_segs,
+				       new_op->downcall.resp.io.amt_complete,
+				       to_user);
 		if (ret < 0) {
 			/*
 			 * put error codes in downcall so that handle_io_error()
@@ -250,7 +268,7 @@ populate_shared_memory:
 
 out:
 	if (buffer_index >= 0) {
-		pvfs_bufmap_put(buffer_index);
+		pvfs_bufmap_put(bufmap, buffer_index);
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s(%pU): PUT buffer_index %d\n",
 			     __func__, handle, buffer_index);
@@ -854,7 +872,7 @@ static int pvfs2_aio_cancel(struct kiocb *iocb)
 			gossip_debug(GOSSIP_FILE_DEBUG,
 				     "pvfs2_aio_cancel: put bufmap_index %d\n",
 				     x->buffer_index);
-			pvfs_bufmap_put(x->buffer_index);
+			pvfs_bufmap_put(x->bufmap, x->buffer_index);
 			x->buffer_index = -1;
 		}
 		/*
@@ -874,6 +892,7 @@ fill_default_kiocb(struct pvfs2_kiocb_s *x,
 		   struct task_struct *tsk,
 		   struct kiocb *iocb,
 		   int rw,
+		   struct pvfs2_bufmap *bufmap,
 		   int buffer_index,
 		   struct pvfs2_kernel_op *op,
 		   const struct iovec *iovec,
@@ -884,6 +903,7 @@ fill_default_kiocb(struct pvfs2_kiocb_s *x,
 {
 	x->tsk = tsk;
 	x->kiocb = iocb;
+	x->bufmap = bufmap;
 	x->buffer_index = buffer_index;
 	x->op = op;
 	x->rw = rw;
@@ -912,6 +932,7 @@ static ssize_t pvfs2_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	ssize_t rc = 0;
 	size_t count = iov_iter_count(iter);
 	unsigned long nr_segs = iter->nr_segs;
+	struct pvfs2_bufmap *bufmap = NULL;
 	struct pvfs2_kernel_op *new_op;
 	struct inode *inode = file->f_mapping->host;
 	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
@@ -971,7 +992,7 @@ static ssize_t pvfs2_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	new_op->upcall.req.io.async_vfs_io = PVFS_VFS_ASYNC_IO;
 	new_op->upcall.req.io.io_type = PVFS_IO_READ;
 	new_op->upcall.req.io.refn = pvfs2_inode->refn;
-	rc = pvfs_bufmap_get(&buffer_index);
+	rc = pvfs_bufmap_get(&bufmap, &buffer_index);
 	if (rc < 0) {
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s: pvfs_bufmap_get() failure %ld\n",
@@ -1008,6 +1029,7 @@ static ssize_t pvfs2_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 				current,
 				iocb,
 				PVFS_IO_READ,
+				bufmap,
 				buffer_index,
 				new_op,
 				iter->iov,
@@ -1042,7 +1064,7 @@ static ssize_t pvfs2_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 out_kiocb_release:
 	kiocb_release(x);
 out_put_bufmap:
-	pvfs_bufmap_put(buffer_index);
+	pvfs_bufmap_put(bufmap, buffer_index);
 out_put_op:
 	put_op(new_op);
 out:
@@ -1056,6 +1078,7 @@ static ssize_t pvfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 	unsigned long nr_segs = iter->nr_segs;
 	struct inode *inode = file->f_mapping->host;
 	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
+	struct pvfs2_bufmap *bufmap = NULL;
 	struct pvfs2_kernel_op *new_op;
 	struct pvfs2_kiocb_s *x;
 	size_t count = iov_iter_count(iter);
@@ -1123,7 +1146,7 @@ static ssize_t pvfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 	new_op->upcall.req.io.async_vfs_io = PVFS_VFS_ASYNC_IO;
 	new_op->upcall.req.io.io_type = PVFS_IO_WRITE;
 	new_op->upcall.req.io.refn = pvfs2_inode->refn;
-	rc = pvfs_bufmap_get(&buffer_index);
+	rc = pvfs_bufmap_get(&bufmap, &buffer_index);
 	if (rc < 0) {
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s: pvfs_bufmap_get() failure %ld\n",
@@ -1149,6 +1172,7 @@ static ssize_t pvfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 	 * hence accesses to the page won't block.
 	 */
 	rc = pvfs_bufmap_copy_iovec_from_user(
+			bufmap,
 			buffer_index,
 			iter->iov,
 			nr_segs,
@@ -1184,6 +1208,7 @@ static ssize_t pvfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 				current,
 				iocb,
 				PVFS_IO_WRITE,
+				bufmap,
 				buffer_index,
 				new_op,
 				iter->iov,
@@ -1222,7 +1247,7 @@ static ssize_t pvfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 out_kiocb_release:
 	kiocb_release(x);
 out_put_bufmap:
-	pvfs_bufmap_put(buffer_index);
+	pvfs_bufmap_put(bufmap, buffer_index);
 out_put_op:
 	put_op(new_op);
 out:
