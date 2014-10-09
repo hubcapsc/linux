@@ -253,10 +253,10 @@ static ssize_t pvfs2_devreq_read(struct file *file,
 	return len;
 }
 
-/* Common function for writev() and aio_write() callers into the device */
+/* Function for writev() callers into the device */
 static ssize_t pvfs2_devreq_writev(struct file *file,
 				   const struct iovec *iov,
-				   unsigned long count,
+				   size_t count,
 				   loff_t *offset)
 {
 	struct pvfs2_kernel_op *op = NULL;
@@ -463,71 +463,6 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 			 */
 			if (!timed_out)
 				op_release(op);
-		} else if (op->upcall.type == PVFS2_VFS_OP_FILE_IO &&
-			   op->upcall.req.io.async_vfs_io ==
-				PVFS_VFS_ASYNC_IO) {
-			struct pvfs2_kiocb_s *x =
-				(struct pvfs2_kiocb_s *) op->priv;
-			if (x == NULL ||
-			    x->iov == NULL ||
-			    x->op != op ||
-			    x->bytes_to_be_copied <= 0) {
-				if (x)
-					gossip_debug(GOSSIP_DEV_DEBUG, "WARNING: pvfs2_iocb from op has invalid fields! %p, %p(%p), %d\n",
-						x->iov,
-						x->op,
-						op,
-						(int)x->bytes_to_be_copied);
-				else
-					gossip_debug(GOSSIP_DEV_DEBUG, "WARNING: cannot retrieve the pvfs2_iocb pointer from op!\n");
-				/* Most likely means that it was cancelled! */
-			} else {
-				int bytes_copied;
-
-				if (op->downcall.status != 0) {
-					ret = pvfs2_normalize_to_errno
-						(op->downcall.status);
-					bytes_copied = ret;
-				} else {
-					bytes_copied =
-					    op->downcall.resp.io.amt_complete;
-				}
-				gossip_debug(GOSSIP_DEV_DEBUG,
-					     "[AIO] status of transfer: %d\n",
-					     bytes_copied);
-				if (x->rw == PVFS_IO_READ && bytes_copied > 0) {
-					/* try and copy it out to user-space */
-					bytes_copied =
-					    pvfs_bufmap_copy_to_user_task_iovec
-					    (x->tsk,
-					     x->iov,
-					     x->nr_segs,
-					     x->bufmap,
-					     x->buffer_index,
-					     bytes_copied);
-				}
-				spin_lock(&op->lock);
-				/* we tell VFS that the op is now serviced! */
-				set_op_state_serviced(op);
-				gossip_debug(GOSSIP_DEV_DEBUG,
-					"Setting state of %p to %d [SERVICED]\n",
-					op,
-					op->op_state);
-				x->bytes_copied = bytes_copied;
-				/*
-				 * call aio_complete to finish the operation
-				 * to wake up regular aio waiters
-				 */
-				aio_complete(x->kiocb, x->bytes_copied, 0);
-				op->io_completed = 1;
-				/*
-				 * also wake up any aio cancellers that may
-				 * be waiting for us to finish the op
-				 */
-				wake_up_interruptible(&op->io_completion_waitq);
-				spin_unlock(&op->lock);
-			}
-			put_op(op);
 		} else {
 
 			/*
@@ -552,18 +487,16 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 	}
 	dev_req_release(buffer);
 
-	/*
-	 * if we are called from aio context, just mark that the
-	 * iocb is completed
-	 */
 	return total_returned_size;
 }
 
-static ssize_t pvfs2_devreq_aio_write(struct kiocb *kiocb,
-				      const struct iovec *iov,
-				      unsigned long count, loff_t offset)
+static ssize_t pvfs2_devreq_write_iter(struct kiocb *iocb,
+				      struct iov_iter *iter)
 {
-	return pvfs2_devreq_writev(kiocb->ki_filp, iov, count, &kiocb->ki_pos);
+	return pvfs2_devreq_writev(iocb->ki_filp,
+				   iter->iov,
+				   iter->nr_segs,
+				   &iocb->ki_pos);
 }
 
 /* Returns whether any FS are still pending remounted */
@@ -958,7 +891,7 @@ static unsigned int pvfs2_devreq_poll(struct file *file,
 const struct file_operations pvfs2_devreq_file_operations = {
 	.owner = THIS_MODULE,
 	.read = pvfs2_devreq_read,
-	.aio_write = pvfs2_devreq_aio_write,
+	.write_iter = pvfs2_devreq_write_iter,
 	.open = pvfs2_devreq_open,
 	.release = pvfs2_devreq_release,
 	.unlocked_ioctl = pvfs2_devreq_ioctl,
