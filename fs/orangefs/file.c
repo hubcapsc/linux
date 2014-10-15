@@ -747,24 +747,13 @@ static ssize_t pvfs2_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 
 	g_pvfs2_stats.reads++;
 
-	if (is_sync_kiocb(iocb)) {
-		gossip_debug(GOSSIP_FILE_DEBUG,"read_iter: synchronous io\n");
+	rc = do_readv_writev(PVFS_IO_READ,
+			     file,
+			     &pos,
+			     iter->iov,
+			     nr_segs);
+	iocb->ki_pos = pos;
 
-		rc = do_readv_writev(PVFS_IO_READ,
-				     file,
-				     &pos,
-				     iter->iov,
-				     nr_segs);
-		iocb->ki_pos = pos;
-		goto out;
-	} else {
-		gossip_debug(GOSSIP_FILE_DEBUG,
-			     "%s: asynchronous read not supported\n",
-			     __func__);
-		return -ENOSYS;
-	}
-
-out:
 	return rc;
 }
 
@@ -781,25 +770,13 @@ static ssize_t pvfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 
 	g_pvfs2_stats.writes++;
 
-	/* synchronous I/O */
-	if (is_sync_kiocb(iocb)) {
-		gossip_debug(GOSSIP_FILE_DEBUG,
-			     "pvfs2_file_write_iter: syncronous.\n");
-		rc = do_readv_writev(PVFS_IO_WRITE,
-				     file,
-				     &pos,
-				     iter->iov,
-				     nr_segs);
-		iocb->ki_pos = pos;
-		goto out;
-	} else {
-		gossip_debug(GOSSIP_FILE_DEBUG,
-                             "%s: asynchronous write not supported\n",
-                             __func__);
-                return -ENOSYS;
-        }
+	rc = do_readv_writev(PVFS_IO_WRITE,
+			     file,
+			     &pos,
+			     iter->iov,
+			     nr_segs);
+	iocb->ki_pos = pos;
 
-out:
 	return rc;
 }
 
