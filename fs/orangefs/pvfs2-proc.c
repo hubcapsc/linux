@@ -52,7 +52,7 @@ struct pvfs2_param_extra {
  * into the proper debug value and then send a request to update the
  * debug mask if client or update the local debug mask if kernel.
 */
-static int pvfs2_proc_debug_mask_handler(ctl_table *ctl,
+static int pvfs2_proc_debug_mask_handler(struct ctl_table *ctl,
 					 int write,
 					 void *buffer,
 					 size_t *lenp,
@@ -149,7 +149,7 @@ static int pvfs2_proc_debug_mask_handler(ctl_table *ctl,
  * Generic proc file handler for getting and setting various tunable
  * pvfs2-client parameters.
  */
-static int pvfs2_param_proc_handler(ctl_table *ctl,
+static int pvfs2_param_proc_handler(struct ctl_table *ctl,
 				    int write,
 				    void *buffer,
 				    size_t *lenp,
@@ -159,7 +159,7 @@ static int pvfs2_param_proc_handler(ctl_table *ctl,
 	struct pvfs2_param_extra *extra = ctl->extra1;
 	int val = 0;
 	int ret = 0;
-	ctl_table tmp_ctl = *ctl;
+	struct ctl_table tmp_ctl = *ctl;
 
 	/*
 	 * override fields in control structure for call to generic proc
@@ -205,7 +205,7 @@ static int pvfs2_param_proc_handler(ctl_table *ctl,
 	return ret;
 }
 
-static int pvfs2_pc_proc_handler(ctl_table *ctl,
+static int pvfs2_pc_proc_handler(struct ctl_table *ctl,
 				 int write,
 				 void *buffer,
 				 size_t *lenp,
@@ -374,7 +374,7 @@ static int max_slot_timeout_secs[] = { INT_MAX };
 
 #define CTL_STRATEGY(strat)
 
-static ctl_table pvfs2_acache_table[] = {
+static struct ctl_table pvfs2_acache_table[] = {
 	/* controls acache timeout */
 	{
 	 CTL_NAME(1)
@@ -411,7 +411,7 @@ static ctl_table pvfs2_acache_table[] = {
 	{CTL_NAME(CTL_NONE)}
 };
 
-static ctl_table pvfs2_static_acache_table[] = {
+static struct ctl_table pvfs2_static_acache_table[] = {
 	/* controls static acache timeout */
 	{
 	 CTL_NAME(1)
@@ -448,7 +448,7 @@ static ctl_table pvfs2_static_acache_table[] = {
 	{CTL_NAME(CTL_NONE)}
 };
 
-static ctl_table pvfs2_ncache_table[] = {
+static struct ctl_table pvfs2_ncache_table[] = {
 	/* controls ncache timeout */
 	{
 	 CTL_NAME(1)
@@ -487,7 +487,7 @@ static ctl_table pvfs2_ncache_table[] = {
 static int acache_perf_count = PVFS2_PERF_COUNT_REQUEST_ACACHE;
 static int static_acache_perf_count = PVFS2_PERF_COUNT_REQUEST_STATIC_ACACHE;
 static int ncache_perf_count = PVFS2_PERF_COUNT_REQUEST_NCACHE;
-static ctl_table pvfs2_pc_table[] = {
+static struct ctl_table pvfs2_pc_table[] = {
 	{
 	 CTL_NAME(1)
 	 .procname = "acache",
@@ -516,7 +516,7 @@ static ctl_table pvfs2_pc_table[] = {
 
 struct pvfs2_stats g_pvfs2_stats;
 
-static ctl_table pvfs2_stats_table[] = {
+static struct ctl_table pvfs2_stats_table[] = {
 	/* shows number of hits in cache */
 	{
 	 CTL_NAME(1)
@@ -552,7 +552,7 @@ static ctl_table pvfs2_stats_table[] = {
 	{CTL_NAME(CTL_NONE)}
 };
 
-static ctl_table pvfs2_table[] = {
+static struct ctl_table pvfs2_table[] = {
 	/* outputs the available debugging keywords */
 	{
 	 CTL_NAME(14)
@@ -664,7 +664,7 @@ static ctl_table pvfs2_table[] = {
 	{CTL_NAME(CTL_NONE)}
 };
 
-static ctl_table fs_table[] = {
+static struct ctl_table fs_table[] = {
 	{
 	 CTL_NAME(13)
 	 .procname = "pvfs2",
