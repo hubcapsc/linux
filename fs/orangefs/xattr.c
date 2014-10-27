@@ -354,7 +354,7 @@ ssize_t pvfs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	ssize_t total = 0;
 	ssize_t length = 0;
 	int count_keys = 0;
-	int key_size = 0;
+	int key_size;
 	int i = 0;
 
 	if (size > 0 && buffer == NULL) {
@@ -376,6 +376,7 @@ ssize_t pvfs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		memset(buffer, 0, size);
 
 try_again:
+	key_size = 0;
 	new_op->upcall.req.listxattr.refn = pvfs2_inode->refn;
 	new_op->upcall.req.listxattr.token = token;
 	new_op->upcall.req.listxattr.requested_count =
