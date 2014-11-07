@@ -820,8 +820,8 @@ inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 
 #define fill_default_sys_attrs(sys_attr, type, mode)			\
 do {									\
-	sys_attr.owner = from_kuid(&init_user_ns, current_fsuid());	\
-	sys_attr.group = from_kgid(&init_user_ns, current_fsgid());	\
+	sys_attr.owner = from_kuid(current_user_ns(), current_fsuid()); \
+	sys_attr.group = from_kgid(current_user_ns(), current_fsgid()); \
 	sys_attr.size = 0;						\
 	sys_attr.perms = PVFS_util_translate_mode(mode);		\
 	sys_attr.objtype = type;					\

@@ -139,9 +139,9 @@ static struct pvfs2_kernel_op *op_alloc_common(int32_t op_linger, int32_t type)
 			     llu(new_op->tag),
 			     get_opname_string(new_op));
 
-		new_op->upcall.uid = from_kuid(&init_user_ns, current_fsuid());
+		new_op->upcall.uid = from_kuid(current_user_ns(), current_fsuid());
 
-		new_op->upcall.gid = from_kgid(&init_user_ns, current_fsgid());
+		new_op->upcall.gid = from_kgid(current_user_ns(), current_fsgid());
 
 		new_op->op_linger = new_op->op_linger_tmp = op_linger;
 	} else {
