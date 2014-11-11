@@ -73,7 +73,7 @@ static int pvfs2_create(struct inode *dir,
 		     dentry->d_name.name);
 
 	SetMtimeFlag(parent);
-	pvfs2_update_inode_time(dir);
+	dir->i_mtime = dir->i_ctime = current_fs_time(dir->i_sb);
 	mark_inode_dirty_sync(dir);
 	ret = 0;
 out:
@@ -236,7 +236,7 @@ static int pvfs2_unlink(struct inode *dir, struct dentry *dentry)
 		drop_nlink(inode);
 
 		SetMtimeFlag(parent);
-		pvfs2_update_inode_time(dir);
+		dir->i_mtime = dir->i_ctime = current_fs_time(dir->i_sb);
 		mark_inode_dirty_sync(dir);
 	}
 	return ret;
@@ -333,7 +333,7 @@ static int pvfs2_symlink(struct inode *dir,
 		     dentry->d_name.name);
 
 	SetMtimeFlag(parent);
-	pvfs2_update_inode_time(dir);
+	dir->i_mtime = dir->i_ctime = current_fs_time(dir->i_sb);
 	mark_inode_dirty_sync(dir);
 	ret = 0;
 out:
@@ -399,7 +399,7 @@ static int pvfs2_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	 * across clients; keep constant at 1.
 	 */
 	SetMtimeFlag(parent);
-	pvfs2_update_inode_time(dir);
+	dir->i_mtime = dir->i_ctime = current_fs_time(dir->i_sb);
 	mark_inode_dirty_sync(dir);
 out:
 	op_release(new_op);

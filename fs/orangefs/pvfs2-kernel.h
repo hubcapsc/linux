@@ -810,9 +810,6 @@ do {									\
 	spin_unlock(&pvfs2_superblocks_lock);				\
 } while (0)
 
-#define pvfs2_update_inode_time(inode) \
-inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-
 #define pvfs2_lock_inode(inode) spin_lock(&inode->i_lock)
 #define pvfs2_unlock_inode(inode) spin_unlock(&inode->i_lock)
 #define pvfs2_current_signal_lock current->sighand->siglock
