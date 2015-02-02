@@ -969,9 +969,13 @@ loff_t pvfs2_file_llseek(struct file *file, loff_t offset, int origin)
 	return generic_file_llseek(file, offset, origin);
 }
 
-int pvfs2_lock(struct file *f, int flags, struct file_lock *lock)
+int pvfs2_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
-	return -ENOSYS;
+	int rc;
+
+	rc = posix_lock_file(filp, fl, NULL);
+
+	return rc;
 }
 
 /** PVFS2 implementation of VFS file operations */
