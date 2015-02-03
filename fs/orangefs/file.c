@@ -971,9 +971,12 @@ loff_t pvfs2_file_llseek(struct file *file, loff_t offset, int origin)
 
 int pvfs2_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
-	int rc;
+	int rc = 0;
 
-	rc = posix_lock_file(filp, fl, NULL);
+	if (cmd == F_GETLK)
+		posix_test_lock(filp, fl);
+	else
+		rc = posix_lock_file(filp, fl, NULL);
 
 	return rc;
 }
