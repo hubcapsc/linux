@@ -352,7 +352,8 @@ typedef struct pvfs2_sb_info_s {
 	int32_t fs_id;
 	int id;
 	int flags;
-#define PVFS2_OPT_INTR	0x01
+#define PVFS2_OPT_INTR		0x01
+#define PVFS2_OPT_LOCAL_LOCK	0x02
 	char devname[PVFS_MAX_SERVER_ADDR_LEN];
 	struct super_block *sb;
 	int mount_pending;

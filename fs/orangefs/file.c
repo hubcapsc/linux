@@ -969,14 +969,24 @@ loff_t pvfs2_file_llseek(struct file *file, loff_t offset, int origin)
 	return generic_file_llseek(file, offset, origin);
 }
 
+/*
+ * Support local locks (locks that only this kernel knows about)
+ * if Orangefs was mounted -o local_lock.
+ */
 int pvfs2_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
-	int rc = 0;
+	int rc = -ENOSYS;
+gossip_debug(GOSSIP_FILE_DEBUG, "pvfs2_lock: local_lock:%d:\n",
+(PVFS2_SB(filp->f_inode->i_sb)->flags & PVFS2_OPT_LOCAL_LOCK));
 
-	if (cmd == F_GETLK)
-		posix_test_lock(filp, fl);
-	else
-		rc = posix_lock_file(filp, fl, NULL);
+	if (PVFS2_SB(filp->f_inode->i_sb)->flags & PVFS2_OPT_LOCAL_LOCK) {
+		if (cmd == F_GETLK) {
+			rc = 0;
+			posix_test_lock(filp, fl);
+		} else {
+			rc = posix_lock_file(filp, fl, NULL);
+		}
+	}
 
 	return rc;
 }

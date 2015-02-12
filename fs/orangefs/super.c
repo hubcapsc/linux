@@ -20,13 +20,15 @@ DEFINE_SPINLOCK(pvfs2_superblocks_lock);
 enum {
 	Opt_intr,
 	Opt_acl,
+	Opt_local_lock,
 
 	Opt_err
 };
 
 static const match_table_t tokens = {
-	{ Opt_acl,	"acl" },
-	{ Opt_intr,	"intr" },
+	{ Opt_acl,		"acl" },
+	{ Opt_intr,		"intr" },
+	{ Opt_local_lock,	"local_lock" },
 	{ Opt_err,	NULL }
 };
 
@@ -38,8 +40,13 @@ static int parse_mount_options(struct super_block *sb, char *options,
 	substring_t args[MAX_OPT_ARGS];
 	char *p;
 
+	/*
+	 * Force any potential flags that might be set from the mount
+	 * to zero, ie, initialize to unset.
+	 */
 	sb->s_flags &= ~MS_POSIXACL;
 	pvfs2_sb->flags &= ~PVFS2_OPT_INTR;
+	pvfs2_sb->flags &= ~PVFS2_OPT_LOCAL_LOCK;
 
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token;
@@ -54,6 +61,9 @@ static int parse_mount_options(struct super_block *sb, char *options,
 			break;
 		case Opt_intr:
 			pvfs2_sb->flags |= PVFS2_OPT_INTR;
+			break;
+		case Opt_local_lock:
+			pvfs2_sb->flags |= PVFS2_OPT_LOCAL_LOCK;
 			break;
 		default:
 			goto fail;
