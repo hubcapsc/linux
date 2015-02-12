@@ -976,8 +976,6 @@ loff_t pvfs2_file_llseek(struct file *file, loff_t offset, int origin)
 int pvfs2_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
 	int rc = -ENOSYS;
-gossip_debug(GOSSIP_FILE_DEBUG, "pvfs2_lock: local_lock:%d:\n",
-(PVFS2_SB(filp->f_inode->i_sb)->flags & PVFS2_OPT_LOCAL_LOCK));
 
 	if (PVFS2_SB(filp->f_inode->i_sb)->flags & PVFS2_OPT_LOCAL_LOCK) {
 		if (cmd == F_GETLK) {
