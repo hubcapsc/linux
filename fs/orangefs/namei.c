@@ -40,13 +40,13 @@ static int pvfs2_create(struct inode *dir,
 
 	ret = service_operation(new_op, __func__, get_interruptible_flag(dir));
 
-	gossip_debug(GOSSIP_UTILS_DEBUG,
+	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "Create Got PVFS2 handle %pU on fsid %d (ret=%d)\n",
 		     &new_op->downcall.resp.create.refn.khandle,
 		     new_op->downcall.resp.create.refn.fs_id, ret);
 
 	if (ret < 0) {
-		gossip_debug(GOSSIP_UTILS_DEBUG,
+		gossip_debug(GOSSIP_NAME_DEBUG,
 			     "%s: failed with error code %d\n",
 			     __func__, ret);
 		goto out;
@@ -60,14 +60,14 @@ static int pvfs2_create(struct inode *dir,
 		goto out;
 	}
 
-	gossip_debug(GOSSIP_UTILS_DEBUG,
+	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "Assigned file inode new number of %pU\n",
 		     get_khandle_from_ino(inode));
 
 	d_instantiate(dentry, inode);
 	unlock_new_inode(inode);
 
-	gossip_debug(GOSSIP_UTILS_DEBUG,
+	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "Inode (Regular File) %pU -> %s\n",
 		     get_khandle_from_ino(inode),
 		     dentry->d_name.name);
@@ -299,13 +299,13 @@ static int pvfs2_symlink(struct inode *dir,
 
 	ret = service_operation(new_op, __func__, get_interruptible_flag(dir));
 
-	gossip_debug(GOSSIP_UTILS_DEBUG,
+	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "Symlink Got PVFS2 handle %pU on fsid %d (ret=%d)\n",
 		     &new_op->downcall.resp.sym.refn.khandle,
 		     new_op->downcall.resp.sym.refn.fs_id, ret);
 
 	if (ret < 0) {
-		gossip_debug(GOSSIP_UTILS_DEBUG,
+		gossip_debug(GOSSIP_NAME_DEBUG,
 			    "%s: failed with error code %d\n",
 			    __func__, ret);
 		goto out;
@@ -320,14 +320,14 @@ static int pvfs2_symlink(struct inode *dir,
 		goto out;
 	}
 
-	gossip_debug(GOSSIP_UTILS_DEBUG,
+	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "Assigned symlink inode new number of %pU\n",
 		     get_khandle_from_ino(inode));
 
 	d_instantiate(dentry, inode);
 	unlock_new_inode(inode);
 
-	gossip_debug(GOSSIP_UTILS_DEBUG,
+	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "Inode (Symlink) %pU -> %s\n",
 		     get_khandle_from_ino(inode),
 		     dentry->d_name.name);
@@ -362,13 +362,13 @@ static int pvfs2_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 
 	ret = service_operation(new_op, __func__, get_interruptible_flag(dir));
 
-	gossip_debug(GOSSIP_UTILS_DEBUG,
+	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "Mkdir Got PVFS2 handle %pU on fsid %d\n",
 		     &new_op->downcall.resp.mkdir.refn.khandle,
 		     new_op->downcall.resp.mkdir.refn.fs_id);
 
 	if (ret < 0) {
-		gossip_debug(GOSSIP_UTILS_DEBUG,
+		gossip_debug(GOSSIP_NAME_DEBUG,
 			     "%s: failed with error code %d\n",
 			     __func__, ret);
 		goto out;
@@ -382,14 +382,14 @@ static int pvfs2_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 		goto out;
 	}
 
-	gossip_debug(GOSSIP_UTILS_DEBUG,
+	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "Assigned dir inode new number of %pU\n",
 		     get_khandle_from_ino(inode));
 
 	d_instantiate(dentry, inode);
 	unlock_new_inode(inode);
 
-	gossip_debug(GOSSIP_UTILS_DEBUG,
+	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "Inode (Directory) %pU -> %s\n",
 		     get_khandle_from_ino(inode),
 		     dentry->d_name.name);
