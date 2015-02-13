@@ -98,9 +98,41 @@ OPTIONS
 The following mount options are accepted:
 
   acl
-    allow the use of Access Control Lists on files and directories.
+    Allow the use of Access Control Lists on files and directories.
 
   intr
-    some operations between the kernel client and the user space
+    Some operations between the kernel client and the user space
     filesystem can be interruptible, such as changes in debug levels
     and the setting of tunable parameters. 
+
+  local_lock
+    Enable posix locking from the perspective of "this" kernel. The
+    default file_operations lock action is to return ENOSYS. Posix
+    locking kicks in if the filesystem is mounted with -o local_lock.
+
+
+DEBUGGING
+=========
+
+If you want the debug (GOSSIP) statments in a particular
+source file (inode.c for example) go to syslog:
+
+  echo inode > /proc/sys/pvfs2/kernel-debug
+
+No debugging (the default):
+
+  echo none > /proc/sys/pvfs2/kernel-debug
+
+Debugging from several source files:
+
+  echo inode,dir > /proc/sys/pvfs2/kernel-debug
+
+All debugging:
+
+  echo all > /proc/sys/pvfs2/kernel-debug
+
+Get a list of all debugging keywords:
+
+  cat /proc/sys/pvfs2/debug-help
+
+  
