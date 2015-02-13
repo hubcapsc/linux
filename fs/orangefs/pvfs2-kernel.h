@@ -134,7 +134,7 @@ enum pvfs2_vfs_op_states {
 #define get_op(op)					\
 	do {						\
 		atomic_inc(&(op)->aio_ref_count);	\
-		gossip_debug(GOSSIP_CACHE_DEBUG,	\
+		gossip_debug(GOSSIP_DEV_DEBUG,	\
 			"(get) Alloced OP (%p:%llu)\n",	\
 			op,				\
 			llu((op)->tag));		\
@@ -143,7 +143,7 @@ enum pvfs2_vfs_op_states {
 #define put_op(op)							\
 	do {								\
 		if (atomic_sub_and_test(1, &(op)->aio_ref_count) == 1) {  \
-			gossip_debug(GOSSIP_CACHE_DEBUG,		\
+			gossip_debug(GOSSIP_DEV_DEBUG,		\
 				"(put) Releasing OP (%p:%llu)\n",	\
 				op,					\
 				llu((op)->tag));			\
@@ -481,7 +481,7 @@ static inline ino_t get_parent_ino_from_dentry(struct dentry *dentry)
 
 static inline int is_root_handle(struct inode *inode)
 {
-	gossip_debug(GOSSIP_INODE_DEBUG,
+	gossip_debug(GOSSIP_DCACHE_DEBUG,
 		     "%s: root handle: %pU, this handle: %pU:\n",
 		     __func__,
 		     &PVFS2_SB(inode->i_sb)->root_khandle,
@@ -497,7 +497,7 @@ static inline int is_root_handle(struct inode *inode)
 static inline int match_handle(struct pvfs2_khandle resp_handle,
 			       struct inode *inode)
 {
-	gossip_debug(GOSSIP_INODE_DEBUG,
+	gossip_debug(GOSSIP_DCACHE_DEBUG,
 		     "%s: one handle: %pU, another handle:%pU:\n",
 		     __func__,
 		     &resp_handle,

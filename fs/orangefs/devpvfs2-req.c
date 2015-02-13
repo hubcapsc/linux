@@ -846,17 +846,17 @@ int pvfs2_dev_init(void)
 					  PVFS2_REQDEVICE_NAME,
 					  &pvfs2_devreq_file_operations);
 	if (pvfs2_dev_major < 0) {
-		gossip_debug(GOSSIP_INIT_DEBUG,
+		gossip_debug(GOSSIP_DEV_DEBUG,
 			     "Failed to register /dev/%s (error %d)\n",
 			     PVFS2_REQDEVICE_NAME, pvfs2_dev_major);
 		pvfs2_ioctl32_cleanup();
 		return pvfs2_dev_major;
 	}
 
-	gossip_debug(GOSSIP_INIT_DEBUG,
+	gossip_debug(GOSSIP_DEV_DEBUG,
 		     "*** /dev/%s character device registered ***\n",
 		     PVFS2_REQDEVICE_NAME);
-	gossip_debug(GOSSIP_INIT_DEBUG, "'mknod /dev/%s c %d 0'.\n",
+	gossip_debug(GOSSIP_DEV_DEBUG, "'mknod /dev/%s c %d 0'.\n",
 		     PVFS2_REQDEVICE_NAME, pvfs2_dev_major);
 	return 0;
 }
@@ -864,7 +864,7 @@ int pvfs2_dev_init(void)
 void pvfs2_dev_cleanup(void)
 {
 	unregister_chrdev(pvfs2_dev_major, PVFS2_REQDEVICE_NAME);
-	gossip_debug(GOSSIP_INIT_DEBUG,
+	gossip_debug(GOSSIP_DEV_DEBUG,
 		     "*** /dev/%s character device unregistered ***\n",
 		     PVFS2_REQDEVICE_NAME);
 	/* unregister the ioctl32 sub-system */

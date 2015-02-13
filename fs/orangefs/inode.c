@@ -161,7 +161,7 @@ static int pvfs2_setattr_size(struct inode *inode, struct iattr *iattr)
 	loff_t orig_size = i_size_read(inode);
 	int ret = -EINVAL;
 
-	gossip_debug(GOSSIP_UTILS_DEBUG,
+	gossip_debug(GOSSIP_INODE_DEBUG,
 		     "%s: %pU: Handle is %pU | fs_id %d | size is %llu\n",
 		     __func__,
 		     get_khandle_from_ino(inode),
@@ -185,7 +185,7 @@ static int pvfs2_setattr_size(struct inode *inode, struct iattr *iattr)
 	 * the truncate has no downcall members to retrieve, but
 	 * the status value tells us if it went through ok or not
 	 */
-	gossip_debug(GOSSIP_UTILS_DEBUG,
+	gossip_debug(GOSSIP_INODE_DEBUG,
 		     "pvfs2: pvfs2_truncate got return value of %d\n",
 		     ret);
 
@@ -456,7 +456,7 @@ struct inode *pvfs2_new_inode(struct super_block *sb, struct inode *dir,
 	if (error < 0)
 		goto out_iput;
 
-	gossip_debug(GOSSIP_ACL_DEBUG,
+	gossip_debug(GOSSIP_INODE_DEBUG,
 		     "Initializing ACL's for inode %pU\n",
 		     get_khandle_from_ino(inode));
 	pvfs2_init_acl(inode, dir);

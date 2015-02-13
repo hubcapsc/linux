@@ -202,7 +202,7 @@ populate_shared_memory:
 	 */
 	if (ret == -EAGAIN && op_state_purged(new_op)) {
 		pvfs_bufmap_put(bufmap, buffer_index);
-		gossip_debug(GOSSIP_WAIT_DEBUG,
+		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s:going to repopulate_shared_memory.\n",
 			     __func__);
 		goto populate_shared_memory;
