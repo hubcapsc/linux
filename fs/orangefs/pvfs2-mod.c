@@ -10,6 +10,7 @@
 #include "protocol.h"
 #include "pvfs2-kernel.h"
 #include "pvfs2-proc.h"
+#include "pvfs2-debugfs.h"
 
 /* PVFS2_VERSION is a ./configure define */
 #ifndef PVFS2_VERSION
@@ -235,6 +236,7 @@ static int __init pvfs2_init(void)
 		goto cleanup_progress_table;
 
 	pvfs2_proc_initialize();
+	pvfs2_debugfs_init();
 	ret = register_filesystem(&pvfs2_fs_type);
 	if (ret == 0) {
 		pr_info("pvfs2: module version %s loaded\n", PVFS2_VERSION);
@@ -242,6 +244,7 @@ static int __init pvfs2_init(void)
 	}
 
 	pvfs2_proc_finalize();
+	pvfs2_debugfs_cleanup();
 	fsid_key_table_finalize();
 
 cleanup_progress_table:
@@ -276,6 +279,7 @@ static void __exit pvfs2_exit(void)
 
 	unregister_filesystem(&pvfs2_fs_type);
 	pvfs2_proc_finalize();
+	pvfs2_debugfs_cleanup();
 	fsid_key_table_finalize();
 	pvfs2_dev_cleanup();
 	/* clear out all pending upcall op requests */
