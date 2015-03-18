@@ -237,6 +237,10 @@ static int __init pvfs2_init(void)
 
 	pvfs2_proc_initialize();
 	pvfs2_debugfs_init();
+/* */
+	pvfs2_kernel_debug_init();
+/* */
+
 	ret = register_filesystem(&pvfs2_fs_type);
 	if (ret == 0) {
 		pr_info("pvfs2: module version %s loaded\n", PVFS2_VERSION);
