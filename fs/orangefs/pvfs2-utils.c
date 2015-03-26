@@ -836,7 +836,6 @@ static uint64_t proc_debug_to_mask(struct __keyword_mask_t *mask_map,
 	int slen = 0;
 
 	if (event_logging) {
-		/* s = strdup(event_logging); */
 		slen = strlen(event_logging);
 		s = kmalloc(slen + 1, GFP_KERNEL);
 		if (!s)
@@ -844,7 +843,6 @@ static uint64_t proc_debug_to_mask(struct __keyword_mask_t *mask_map,
 		memset(s, 0, slen + 1);
 		memcpy(s, event_logging, slen);
 
-		/* t = strtok(s, toks); */
 		t = pvfs2_strtok(s, toks);
 
 		while (t) {
@@ -864,7 +862,6 @@ static uint64_t proc_debug_to_mask(struct __keyword_mask_t *mask_map,
 					break;
 				}
 			}
-			/* t = strtok(NULL, toks); */
 			t = pvfs2_strtok(NULL, toks);
 		}
 		kfree(s);
@@ -882,13 +879,6 @@ static uint64_t proc_debug_to_mask(struct __keyword_mask_t *mask_map,
  * Prefix a keyword with "-" to turn it off.  All keywords
  * processed in specified order.
  */
-uint64_t PVFS_proc_debug_eventlog_to_mask(const char *event_logging)
-{
-	return proc_debug_to_mask(s_keyword_mask_map,
-				  num_keyword_mask_map,
-				  event_logging);
-}
-
 uint64_t PVFS_proc_kmod_eventlog_to_mask(const char *event_logging)
 {
 	return proc_debug_to_mask(s_kmod_keyword_mask_map,

@@ -199,21 +199,7 @@ enum PVFS_async_io_type {
 #define PVFS2_XATTR_NAME_DEFAULT_PREFIX ""
 
 /* these functions are defined in pvfs2-utils.c */
-uint64_t PVFS_proc_debug_eventlog_to_mask(const char *);
 uint64_t PVFS_proc_kmod_eventlog_to_mask(const char *event_logging);
-int PVFS_proc_kmod_mask_to_eventlog(uint64_t mask, char *debug_string);
-int PVFS_proc_mask_to_eventlog(uint64_t mask, char *debug_string);
-
-/* these functions are defined in pvfs2-utils.c */
-uint64_t PVFS_proc_debug_eventlog_to_mask(const char *);
-uint64_t PVFS_proc_kmod_eventlog_to_mask(const char *event_logging);
-int PVFS_proc_kmod_mask_to_eventlog(uint64_t mask, char *debug_string);
-int PVFS_proc_mask_to_eventlog(uint64_t mask, char *debug_string);
-
-/* external references */
-extern char kernel_debug_string[];
-
-/* these functions are defined in pvfs2-utils.c */
 int PVFS_proc_kmod_mask_to_eventlog(uint64_t mask, char *debug_string);
 int PVFS_proc_mask_to_eventlog(uint64_t mask, char *debug_string);
 
