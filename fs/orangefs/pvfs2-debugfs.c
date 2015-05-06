@@ -296,9 +296,9 @@ static ssize_t orangefs_kmod_debug_write(struct file *file,
 	 * Thwart users who try to jamb a ridiculous number
 	 * of bytes into the kernel-debug file...
 	 */
-	if (count > PVFS2_MAX_DEBUG_STRING_LEN) {
+	if (count > PVFS2_MAX_DEBUG_STRING_LEN + 1) {
 		silly = count;
-		count = PVFS2_MAX_DEBUG_STRING_LEN;
+		count = PVFS2_MAX_DEBUG_STRING_LEN + 1;
 	}
 
 
