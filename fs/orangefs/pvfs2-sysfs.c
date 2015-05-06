@@ -835,11 +835,6 @@ int orangefs_sysfs_init(void)
 
         kobject_uevent(&capcache_orangefs_obj->kobj, KOBJ_ADD);
 
-	/*
-	 * stuff must have gone OK up to this point.
-	 */
-	goto out;
-	
 out:
 	return rc;
 }
