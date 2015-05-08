@@ -57,6 +57,13 @@ struct ncache_orangefs_obj {
 	int timeout_msecs;
 };
 
+struct pc_orangefs_obj {
+	struct kobject kobj;
+	char *acache;
+	char *capcache;
+	char *ncache;
+};
+
 struct orangefs_attribute {
 	struct attribute attr;
 	ssize_t (*show)(struct orangefs_obj *orangefs_obj,
@@ -108,6 +115,17 @@ struct ncache_orangefs_attribute {
 			char *buf);
         ssize_t (*store)(struct ncache_orangefs_obj *ncache_orangefs_obj,
 			 struct ncache_orangefs_attribute *attr,
+			 const char *buf,
+			 size_t count);
+};
+
+struct pc_orangefs_attribute {
+	struct attribute attr;
+	ssize_t (*show)(struct pc_orangefs_obj *pc_orangefs_obj,
+			struct pc_orangefs_attribute *attr,
+			char *buf);
+        ssize_t (*store)(struct pc_orangefs_obj *pc_orangefs_obj,
+			 struct pc_orangefs_attribute *attr,
 			 const char *buf,
 			 size_t count);
 };
@@ -389,6 +407,33 @@ static const struct sysfs_ops ncache_orangefs_sysfs_ops = {
 	.store = ncache_orangefs_attr_store,
 };
 
+static ssize_t pc_orangefs_attr_show(struct kobject *kobj,
+					 struct attribute *attr,
+					 char *buf)
+{
+	struct pc_orangefs_attribute *attribute;
+	struct pc_orangefs_obj *pc_orangefs_obj;
+	int rc;
+
+	attribute = container_of(attr, struct pc_orangefs_attribute, attr);
+	pc_orangefs_obj =
+		container_of(kobj, struct pc_orangefs_obj, kobj);
+
+	if (!attribute->show) {
+		rc = -EIO;
+		goto out;
+	}
+
+	rc = attribute->show(pc_orangefs_obj, attribute, buf);
+
+out:
+	return rc;
+}
+
+static const struct sysfs_ops pc_orangefs_sysfs_ops = {
+	.show = pc_orangefs_attr_show,
+};
+
 static void orangefs_release(struct kobject *kobj)
 {
 	struct orangefs_obj *orangefs_obj;
@@ -465,23 +510,33 @@ int sysfs_service_op_show(char *kobj_id, char *buf, void *attr)
 	struct pvfs2_kernel_op *new_op = NULL;
 	int rc = 0;
 	int val = 0;
+	char *ser_op_type = NULL;
 	struct orangefs_attribute *orangefs_attr;
 	struct acache_orangefs_attribute *acache_attr;
 	struct capcache_orangefs_attribute *capcache_attr;
 	struct ccache_orangefs_attribute *ccache_attr;
 	struct ncache_orangefs_attribute *ncache_attr;
+	struct pc_orangefs_attribute *pc_attr;
 
 	gossip_debug(GOSSIP_PROC_DEBUG,
 		     "sysfs_service_op_show: id:%s:\n",
 		     kobj_id);
 
-	new_op = op_alloc(PVFS2_VFS_OP_PARAM);
-	if (!new_op) {
-		rc = -ENOMEM;
-		goto out;
-	}
+	if (strcmp(kobj_id, "pc")) {
+		new_op = op_alloc(PVFS2_VFS_OP_PARAM);
+		if (!new_op) {
+			rc = -ENOMEM;
+			goto out;
+		}
+		new_op->upcall.req.param.type = PVFS2_PARAM_REQUEST_GET;
 
-	new_op->upcall.req.param.type = PVFS2_PARAM_REQUEST_GET;
+	} else {
+		new_op = op_alloc(PVFS2_VFS_OP_PERF_COUNT);
+		if (!new_op) {
+			rc = -ENOMEM;
+			goto out;
+		}
+	}
 
 	if (!strcmp(kobj_id, "orangefs")) {
 		orangefs_attr = (struct orangefs_attribute *)attr;
@@ -574,6 +629,22 @@ int sysfs_service_op_show(char *kobj_id, char *buf, void *attr)
 			new_op->upcall.req.param.op = 
 			  PVFS2_PARAM_REQUEST_OP_NCACHE_RECLAIM_PERCENTAGE;
 
+	} else if (!strcmp(kobj_id, "pc")) {
+		pc_attr = (struct pc_orangefs_attribute *)attr;
+
+		if (!strcmp(pc_attr->attr.name, "acache"))
+			new_op->upcall.req.perf_count.type =
+				PVFS2_PERF_COUNT_REQUEST_ACACHE;
+
+/* CHANGE THIS ONE AFTER PROC STUFF IS GONE */
+		if (!strcmp(pc_attr->attr.name, "capcache"))
+			new_op->upcall.req.perf_count.type =
+				PVFS2_PERF_COUNT_REQUEST_STATIC_ACACHE;
+
+		if (!strcmp(pc_attr->attr.name, "ncache"))
+			new_op->upcall.req.perf_count.type =
+				PVFS2_PERF_COUNT_REQUEST_NCACHE;
+
 	} else {
 		gossip_err("sysfs_service_op_show: unknown kobj_id:%s:\n",
 			   kobj_id);
@@ -582,18 +653,31 @@ int sysfs_service_op_show(char *kobj_id, char *buf, void *attr)
 	}
 
 
+	if (strcmp(kobj_id, "pc"))
+		ser_op_type = "pvfs2_param";
+	else
+		ser_op_type = "pvfs2_perf_count";
+		
 	/*
 	 * The service_operation will return an errno return code on
 	 * error, and zero on success.
 	 */
-	rc = service_operation(new_op, "pvfs2_param", PVFS2_OP_INTERRUPTIBLE);
+	rc = service_operation(new_op, ser_op_type, PVFS2_OP_INTERRUPTIBLE);
 
 out:
-	if (!rc)
-		val = (int)new_op->downcall.resp.param.value;
-	else
+	if (!rc) {
+		if (strcmp(kobj_id, "pc")) {
+			val = (int)new_op->downcall.resp.param.value;
+		} else {
+			val = scnprintf(
+				buf,
+				PAGE_SIZE,
+				"%s\n",
+				new_op->downcall.resp.perf_count.buffer);
+		}
+	} else {
 		val = rc;
-
+	}
 
 	/*
 	 * if we got ENOMEM, then op_alloc probably failed...
@@ -680,6 +764,23 @@ static ssize_t
 	/* rc should have an errno value if the service_op went bad. */
 	if (rc > 0)
 		rc = scnprintf(buf, PAGE_SIZE, "%d\n", rc);
+
+	return rc;
+}
+
+static ssize_t
+	service_pc_show(struct pc_orangefs_obj *pc_orangefs_obj,
+			    struct pc_orangefs_attribute *attr,
+			    char *buf)
+{
+	int rc = 0;
+
+	rc = sysfs_service_op_show("pc", buf, (void *) attr);
+
+	/*
+	 * sysfs_service_op_show has already filled buf for this
+	 * show function, and rc = how many bytes are in buf.
+	 */
 
 	return rc;
 }
@@ -922,7 +1023,7 @@ int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
         rc = service_operation(new_op, "pvfs2_param", PVFS2_OP_INTERRUPTIBLE);
 
 	if (rc < 0) {
-		pr_info("sysfs_service_op_store: service op returned:%d:\n",
+		gossip_err("sysfs_service_op_store: service op returned:%d:\n",
 			rc);
 		rc = 0;
 	} else {
@@ -1221,11 +1322,43 @@ static struct kobj_type ncache_orangefs_ktype = {
 	.default_attrs = ncache_orangefs_default_attrs,
 };
 
+static struct pc_orangefs_attribute pc_acache_attribute =
+	__ATTR(acache,
+	       0664,
+	       service_pc_show,
+	       NULL);
+
+static struct pc_orangefs_attribute pc_capcache_attribute =
+	__ATTR(capcache,
+	       0664,
+	       service_pc_show,
+	       NULL);
+
+static struct pc_orangefs_attribute pc_ncache_attribute =
+	__ATTR(ncache,
+	       0664,
+	       service_pc_show,
+	       NULL);
+
+static struct attribute *pc_orangefs_default_attrs[] = {
+	&pc_acache_attribute.attr,
+	&pc_capcache_attribute.attr,
+	&pc_ncache_attribute.attr,
+	NULL,
+};
+
+static struct kobj_type pc_orangefs_ktype = {
+	.sysfs_ops = &pc_orangefs_sysfs_ops,
+	.release = orangefs_release,
+	.default_attrs = pc_orangefs_default_attrs,
+};
+
 static struct orangefs_obj *orangefs_obj;
 static struct acache_orangefs_obj *acache_orangefs_obj;
 static struct capcache_orangefs_obj *capcache_orangefs_obj;
 static struct ccache_orangefs_obj *ccache_orangefs_obj;
 static struct ncache_orangefs_obj *ncache_orangefs_obj;
+static struct pc_orangefs_obj *pc_orangefs_obj;
 
 int orangefs_sysfs_init(void)
 {
@@ -1332,6 +1465,26 @@ int orangefs_sysfs_init(void)
         }
 
         kobject_uevent(&ncache_orangefs_obj->kobj, KOBJ_ADD);
+
+	/* create /sys/fs/orangefs/perf_counters. */
+	pc_orangefs_obj = kzalloc(sizeof(*pc_orangefs_obj), GFP_KERNEL);
+        if (!pc_orangefs_obj) {
+                rc = -EINVAL;
+                goto out;
+        }
+	
+	rc = kobject_init_and_add(&pc_orangefs_obj->kobj,
+				  &pc_orangefs_ktype,
+				  &orangefs_obj->kobj,
+				  "perf_counters");
+
+	if (rc) {
+                kobject_put(&orangefs_obj->kobj);
+                rc = -EINVAL;
+                goto out;
+        }
+
+        kobject_uevent(&pc_orangefs_obj->kobj, KOBJ_ADD);
 
 out:
 	return rc;
