@@ -64,6 +64,12 @@ struct pc_orangefs_obj {
 	char *ncache;
 };
 
+struct stats_orangefs_obj {
+	struct kobject kobj;
+	int reads;
+	int writes;
+};
+
 struct orangefs_attribute {
 	struct attribute attr;
 	ssize_t (*show)(struct orangefs_obj *orangefs_obj,
@@ -126,6 +132,17 @@ struct pc_orangefs_attribute {
 			char *buf);
         ssize_t (*store)(struct pc_orangefs_obj *pc_orangefs_obj,
 			 struct pc_orangefs_attribute *attr,
+			 const char *buf,
+			 size_t count);
+};
+
+struct stats_orangefs_attribute {
+	struct attribute attr;
+	ssize_t (*show)(struct stats_orangefs_obj *stats_orangefs_obj,
+			struct stats_orangefs_attribute *attr,
+			char *buf);
+        ssize_t (*store)(struct stats_orangefs_obj *stats_orangefs_obj,
+			 struct stats_orangefs_attribute *attr,
 			 const char *buf,
 			 size_t count);
 };
@@ -434,6 +451,33 @@ static const struct sysfs_ops pc_orangefs_sysfs_ops = {
 	.show = pc_orangefs_attr_show,
 };
 
+static ssize_t stats_orangefs_attr_show(struct kobject *kobj,
+					 struct attribute *attr,
+					 char *buf)
+{
+	struct stats_orangefs_attribute *attribute;
+	struct stats_orangefs_obj *stats_orangefs_obj;
+	int rc;
+
+	attribute = container_of(attr, struct stats_orangefs_attribute, attr);
+	stats_orangefs_obj =
+		container_of(kobj, struct stats_orangefs_obj, kobj);
+
+	if (!attribute->show) {
+		rc = -EIO;
+		goto out;
+	}
+
+	rc = attribute->show(stats_orangefs_obj, attribute, buf);
+
+out:
+	return rc;
+}
+
+static const struct sysfs_ops stats_orangefs_sysfs_ops = {
+	.show = stats_orangefs_attr_show,
+};
+
 static void orangefs_release(struct kobject *kobj)
 {
 	struct orangefs_obj *orangefs_obj;
@@ -444,35 +488,87 @@ static void orangefs_release(struct kobject *kobj)
 	kfree(orangefs_obj);
 }
 
-static ssize_t int_show(struct orangefs_obj *orangefs_obj,
-			struct orangefs_attribute *attr,
-			char *buf)
+static ssize_t sysfs_int_show(char *kobj_id, char *buf, void *attr)
 {
-	ssize_t rc;
+	int rc = -EIO;
+	struct orangefs_attribute *orangefs_attr;
+	struct stats_orangefs_attribute *stats_orangefs_attr;
 
-	gossip_debug(GOSSIP_PROC_DEBUG,
-		     "int_show:start attr->attr.name:%s:\n", attr->attr.name);
+	gossip_debug(GOSSIP_PROC_DEBUG, "sysfs_int_show: id:%s:\n", kobj_id);
 
-	/*
-	 * snprintf() returns the length the resulting string would be,
-	 * assuming it all fit into buf.
-	 *
-	 * scnprintf() returns the length of the string actually created
-	 * in buf.
-	 */
-	if (!strcmp(attr->attr.name, "op_timeout_secs")) {
-		rc = scnprintf(buf, PAGE_SIZE, "%d\n", op_timeout_secs);
-		goto out;
-	} else if (!strcmp(attr->attr.name, "slot_timeout_secs")) {
-		rc = scnprintf(buf, PAGE_SIZE, "%d\n", slot_timeout_secs);
-		goto out;
-	} else {
-		rc = -EIO;
+	if (!strcmp(kobj_id, "orangefs")) {
+		orangefs_attr = (struct orangefs_attribute *)attr;
+
+		if (!strcmp(orangefs_attr->attr.name, "op_timeout_secs")) {
+			rc = scnprintf(buf,
+				       PAGE_SIZE,
+				       "%d\n",
+				       op_timeout_secs);
+			goto out;
+		} else if (!strcmp(orangefs_attr->attr.name,
+				   "slot_timeout_secs")) {
+			rc = scnprintf(buf,
+				       PAGE_SIZE,
+				       "%d\n",
+				       slot_timeout_secs);
+			goto out;
+		} else {
+			goto out;
+		}
+
+	} else if (!strcmp(kobj_id, "stats")) {
+		stats_orangefs_attr = (struct stats_orangefs_attribute *)attr;
+
+		if (!strcmp(stats_orangefs_attr->attr.name, "reads")) {
+			rc = scnprintf(buf,
+				       PAGE_SIZE,
+				       "%lu\n",
+				       g_pvfs2_stats.reads);
+			goto out;
+		} else if (!strcmp(stats_orangefs_attr->attr.name, "writes")) {
+			rc = scnprintf(buf,
+				       PAGE_SIZE,
+				       "%lu\n",
+				       g_pvfs2_stats.writes);
+			goto out;
+		} else {
+			goto out;
+		}
 	}
 
 out:
 
         return rc;
+}
+
+static ssize_t int_orangefs_show(struct orangefs_obj *orangefs_obj,
+                        struct orangefs_attribute *attr,
+                        char *buf)
+{
+	int rc;
+
+	gossip_debug(GOSSIP_PROC_DEBUG,
+                     "int_orangefs_show:start attr->attr.name:%s:\n",
+		     attr->attr.name);
+
+	rc = sysfs_int_show("orangefs", buf, (void *) attr);
+
+	return rc;
+}
+
+static ssize_t int_stats_show(struct stats_orangefs_obj *stats_orangefs_obj,
+                        struct stats_orangefs_attribute *attr,
+                        char *buf)
+{
+	int rc;
+
+	gossip_debug(GOSSIP_PROC_DEBUG,
+                     "int_stats_show:start attr->attr.name:%s:\n",
+		     attr->attr.name);
+
+	rc = sysfs_int_show("stats", buf, (void *) attr);
+
+	return rc;
 }
 
 static ssize_t int_store(struct orangefs_obj *orangefs_obj,
@@ -1132,10 +1228,10 @@ static ssize_t
 }
 
 static struct orangefs_attribute op_timeout_secs_attribute =
-	__ATTR(op_timeout_secs, 0664, int_show, int_store);
+	__ATTR(op_timeout_secs, 0664, int_orangefs_show, int_store);
 
 static struct orangefs_attribute slot_timeout_secs_attribute =
-	__ATTR(slot_timeout_secs, 0664, int_show, int_store);
+	__ATTR(slot_timeout_secs, 0664, int_orangefs_show, int_store);
 
 static struct orangefs_attribute perf_counter_reset_attribute =
 	__ATTR(perf_counter_reset,
@@ -1353,12 +1449,37 @@ static struct kobj_type pc_orangefs_ktype = {
 	.default_attrs = pc_orangefs_default_attrs,
 };
 
+static struct stats_orangefs_attribute stats_reads_attribute =
+	__ATTR(reads,
+	       0664,
+	       int_stats_show,
+	       NULL);
+
+static struct stats_orangefs_attribute stats_writes_attribute =
+	__ATTR(writes,
+	       0664,
+	       int_stats_show,
+	       NULL);
+
+static struct attribute *stats_orangefs_default_attrs[] = {
+	&stats_reads_attribute.attr,
+	&stats_writes_attribute.attr,
+	NULL,
+};
+
+static struct kobj_type stats_orangefs_ktype = {
+	.sysfs_ops = &stats_orangefs_sysfs_ops,
+	.release = orangefs_release,
+	.default_attrs = stats_orangefs_default_attrs,
+};
+
 static struct orangefs_obj *orangefs_obj;
 static struct acache_orangefs_obj *acache_orangefs_obj;
 static struct capcache_orangefs_obj *capcache_orangefs_obj;
 static struct ccache_orangefs_obj *ccache_orangefs_obj;
 static struct ncache_orangefs_obj *ncache_orangefs_obj;
 static struct pc_orangefs_obj *pc_orangefs_obj;
+static struct stats_orangefs_obj *stats_orangefs_obj;
 
 int orangefs_sysfs_init(void)
 {
@@ -1486,6 +1607,25 @@ int orangefs_sysfs_init(void)
 
         kobject_uevent(&pc_orangefs_obj->kobj, KOBJ_ADD);
 
+	/* create /sys/fs/orangefs/stats. */
+	stats_orangefs_obj = kzalloc(sizeof(*stats_orangefs_obj), GFP_KERNEL);
+        if (!stats_orangefs_obj) {
+                rc = -EINVAL;
+                goto out;
+        }
+	
+	rc = kobject_init_and_add(&stats_orangefs_obj->kobj,
+				  &stats_orangefs_ktype,
+				  &orangefs_obj->kobj,
+				  "stats");
+
+	if (rc) {
+                kobject_put(&orangefs_obj->kobj);
+                rc = -EINVAL;
+                goto out;
+        }
+
+        kobject_uevent(&stats_orangefs_obj->kobj, KOBJ_ADD);
 out:
 	return rc;
 }
