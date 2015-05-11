@@ -601,11 +601,13 @@ out:
 	return rc;
 }
 
+/*
+ * obtain attribute values from userspace with a service operation.
+ */
 int sysfs_service_op_show(char *kobj_id, char *buf, void *attr)
 {
 	struct pvfs2_kernel_op *new_op = NULL;
 	int rc = 0;
-	int val = 0;
 	char *ser_op_type = NULL;
 	struct orangefs_attribute *orangefs_attr;
 	struct acache_orangefs_attribute *acache_attr;
@@ -613,26 +615,27 @@ int sysfs_service_op_show(char *kobj_id, char *buf, void *attr)
 	struct ccache_orangefs_attribute *ccache_attr;
 	struct ncache_orangefs_attribute *ncache_attr;
 	struct pc_orangefs_attribute *pc_attr;
+	__u32 op_alloc_type;
 
 	gossip_debug(GOSSIP_PROC_DEBUG,
 		     "sysfs_service_op_show: id:%s:\n",
 		     kobj_id);
 
-	if (strcmp(kobj_id, "pc")) {
-		new_op = op_alloc(PVFS2_VFS_OP_PARAM);
-		if (!new_op) {
-			rc = -ENOMEM;
-			goto out;
-		}
-		new_op->upcall.req.param.type = PVFS2_PARAM_REQUEST_GET;
 
+	if (strcmp(kobj_id, "pc")) {
+		op_alloc_type = PVFS2_VFS_OP_PARAM;
 	} else {
-		new_op = op_alloc(PVFS2_VFS_OP_PERF_COUNT);
-		if (!new_op) {
-			rc = -ENOMEM;
-			goto out;
-		}
+		op_alloc_type = PVFS2_VFS_OP_PERF_COUNT;
 	}
+
+	new_op = op_alloc(op_alloc_type);
+	if (!new_op) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	if (strcmp(kobj_id, "pc"))
+		new_op->upcall.req.param.type = PVFS2_PARAM_REQUEST_GET;
 
 	if (!strcmp(kobj_id, "orangefs")) {
 		orangefs_attr = (struct orangefs_attribute *)attr;
@@ -763,16 +766,17 @@ int sysfs_service_op_show(char *kobj_id, char *buf, void *attr)
 out:
 	if (!rc) {
 		if (strcmp(kobj_id, "pc")) {
-			val = (int)new_op->downcall.resp.param.value;
+			rc = scnprintf(buf,
+				       PAGE_SIZE,
+				       "%d\n",
+				       (int)new_op->downcall.resp.param.value);
 		} else {
-			val = scnprintf(
+			rc = scnprintf(
 				buf,
 				PAGE_SIZE,
-				"%s\n",
+				"%s",
 				new_op->downcall.resp.perf_count.buffer);
 		}
-	} else {
-		val = rc;
 	}
 
 	/*
@@ -781,7 +785,7 @@ out:
 	if (rc != -ENOMEM)
 		op_release(new_op);
 
-	return val;
+	return rc;
 
 }
 
@@ -791,11 +795,7 @@ static ssize_t service_orangefs_show(struct orangefs_obj *orangefs_obj,
 {
 	int rc = 0;
 
-	rc = sysfs_service_op_show("orangefs", buf, (void *) attr);
-
-	/* rc should have an errno value if the service_op went bad. */
-	if (rc > 0)
-		rc = scnprintf(buf, PAGE_SIZE, "%d\n", rc);
+	rc = sysfs_service_op_show("orangefs", buf, (void *)attr);
 
 	return rc;
 }
@@ -807,11 +807,7 @@ static ssize_t
 {
 	int rc = 0;
 
-	rc = sysfs_service_op_show("acache", buf, (void *) attr);
-
-	/* rc should have an errno value if the service_op went bad. */
-	if (rc > 0)
-		rc = scnprintf(buf, PAGE_SIZE, "%d\n", rc);
+	rc = sysfs_service_op_show("acache", buf, (void *)attr);
 
 	return rc;
 }
@@ -823,11 +819,7 @@ static ssize_t service_capcache_show(struct capcache_orangefs_obj
 {
 	int rc = 0;
 
-	rc = sysfs_service_op_show("capcache", buf, (void *) attr);
-
-	/* rc should have an errno value if the service_op went bad. */
-	if (rc > 0)
-		rc = scnprintf(buf, PAGE_SIZE, "%d\n", rc);
+	rc = sysfs_service_op_show("capcache", buf, (void *)attr);
 
 	return rc;
 }
@@ -839,11 +831,7 @@ static ssize_t service_ccache_show(struct ccache_orangefs_obj
 {
 	int rc = 0;
 
-	rc = sysfs_service_op_show("ccache", buf, (void *) attr);
-
-	/* rc should have an errno value if the service_op went bad. */
-	if (rc > 0)
-		rc = scnprintf(buf, PAGE_SIZE, "%d\n", rc);
+	rc = sysfs_service_op_show("ccache", buf, (void *)attr);
 
 	return rc;
 }
@@ -855,11 +843,7 @@ static ssize_t
 {
 	int rc = 0;
 
-	rc = sysfs_service_op_show("ncache", buf, (void *) attr);
-
-	/* rc should have an errno value if the service_op went bad. */
-	if (rc > 0)
-		rc = scnprintf(buf, PAGE_SIZE, "%d\n", rc);
+	rc = sysfs_service_op_show("ncache", buf, (void *)attr);
 
 	return rc;
 }
@@ -871,12 +855,7 @@ static ssize_t
 {
 	int rc = 0;
 
-	rc = sysfs_service_op_show("pc", buf, (void *) attr);
-
-	/*
-	 * sysfs_service_op_show has already filled buf for this
-	 * show function, and rc = how many bytes are in buf.
-	 */
+	rc = sysfs_service_op_show("pc", buf, (void *)attr);
 
 	return rc;
 }
