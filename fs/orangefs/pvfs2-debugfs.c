@@ -329,7 +329,9 @@ static ssize_t orangefs_kmod_debug_write(struct file *file,
 	 * perhaps it should just be void?
 	 */
 	PVFS_proc_kmod_mask_to_eventlog(gossip_debug_mask, buf);
-	buf[strlen(buf)] = '\n';
+
+	if (strlen(buf) <= (PVFS2_MAX_DEBUG_STRING_LEN - 2))
+		strcat(buf, "\n");
 
 	mutex_lock(&orangefs_debug_lock);
 	memset(file->f_inode->i_private, 0, PVFS2_MAX_DEBUG_STRING_LEN);
