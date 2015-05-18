@@ -597,10 +597,13 @@ enum {
  * version number for use in communicating between kernel space and user
  * space
  */
+/*
 #define PVFS_KERNEL_PROTO_VERSION			\
 		((PVFS2_VERSION_MAJOR * 10000)	+	\
 		 (PVFS2_VERSION_MINOR * 100)	+	\
 		 PVFS2_VERSION_SUB)
+*/
+#define PVFS_KERNEL_PROTO_VERSION 0
 
 /*
  * describes memory regions to map in the PVFS_DEV_MAP ioctl.

@@ -95,6 +95,10 @@ struct pvfs2_perf_count_response {
 	char buffer[PERF_COUNT_BUF_SIZE];
 };
 
+struct pvfs2_client_debug_mask_response {
+	char buffer[PVFS2_MAX_DEBUG_ARRAY_LEN];
+};
+
 #define FS_KEY_BUF_SIZE 4096
 struct pvfs2_fs_key_response {
 	int32_t fs_keylen;
@@ -126,6 +130,7 @@ typedef struct pvfs2_downcall {
 		struct pvfs2_listxattr_response listxattr;
 		struct pvfs2_param_response param;
 		struct pvfs2_perf_count_response perf_count;
+		struct pvfs2_client_debug_mask_response client_debug_mask;
 		struct pvfs2_fs_key_response fs_key;
 	} resp;
 } pvfs2_downcall_t;
