@@ -322,12 +322,14 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 		dev_req_release(buffer);
 		return -EPROTO;
 	}
+/* client_debug_mask 
 	if (proto_ver != PVFS_KERNEL_PROTO_VERSION) {
 		gossip_err("Error: Device protocol version numbers do not match.\n");
 		gossip_err("Please check that your pvfs2 module and pvfs2-client versions are consistent.\n");
 		dev_req_release(buffer);
 		return -EPROTO;
 	}
+*/
 
 	op = pvfs2_devreq_remove_op(tag);
 	if (op) {
