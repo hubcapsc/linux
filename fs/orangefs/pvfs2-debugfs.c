@@ -7,12 +7,8 @@
 #include "protocol.h"
 #include "pvfs2-kernel.h"
 
-#define ORANGEFS_KMOD_DEBUG_HELP_FILE "debug-help"
-#define ORANGEFS_KMOD_DEBUG_FILE "kernel-debug"
-
 extern char debug_help_string[];
 
-static struct dentry *debug_dir;
 static int orangefs_kmod_debug_disabled = 1;
 
 /*
@@ -21,7 +17,7 @@ static int orangefs_kmod_debug_disabled = 1;
  */
 static int orangefs_kmod_debug_help_open(struct inode *, struct file *);
 
-static const struct file_operations debug_help_fops = {
+const struct file_operations debug_help_fops = {
         .open           = orangefs_kmod_debug_help_open,
         .read           = seq_read,
         .release        = seq_release,
@@ -76,18 +72,17 @@ int pvfs2_debugfs_init(void)
 {
 
 	int rc = -ENOMEM;
-	struct dentry *ret;
 
 	debug_dir = debugfs_create_dir("orangefs", NULL);
 	if (!debug_dir)
 		goto out;
 
-	ret = debugfs_create_file(ORANGEFS_KMOD_DEBUG_HELP_FILE,
+	help_file_dentry = debugfs_create_file(ORANGEFS_KMOD_DEBUG_HELP_FILE,
 				  0444,
 				  debug_dir,
-				  debug_help_string,
+				  eebug_help_string,
 				  &debug_help_fops);
-	if (!ret)
+	if (!help_file_dentry)
 		goto out;
 	
 	orangefs_kmod_debug_disabled = 0;

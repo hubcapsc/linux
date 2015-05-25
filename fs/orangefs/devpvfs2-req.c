@@ -74,7 +74,7 @@ static int pvfs2_devreq_open(struct inode *inode, struct file *file)
 
 	if (!(file->f_flags & O_NONBLOCK)) {
 		gossip_err("pvfs2: device cannot be opened in blocking mode\n");
-		return ret;
+		goto out;
 	}
 	ret = -EACCES;
 	gossip_debug(GOSSIP_DEV_DEBUG, "pvfs2-client-core: opening device\n");
@@ -88,6 +88,8 @@ static int pvfs2_devreq_open(struct inode *inode, struct file *file)
 		DUMP_DEVICE_ERROR();
 	}
 	mutex_unlock(&devreq_mutex);
+
+out:
 
 	gossip_debug(GOSSIP_DEV_DEBUG,
 		     "pvfs2-client-core: open device complete (ret = %d)\n",
