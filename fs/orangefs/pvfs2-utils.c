@@ -902,3 +902,192 @@ int PVFS_proc_mask_to_eventlog(uint64_t mask, char *debug_string)
 				  mask,
 				  debug_string);
 }
+
+int orangefs_prepare_cdm_array(char *debug_array_string)
+{
+	int i;
+	int rc = -EINVAL;
+	char *cds_head = NULL;
+	char *cds_delimiter = NULL;
+	int keyword_len = 0;
+	int cdm_element_count = 0;
+	
+	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: start\n", __func__);
+
+	/*
+	 * figure out how many elements the cdm_array needs.
+	 */
+        for (i = 0; i < strlen(debug_array_string); i++)
+		if (debug_array_string[i] == '\n')
+			cdm_element_count++;
+
+	if (!cdm_element_count) {
+		pr_info("No elements in client debug array string!\n");
+		goto out;
+	}
+
+	cdm_array =
+		kzalloc(cdm_element_count * sizeof(struct client_debug_mask),
+			GFP_KERNEL);
+	if (!cdm_array) {
+		pr_info("malloc failed for cdm_array!\n");
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	cds_head = debug_array_string;
+
+	for (i = 0; i < cdm_element_count; i++) {
+		cds_delimiter = strchr(cds_head, '\n');
+		*cds_delimiter = '\0';
+
+		keyword_len = strcspn(cds_head, " ");
+
+		cdm_array[i].keyword = kzalloc(keyword_len + 1, GFP_KERNEL);
+		if (!cdm_array[i].keyword) {
+			pr_info("malloc failed for cdm_array keyword!\n");
+			rc = -ENOMEM;
+			goto out;
+		}
+
+		sscanf(cds_head,
+		       "%s %llx %llx",
+		       cdm_array[i].keyword,
+		       (unsigned long long *)&(cdm_array[i].mask1), 
+		       (unsigned long long *)&(cdm_array[i].mask2)); 
+
+		cds_head = cds_delimiter + 1;
+	}
+
+	rc = cdm_element_count;
+
+	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: rc:%d:\n", __func__, rc);
+
+out:
+
+	return rc;
+
+}
+
+int orangefs_prepare_debugfs_help_string(void)
+{
+	int rc = -ENOMEM;
+	int i;
+	int byte_count = 0;
+        char *client_title = "Client Debug Keywords:\n";
+        char *kernel_title = "Kernel Debug Keywords:\n";
+	struct pvfs2_kernel_op *new_op;
+	char *buf = NULL;
+	int cdm_element_count = 0;
+
+	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: start\n", __func__);
+
+	/*
+	 * Count the bytes destined for debug_help_string. Until
+	 * the client-core starts, the client keywords are unknown.
+	 * We should pass through here once when the kernel boots,
+	 * and another time when the filesystem is first mounted.
+	 */
+	byte_count = strlen(kernel_title);
+
+	if (is_daemon_in_service() == -EIO) {
+		byte_count += strlen(HELP_STRING_UNINITIALIZED);
+		client_title = HELP_STRING_UNINITIALIZED;
+	} else if (!help_string_initialized) {
+		/*
+		 * Obtain a representation of the client keyword/mask array
+		 * from userspace.
+		 */
+		new_op = op_alloc(PVFS2_VFS_OP_CLIENT_DEBUG_MASK);
+		if (!new_op) {
+			pr_info("pvfs2_init: op_alloc failed!\n");
+			goto out;
+		}
+	
+		/*
+		 * service operation will return zero on success...
+		 */
+		rc = service_operation(new_op,
+					"pvfs2_client_debug_mask",
+					PVFS2_OP_INTERRUPTIBLE);
+		if (!rc) {
+	
+			/*
+			 * fill the client keyword/mask array and remember
+			 * how many elements there were.
+			 */
+			buf = new_op->downcall.resp.client_debug_mask.buffer;
+			cdm_element_count = orangefs_prepare_cdm_array(buf);
+			if (cdm_element_count <= 0) {
+				rc = cdm_element_count;
+				goto out;
+			}
+			byte_count = strlen(client_title);
+			for (i = 0; i < cdm_element_count; i++) {
+				byte_count += strlen(cdm_array[i].keyword + 2);
+				if (byte_count >= DEBUG_HELP_STRING_SIZE) {
+					pr_info("%s: overflow 1!\n", __func__);
+					rc = -EINVAL;
+					goto out;
+				}
+			}
+			help_string_initialized++;
+			gossip_debug(GOSSIP_UTILS_DEBUG,
+				     "%s: cdm_element_count:%d:\n",
+				     __func__,
+				     cdm_element_count);
+		}
+	} else {
+		/*
+		 * never thought we'd get here.
+		 */
+		pr_info("%s: unexpected condition!\n", __func__);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	for (i = 0; i < num_kmod_keyword_mask_map; i++) {
+		byte_count +=
+			strlen(s_kmod_keyword_mask_map[i].keyword +2);
+		if (byte_count >= DEBUG_HELP_STRING_SIZE) {
+			pr_info("%s: overflow 2!\n", __func__);
+			rc = -EINVAL;
+			goto out;
+		}
+	}
+
+	/*
+	 * build debug_help_string
+	 */
+	eebug_help_string = kzalloc(DEBUG_HELP_STRING_SIZE, GFP_KERNEL);
+	if (!eebug_help_string) {
+		pr_info("debug_help_string malloc failed!\n");
+		goto out;
+	}
+
+	strcat(eebug_help_string, client_title);
+
+	if (help_string_initialized) {
+		for (i = 0; i < cdm_element_count; i++) {
+			strcat(eebug_help_string, "\t");
+			strcat(eebug_help_string, cdm_array[i].keyword);
+			strcat(eebug_help_string, "\n");
+		}
+	}
+
+	strcat(eebug_help_string, "\n");
+	strcat(eebug_help_string, kernel_title);
+
+	for (i = 0; i < num_kmod_keyword_mask_map; i++) {
+		strcat(eebug_help_string, "\t");
+		strcat(eebug_help_string, s_kmod_keyword_mask_map[i].keyword);
+		strcat(eebug_help_string, "\n");
+	}
+
+	rc = 0;
+
+out:
+
+	return rc;
+	
+}

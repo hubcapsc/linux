@@ -162,6 +162,16 @@ enum PVFS_async_io_type {
 };
 
 /*
+ * an array of these will be built to hold debug keyword/mask values
+ * fetched from userspace.
+ */
+struct client_debug_mask {
+        char *keyword;
+        uint64_t mask1;
+        uint64_t mask2;
+};
+
+/*
  * pvfs2 kernel memory related flags
  */
 
@@ -202,6 +212,8 @@ enum PVFS_async_io_type {
 uint64_t PVFS_proc_kmod_eventlog_to_mask(const char *event_logging);
 int PVFS_proc_kmod_mask_to_eventlog(uint64_t mask, char *debug_string);
 int PVFS_proc_mask_to_eventlog(uint64_t mask, char *debug_string);
+int orangefs_prepare_cdm_array(char *debug_array_string);
+int orangefs_prepare_debugfs_help_string(void);
 
 /*these variables are defined in pvfs2-proc.c*/
 extern char kernel_debug_string[PVFS2_MAX_DEBUG_STRING_LEN];

@@ -18,11 +18,16 @@
 #define PVFS2_VERSION "Unknown"
 #endif
 
-#define DEBUG_HELP_STRING_SIZE 4096
-
 /*
  * global variables declared here
  */
+/* array of client debug keyword/mask values */
+struct client_debug_mask *cdm_array = NULL;
+
+char *eebug_help_string = NULL;
+int help_string_initialized = 0;
+struct dentry *help_file_dentry = 0;
+struct dentry *debug_dir = 0;
 
 /* the size of the hash tables for ops in progress */
 int hash_table_size = 509;
@@ -237,11 +242,25 @@ static int __init pvfs2_init(void)
 		goto cleanup_progress_table;
 
 	pvfs2_proc_initialize();
+
+	/*
+	 * Build the contents of /sys/kernel/debug/orangefs/debug-help
+	 * from the keywords in the kernel keyword/mask array.
+	 * The keywords in the client keyword/mask array are
+	 * unknown until the the first time the filesystem is
+	 * mounted. At mount-time, the client's keywords and
+	 * associated masks will be obtained with a 
+	 * service-operation. This decouples the upstream
+	 * kernel module from changes to the client's
+	 * available debug modes.
+	 */
+	ret = orangefs_prepare_debugfs_help_string();
+	if (ret)
+		goto out;
+
 	pvfs2_debugfs_init();
 	pvfs2_kernel_debug_init();
-pr_info("pvsf2_init: before sysfs init\n"); 
 	orangefs_sysfs_init();
-pr_info("pvsf2_init: after sysfs init\n"); 
 
 	ret = register_filesystem(&pvfs2_fs_type);
 	if (ret == 0) {
@@ -274,6 +293,8 @@ cleanup_op:
 
 err:
 	bdi_destroy(&pvfs2_backing_dev_info);
+
+out:
 	return ret;
 }
 

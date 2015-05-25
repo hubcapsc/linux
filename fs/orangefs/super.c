@@ -7,7 +7,10 @@
 #include "protocol.h"
 #include "pvfs2-kernel.h"
 #include "pvfs2-bufmap.h"
+
 #include <linux/parser.h>
+#include <linux/debugfs.h>
+#include <linux/slab.h>
 
 /* a cache for pvfs2-inode objects (i.e. pvfs2 inode private data) */
 static struct kmem_cache *pvfs2_inode_cache;
@@ -423,10 +426,51 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
 	struct pvfs2_kernel_op *new_op;
 	struct pvfs2_mount_sb_info_t mount_sb_info;
 	struct dentry *mnt_sb_d = ERR_PTR(-EINVAL);
+	int rc;
+	struct dentry *d;
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
 		     "pvfs2_mount: called with devname %s\n",
 		     devname);
+
+	/*
+	 * If we've never initialized the client debug help string,
+	 * this must be the first time the filesystem has been
+	 * mounted since boot, so now is a good time to initialize
+	 * the string...
+	 */
+	if (!help_string_initialized) {
+
+		/* Free the "we don't know yet" default string... */
+		kfree(eebug_help_string);
+
+		rc = orangefs_prepare_debugfs_help_string();
+		if (rc) {
+			gossip_err("%s: prepare_debugfs_help_string failed!\n",
+				   __func__);
+			/*
+			 * If we couldn't prepare the help string, there's
+			 * probably something awful going on, but soldier on
+			 * with the mount attempt anyway, instead of bailing.
+			 */
+			goto nodebug;
+		}
+
+		/* Remove the boilerplate boot-time debug-help file. */
+		debugfs_remove(help_file_dentry);
+
+		d = debugfs_create_file(ORANGEFS_KMOD_DEBUG_HELP_FILE,
+					0444,
+					debug_dir,
+					eebug_help_string,
+					&debug_help_fops);
+		if (!d)
+			gossip_err("%s: debugfs_create_file failed!\n",
+				   __func__);
+
+		help_string_initialized++;
+	}
+nodebug:
 
 	if (!devname) {
 		gossip_err("ERROR: device name not specified.\n");

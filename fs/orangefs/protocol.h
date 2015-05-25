@@ -2,6 +2,19 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 
+extern struct client_debug_mask *cdm_array;
+extern char *eebug_help_string;
+extern int help_string_initialized;
+extern struct dentry *debug_dir;
+extern struct dentry *help_file_dentry;
+extern const struct file_operations debug_help_fops;
+#define DEBUG_HELP_STRING_SIZE 4096
+#define HELP_STRING_UNINITIALIZED \
+	"Client Debug Keywords are unknown until the first time\n" \
+	"the filesystem is mounted after boot.\n"
+#define ORANGEFS_KMOD_DEBUG_HELP_FILE "debug-help"
+#define ORANGEFS_KMOD_DEBUG_FILE "kernel-debug"
+
 /* pvfs2-config.h ***********************************************************/
 #define PVFS2_VERSION_MAJOR 2
 #define PVFS2_VERSION_MINOR 9
