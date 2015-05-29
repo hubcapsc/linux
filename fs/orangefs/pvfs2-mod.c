@@ -28,6 +28,9 @@ char *eebug_help_string = NULL;
 int help_string_initialized = 0;
 struct dentry *help_file_dentry = 0;
 struct dentry *debug_dir = 0;
+int cdm_element_count = 0;
+int client_verbose_index = 0;
+int client_all_index = 0;
 
 /* the size of the hash tables for ops in progress */
 int hash_table_size = 509;
@@ -47,7 +50,7 @@ int hash_table_size = 509;
  * 64 keywords, in the event that the kernel debug mask supports more
  * than 32 keywords.
  */
-uint32_t module_parm_debug_mask = 0;
+static ulong module_parm_debug_mask = 0;
 uint64_t gossip_debug_mask = 0;
 unsigned int kernel_mask_set_mod_init = false;
 int op_timeout_secs = PVFS2_DEFAULT_OP_TIMEOUT_SECS;
@@ -60,7 +63,7 @@ int fake_mmap_shared = 0;
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("PVFS2 Development Team");
 MODULE_DESCRIPTION("The Linux Kernel VFS interface to PVFS2");
-MODULE_PARM_DESC(debug, "debugging level (see pvfs2-debug.h for values)");
+MODULE_PARM_DESC(module_parm_debug_mask, "debugging level (see pvfs2-debug.h for values)");
 MODULE_PARM_DESC(op_timeout_secs, "Operation timeout in seconds");
 MODULE_PARM_DESC(slot_timeout_secs, "Slot timeout in seconds");
 MODULE_PARM_DESC(hash_table_size,
@@ -76,7 +79,7 @@ static struct file_system_type pvfs2_fs_type = {
 };
 
 module_param(hash_table_size, int, 0);
-module_param(module_parm_debug_mask, uint, 0);
+module_param(module_parm_debug_mask, ulong, 0755);
 module_param(op_timeout_secs, int, 0);
 module_param(slot_timeout_secs, int, 0);
 module_param(fake_mmap_shared, int, 0);
@@ -114,17 +117,16 @@ static int __init pvfs2_init(void)
 	uint32_t i = 0;
 
 	/* convert input debug mask to a 64-bit unsigned integer */
-	gossip_debug_mask = (uint64_t) module_parm_debug_mask;
+	gossip_debug_mask = (unsigned long) module_parm_debug_mask;
 
 	/*
 	 * set the kernel's gossip debug string; invalid mask values will
 	 * be ignored.
 	 */
-	PVFS_proc_kmod_mask_to_eventlog(gossip_debug_mask, kernel_debug_string);
+	kernel_debug_mask_to_string(gossip_debug_mask);
 
 	/* remove any invalid values from the mask */
-	gossip_debug_mask =
-	    PVFS_proc_kmod_eventlog_to_mask(kernel_debug_string);
+	gossip_debug_mask = kernel_debug_string_to_mask(kernel_debug_string);
 
 	/*
 	 * if the mask has a non-zero value, then indicate that the mask

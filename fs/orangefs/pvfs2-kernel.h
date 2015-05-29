@@ -214,6 +214,10 @@ int PVFS_proc_kmod_mask_to_eventlog(uint64_t mask, char *debug_string);
 int PVFS_proc_mask_to_eventlog(uint64_t mask, char *debug_string);
 int orangefs_prepare_cdm_array(char *debug_array_string);
 int orangefs_prepare_debugfs_help_string(void);
+uint64_t kernel_debug_string_to_mask(char *);
+void kernel_debug_mask_to_string(uint64_t);
+void client_debug_string_to_mask(char *, struct client_debug_mask*);
+void client_debug_mask_to_string(struct client_debug_mask *);
 
 /*these variables are defined in pvfs2-proc.c*/
 extern char kernel_debug_string[PVFS2_MAX_DEBUG_STRING_LEN];
