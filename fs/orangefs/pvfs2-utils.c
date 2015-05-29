@@ -910,7 +910,6 @@ int orangefs_prepare_cdm_array(char *debug_array_string)
 	char *cds_head = NULL;
 	char *cds_delimiter = NULL;
 	int keyword_len = 0;
-	int cdm_element_count = 0;
 	
 	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: start\n", __func__);
 
@@ -956,6 +955,12 @@ int orangefs_prepare_cdm_array(char *debug_array_string)
 		       (unsigned long long *)&(cdm_array[i].mask1), 
 		       (unsigned long long *)&(cdm_array[i].mask2)); 
 
+		if (!strcmp(cdm_array[i].keyword, PVFS2_VERBOSE))
+			client_verbose_index = i;
+
+		if (!strcmp(cdm_array[i].keyword, PVFS2_ALL))
+			client_all_index = i;
+
 		cds_head = cds_delimiter + 1;
 	}
 
@@ -978,7 +983,6 @@ int orangefs_prepare_debugfs_help_string(void)
         char *kernel_title = "Kernel Debug Keywords:\n";
 	struct pvfs2_kernel_op *new_op;
 	char *buf = NULL;
-	int cdm_element_count = 0;
 
 	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: start\n", __func__);
 
@@ -1090,4 +1094,129 @@ out:
 
 	return rc;
 	
+}
+
+void client_debug_mask_to_string(struct client_debug_mask *mask) {
+	int i;
+	int len = 0;
+
+	memset(client_debug_string, 0, PVFS2_MAX_DEBUG_STRING_LEN);
+
+	if ((mask->mask1 == cdm_array[client_all_index].mask1) &&
+	    (mask->mask2 == cdm_array[client_all_index].mask2)) {
+		strcpy(client_debug_string, PVFS2_ALL);
+		goto out;
+	}
+
+	if ((mask->mask1 == cdm_array[client_verbose_index].mask1) &&
+	    (mask->mask2 == cdm_array[client_verbose_index].mask2)) {
+		strcpy(client_debug_string, PVFS2_VERBOSE);
+		goto out;
+	}
+
+	for (i = 0; i < cdm_element_count - 1; i++) {
+		if (i == client_all_index)
+			continue;
+		if (i == client_verbose_index)
+			continue;
+		if ((mask->mask1 & cdm_array[i].mask1) ||
+		    (mask->mask2 & cdm_array[i].mask2)) {
+			strcat(client_debug_string,
+				cdm_array[i].keyword);
+			strcat(client_debug_string, ",");
+		}
+	}
+
+	len = strlen(client_debug_string);
+	if (len) 
+		client_debug_string[len - 1] = '\0';
+	else
+		strcpy(client_debug_string, "none");
+
+out:
+	return;
+				
+}
+
+void kernel_debug_mask_to_string(uint64_t mask) {
+	int i;
+	int all_index = num_kmod_keyword_mask_map - 1;
+	int len = 0;
+
+	memset(kernel_debug_string, 0, PVFS2_MAX_DEBUG_STRING_LEN);
+
+	if (mask == s_kmod_keyword_mask_map[all_index].mask_val) {
+		strcpy(kernel_debug_string, "all");
+		goto out;
+	}
+
+	/*
+	 * Ensure kernel_debug_string doesn't overflow. Account for
+	 * the \n\0 at the end.
+	 */
+	for (i = 0; i < num_kmod_keyword_mask_map - 1; i++) {
+		if (mask & s_kmod_keyword_mask_map[i].mask_val) {
+			if ((strlen(kernel_debug_string) +
+			     strlen(s_kmod_keyword_mask_map[i].keyword) +
+			     1) < PVFS2_MAX_DEBUG_STRING_LEN - 2) {
+				strcat(kernel_debug_string,
+				       s_kmod_keyword_mask_map[i].keyword);
+				strcat(kernel_debug_string, ",");
+			} else {
+				gossip_err("%s: overflow!\n", __func__);
+				strcpy(kernel_debug_string, PVFS2_ALL);
+				goto out;
+			}
+		}
+	}
+
+	len = strlen(kernel_debug_string);
+	if (len) {
+		kernel_debug_string[len - 1] = '\n';
+		kernel_debug_string[len] = '\0';
+	} else {
+		strcpy(kernel_debug_string, "none");
+	}
+
+out:
+	return;
+	
+}
+
+void client_debug_string_to_mask(char *debug_string,
+				struct client_debug_mask *sane_mask) {
+	char *unchecked_keyword;
+	int i;
+
+	while ((unchecked_keyword = strsep(&debug_string, ",")))
+		if (strlen(unchecked_keyword))
+			for (i = 0; i < cdm_element_count; i++)
+				if (!strcmp(cdm_array[i].keyword,
+					   unchecked_keyword)) {
+					sane_mask->mask1 = sane_mask->mask1 |
+						cdm_array[i].mask1;
+					sane_mask->mask2 = sane_mask->mask2 |
+						cdm_array[i].mask2;
+				}
+
+}
+
+uint64_t kernel_debug_string_to_mask(char *debug_string) {
+	char *unchecked_keyword;
+	uint64_t sane_mask = 0;
+	int i;
+
+	while ((unchecked_keyword = strsep(&debug_string, ",")))
+		if (strlen(unchecked_keyword)) {
+			for (i = 0; i < num_kmod_keyword_mask_map; i++)
+				if (!strcmp(s_kmod_keyword_mask_map[i].keyword,
+					   unchecked_keyword))
+					sane_mask = sane_mask | 
+						s_kmod_keyword_mask_map[i].
+							mask_val;
+		}
+
+	return sane_mask;
+
+
 }

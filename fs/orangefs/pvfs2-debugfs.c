@@ -185,13 +185,6 @@ int pvfs2_kernel_debug_init(void)
 		goto out;
 	}
 	memset(init_string, 0, PVFS2_MAX_DEBUG_STRING_LEN);
-	if (kernel_debug_string[PVFS2_MAX_DEBUG_STRING_LEN - 2]) {
-		gossip_debug(GOSSIP_PROC_DEBUG,
-			     "%s: kernel_debug_string corrupt!\n",
-			     __func__);
-		kfree(init_string);
-		goto out;
-	}
 	strcpy(init_string, kernel_debug_string);
 	strcat(init_string, "\n");
 
@@ -316,21 +309,16 @@ static ssize_t orangefs_kmod_debug_write(struct file *file,
 	 * Map the keyword string from userspace into a valid debug mask.
 	 * The mapping process will toss any invalid keywords.
 	 */
-	gossip_debug_mask = PVFS_proc_kmod_eventlog_to_mask(buf);
+	gossip_debug_mask = kernel_debug_string_to_mask(buf);
 
 	/*
 	 * Convert the error-checked mask back into a keyword string.
-	 * PVFS_proc_kmod_mask_to_eventlog returns an irrelevant int,
-	 * perhaps it should just be void?
 	 */
-	PVFS_proc_kmod_mask_to_eventlog(gossip_debug_mask, buf);
-
-	if (strlen(buf) <= (PVFS2_MAX_DEBUG_STRING_LEN - 2))
-		strcat(buf, "\n");
+	kernel_debug_mask_to_string(gossip_debug_mask);
 
 	mutex_lock(&orangefs_debug_lock);
 	memset(file->f_inode->i_private, 0, PVFS2_MAX_DEBUG_STRING_LEN);
-	sprintf((char *)file->f_inode->i_private, "%s", buf);
+	sprintf((char *)file->f_inode->i_private, "%s", kernel_debug_string);
 	mutex_unlock(&orangefs_debug_lock);
 
 	*ppos += count;
