@@ -707,14 +707,24 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 				 */
 				return 0;
 			}
+/*
 			ret = PVFS_proc_kmod_mask_to_eventlog(
 				mask_info.
 				mask_value,
 				kernel_debug_string);
+*/
+			kernel_debug_mask_to_string(mask_info.mask_value);
+			gossip_debug_mask =
+				debug_string_to_mask(kernel_debug_string,
+						     NULL,
+						     0);
+/*
 			gossip_debug_mask = mask_info.mask_value;
-			pr_info("PVFS: kernel debug mask has been modified to \"%s\" (0x%08llx)\n",
+*/
+			pr_info("PVFS: kernel debug mask has been modified to "
+				":%s: :%llx:\n",
 				kernel_debug_string,
-				llu(gossip_debug_mask));
+				(unsigned long long)gossip_debug_mask);
 		} else if (mask_info.mask_type == CLIENT_MASK) {
 			ret = PVFS_proc_mask_to_eventlog(mask_info.mask_value,
 							 client_debug_string);

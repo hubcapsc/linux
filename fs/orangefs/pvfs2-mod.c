@@ -35,21 +35,6 @@ int client_all_index = 0;
 /* the size of the hash tables for ops in progress */
 int hash_table_size = 509;
 
-/* the insmod command only understands "unsigned long" and NOT
- * "unsigned long long" as an input parameter.  So, to accomodate
- * both 32- and 64- bit machines, we will read the debug mask parameter
- * as an unsigned long (4-bytes on a 32-bit machine and 8-bytes
- * on a 64-bit machine) and then cast the "unsigned long" to an
- * "unsigned long long" once we have the value in the kernel.  In this
- * way, the gossip_debug_mask can remain as a "uint64_t" and the kernel
- * and client may continue to use the same gossip functions.
- * NOTE: the kernel debug mask currently does not have more than 32
- * valid keywords, so only reading a 32-bit integer from the insmod
- * command line is not a problem.  However, the
- * /proc/sys/pvfs2/kernel-debug functionality can accomodate up to
- * 64 keywords, in the event that the kernel debug mask supports more
- * than 32 keywords.
- */
 static ulong module_parm_debug_mask = 0;
 uint64_t gossip_debug_mask = 0;
 unsigned int kernel_mask_set_mod_init = false;
@@ -117,16 +102,22 @@ static int __init pvfs2_init(void)
 	uint32_t i = 0;
 
 	/* convert input debug mask to a 64-bit unsigned integer */
-	gossip_debug_mask = (unsigned long) module_parm_debug_mask;
+	gossip_debug_mask = (unsigned long long) module_parm_debug_mask;
 
 	/*
 	 * set the kernel's gossip debug string; invalid mask values will
 	 * be ignored.
 	 */
+/*
 	kernel_debug_mask_to_string(gossip_debug_mask);
+*/
+	debug_mask_to_string(&gossip_debug_mask, 0);
 
 	/* remove any invalid values from the mask */
+/*
 	gossip_debug_mask = kernel_debug_string_to_mask(kernel_debug_string);
+*/
+	gossip_debug_mask = debug_string_to_mask(kernel_debug_string, NULL, 0);
 
 	/*
 	 * if the mask has a non-zero value, then indicate that the mask
@@ -138,9 +129,9 @@ static int __init pvfs2_init(void)
 		kernel_mask_set_mod_init = true;
 
 	/* print information message to the system log */
-	pr_info("pvfs2: pvfs2_init called with debug mask: \"%s\" (0x%08llx)\n",
+	pr_info("pvfs2: pvfs2_init called with debug mask: :%s: :%llx:\n",
 	       kernel_debug_string,
-	       gossip_debug_mask);
+	       (unsigned long long)gossip_debug_mask);
 
 	/*
 	 * load debug_help_string...this string is used during the
