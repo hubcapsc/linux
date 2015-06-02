@@ -246,7 +246,19 @@ static struct __keyword_mask_t s_keyword_mask_map[] = {
 
 #undef __DEBUG_ALL
 
-/* map all kmod keywords to kmod debug masks here */
+/*
+ * Map all kmod keywords to kmod debug masks here. Keep this
+ * structure "packed":
+ *
+ *   "all" is always last...
+ *
+ *   keyword     mask_val     index
+ *     foo          1           0
+ *     bar          2           1
+ *     baz          4           2
+ *     qux          8           3
+ *      .           .           .
+ */
 static struct __keyword_mask_t s_kmod_keyword_mask_map[] = {
 	{"super", GOSSIP_SUPER_DEBUG},
 	{"inode", GOSSIP_INODE_DEBUG},

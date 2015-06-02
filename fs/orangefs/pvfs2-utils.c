@@ -1114,6 +1114,10 @@ void client_debug_mask_to_string(struct client_debug_mask *mask) {
 		goto out;
 	}
 
+	/*
+	 * Ensure client_debug_string doesn't overflow. Account for
+	 * the \n\0 at the end.
+	 */
 	for (i = 0; i < cdm_element_count - 1; i++) {
 		if (i == client_all_index)
 			continue;
@@ -1121,17 +1125,27 @@ void client_debug_mask_to_string(struct client_debug_mask *mask) {
 			continue;
 		if ((mask->mask1 & cdm_array[i].mask1) ||
 		    (mask->mask2 & cdm_array[i].mask2)) {
-			strcat(client_debug_string,
-				cdm_array[i].keyword);
-			strcat(client_debug_string, ",");
+			if ((strlen(client_debug_string) +
+			     strlen(cdm_array[i].keyword) +
+			     1) < PVFS2_MAX_DEBUG_STRING_LEN - 2) {
+				strcat(client_debug_string,
+					cdm_array[i].keyword);
+				strcat(client_debug_string, ",");
+			} else {
+				gossip_err("%s: overflow!\n", __func__);
+				strcpy(client_debug_string, PVFS2_ALL);
+				goto out;
+			}
 		}
 	}
 
 	len = strlen(client_debug_string);
-	if (len) 
-		client_debug_string[len - 1] = '\0';
-	else
+	if (len) {
+		client_debug_string[len - 1] = '\n';
+		client_debug_string[len] = '\0';
+	} else {
 		strcpy(client_debug_string, "none");
+	}
 
 out:
 	return;
@@ -1145,20 +1159,19 @@ void kernel_debug_mask_to_string(uint64_t mask) {
 
 	memset(kernel_debug_string, 0, PVFS2_MAX_DEBUG_STRING_LEN);
 
-	if (mask == s_kmod_keyword_mask_map[all_index].mask_val) {
+	if (mask >= s_kmod_keyword_mask_map[all_index].mask_val) {
 		strcpy(kernel_debug_string, "all");
 		goto out;
 	}
 
 	/*
-	 * Ensure kernel_debug_string doesn't overflow. Account for
-	 * the \n\0 at the end.
+	 * Ensure kernel_debug_string doesn't overflow.
 	 */
 	for (i = 0; i < num_kmod_keyword_mask_map - 1; i++) {
 		if (mask & s_kmod_keyword_mask_map[i].mask_val) {
 			if ((strlen(kernel_debug_string) +
-			     strlen(s_kmod_keyword_mask_map[i].keyword) +
-			     1) < PVFS2_MAX_DEBUG_STRING_LEN - 2) {
+			     strlen(s_kmod_keyword_mask_map[i].keyword))
+			     	< PVFS2_MAX_DEBUG_STRING_LEN - 1) {
 				strcat(kernel_debug_string,
 				       s_kmod_keyword_mask_map[i].keyword);
 				strcat(kernel_debug_string, ",");
@@ -1171,17 +1184,156 @@ void kernel_debug_mask_to_string(uint64_t mask) {
 	}
 
 	len = strlen(kernel_debug_string);
-	if (len) {
-		kernel_debug_string[len - 1] = '\n';
-		kernel_debug_string[len] = '\0';
-	} else {
+	if (len)
+		kernel_debug_string[len - 1] = '\0';
+	else
 		strcpy(kernel_debug_string, "none");
-	}
 
 out:
 	return;
 	
 }
+
+/*
+ * kernel = type 0
+ * client = type 1
+ */
+void debug_mask_to_string(void *mask, int type) {
+	int i;
+	int len = 0;
+	char *debug_string;
+	int element_count = 0;
+
+	if (type) {
+		debug_string = client_debug_string;
+		element_count = cdm_element_count;
+	} else {
+		debug_string = kernel_debug_string;
+		element_count = num_kmod_keyword_mask_map;
+	}
+
+	memset(debug_string, 0, PVFS2_MAX_DEBUG_STRING_LEN);
+
+	/*
+	 * Some keywords, like "all" or "verbose", are amalgams of
+	 * numerous other keywords. Make a special check for those
+	 * before grinding through the whole mask only to find out
+	 * later...
+	 */
+	if (check_amalgam_keyword(mask, type))
+		goto out;
+
+	/* Build the debug string. */
+	for (i = 0; i < element_count - 1; i++)
+		if (type)
+			do_c_string(mask, i);
+		else
+			do_k_string(mask, i);
+
+	len = strlen(debug_string);
+
+	if ((len) && (type))
+		client_debug_string[len - 1] = '\0';
+	else if (len)
+		kernel_debug_string[len - 1] = '\0';
+	else if (type)
+		strcpy(client_debug_string, "none");
+	else
+		strcpy(kernel_debug_string, "none");
+
+out:
+	return;
+	
+}
+
+void do_k_string(void *k_mask, int index) {
+	__u64 *mask = (__u64 *) k_mask;
+
+	if (*mask & s_kmod_keyword_mask_map[index].mask_val) {
+		if ((strlen(kernel_debug_string) +
+		     strlen(s_kmod_keyword_mask_map[index].keyword))
+			< PVFS2_MAX_DEBUG_STRING_LEN - 1) {
+				strcat(kernel_debug_string,
+				       s_kmod_keyword_mask_map[index].keyword);
+				strcat(kernel_debug_string, ",");
+			} else {
+				gossip_err("%s: overflow!\n", __func__);
+				strcpy(kernel_debug_string, PVFS2_ALL);
+				goto out;
+			}
+pr_info("ONE: :%llx: :%d:\n", *mask, index);
+	}
+
+out:
+
+	return;
+}
+
+void do_c_string(void *c_mask, int index) {
+	struct client_debug_mask *mask = (struct client_debug_mask *) c_mask;
+
+	if ((mask->mask1 & cdm_array[index].mask1) ||
+	    (mask->mask2 & cdm_array[index].mask2)) {
+		if ((strlen(client_debug_string) +
+		     strlen(cdm_array[index].keyword) + 1)
+			< PVFS2_MAX_DEBUG_STRING_LEN - 2) {
+				strcat(client_debug_string,
+				       cdm_array[index].keyword);
+				strcat(client_debug_string, ",");
+			} else {
+				gossip_err("%s: overflow!\n", __func__);
+				strcpy(client_debug_string, PVFS2_ALL);
+				goto out;
+			}
+	}
+out:
+	return;
+}
+
+/*
+ * kernel = type 0
+ * client = type 1
+ *
+ * return 1 if we found an amalgam.
+ */
+int check_amalgam_keyword(void *mask, int type) {
+	__u64 *k_mask;
+	struct client_debug_mask *c_mask;
+	int k_all_index = num_kmod_keyword_mask_map - 1;
+	int rc = 0;
+
+	if (type) {
+		c_mask = (struct client_debug_mask *) mask;
+
+		if ((c_mask->mask1 == cdm_array[client_all_index].mask1) &&
+		    (c_mask->mask2 == cdm_array[client_all_index].mask2)) {
+			strcpy(client_debug_string, PVFS2_ALL);
+			rc = 1;
+			goto out;
+		}
+
+		if ((c_mask->mask1 == cdm_array[client_verbose_index].mask1) &&
+		    (c_mask->mask2 == cdm_array[client_verbose_index].mask2)) {
+			strcpy(client_debug_string, PVFS2_VERBOSE);
+			rc = 1;
+			goto out;
+		}
+
+	} else {
+		k_mask = (__u64 *) mask;
+
+		if (*k_mask >= s_kmod_keyword_mask_map[k_all_index].mask_val) {
+			strcpy(kernel_debug_string, "all");
+			rc = 1;
+			goto out;
+		}
+	}
+
+out:
+
+	return rc;
+}
+
 
 void client_debug_string_to_mask(char *debug_string,
 				struct client_debug_mask *sane_mask) {
@@ -1201,22 +1353,56 @@ void client_debug_string_to_mask(char *debug_string,
 
 }
 
-uint64_t kernel_debug_string_to_mask(char *debug_string) {
+/*
+ * kernel = type 0
+ * client = type 1
+ */
+__u64 debug_string_to_mask(char *debug_string, void *mask, int type) {
 	char *unchecked_keyword;
-	uint64_t sane_mask = 0;
 	int i;
+	__u64 sane_k_mask = 0;
+	char *strsep_fodder = kstrdup(debug_string, GFP_KERNEL);
+	struct client_debug_mask *sane_c_mask;
+	int element_count = 0;
 
-	while ((unchecked_keyword = strsep(&debug_string, ",")))
+	if (type) {
+		sane_c_mask = (struct client_debug_mask *) mask;
+		element_count = cdm_element_count;
+	} else {
+		element_count = num_kmod_keyword_mask_map;
+	}
+
+	while ((unchecked_keyword = strsep(&strsep_fodder, ",")))
 		if (strlen(unchecked_keyword)) {
-			for (i = 0; i < num_kmod_keyword_mask_map; i++)
-				if (!strcmp(s_kmod_keyword_mask_map[i].keyword,
-					   unchecked_keyword))
-					sane_mask = sane_mask | 
-						s_kmod_keyword_mask_map[i].
-							mask_val;
+			for (i = 0; i < element_count; i++)
+				if (type)
+					do_c_mask(i,
+						  unchecked_keyword,
+						  &sane_c_mask);
+				else
+					do_k_mask(i,
+						  unchecked_keyword,
+						  &sane_k_mask);
 		}
 
-	return sane_mask;
+	kfree(strsep_fodder);
 
+	/* Return value irrelevant when client mask... */
+	return sane_k_mask;
+}
+	
+void do_c_mask(int i,
+	       char *unchecked_keyword,
+	       struct client_debug_mask **sane_mask) {
 
+	if (!strcmp(cdm_array[i].keyword, unchecked_keyword)) {
+		(*sane_mask)->mask1 = (*sane_mask)->mask1 | cdm_array[i].mask1;
+		(*sane_mask)->mask2 = (*sane_mask)->mask2 | cdm_array[i].mask2;
+	}
+}
+
+void do_k_mask(int i, char *unchecked_keyword, __u64 *sane_mask) {
+
+	if (!strcmp(s_kmod_keyword_mask_map[i].keyword, unchecked_keyword))
+		*sane_mask = *sane_mask | s_kmod_keyword_mask_map[i].mask_val;
 }
