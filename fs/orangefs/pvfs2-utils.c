@@ -1026,6 +1026,12 @@ int orangefs_prepare_debugfs_help_string(void)
 				rc = cdm_element_count;
 				goto out;
 			}
+
+			/*
+			 * Keep counting the bytes the client keywords
+			 * will use up in the help-string, bail if
+			 * it looks like there are too many...
+			 */
 			byte_count = strlen(client_title);
 			for (i = 0; i < cdm_element_count; i++) {
 				byte_count += strlen(cdm_array[i].keyword + 2);
@@ -1261,7 +1267,6 @@ void do_k_string(void *k_mask, int index) {
 				strcpy(kernel_debug_string, PVFS2_ALL);
 				goto out;
 			}
-pr_info("ONE: :%llx: :%d:\n", *mask, index);
 	}
 
 out:

@@ -17,6 +17,7 @@ extern int cdm_element_count;
 	"the filesystem is mounted after boot.\n"
 #define ORANGEFS_KMOD_DEBUG_HELP_FILE "debug-help"
 #define ORANGEFS_KMOD_DEBUG_FILE "kernel-debug"
+#define ORANGEFS_CLIENT_DEBUG_FILE "client-debug"
 #define PVFS2_VERBOSE "verbose"
 #define PVFS2_ALL "all"
 
