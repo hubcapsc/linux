@@ -311,6 +311,7 @@ static ssize_t orangefs_debug_write(struct file *file,
 	size_t silly = 0;
 	char *debug_string;
 	pvfs2_kernel_op_t *new_op = NULL;
+	struct client_debug_mask c_mask = { NULL, 0, 0 };
 
 	gossip_debug(GOSSIP_PROC_DEBUG,
 		"orangefs_debug_write: %s\n",
@@ -351,14 +352,18 @@ static ssize_t orangefs_debug_write(struct file *file,
 	 */
 	if (!strcmp(file->f_path.dentry->d_name.name,
 		    ORANGEFS_KMOD_DEBUG_FILE)) {
-		gossip_debug_mask = debug_string_to_mask(buf, NULL, 0);
+pr_info("gossip_debug_mask 1:%llx:\n", gossip_debug_mask);
+		debug_string_to_mask(buf, &gossip_debug_mask, 0);
+pr_info("gossip_debug_mask 2:%llx:\n", gossip_debug_mask);
 		debug_mask_to_string(&gossip_debug_mask, 0);
+pr_info("gossip_debug_mask 3:%llx:\n", gossip_debug_mask);
 		debug_string = kernel_debug_string;
 		gossip_debug(GOSSIP_PROC_DEBUG,
 			     "New kernel debug string is %s\n",
 			     kernel_debug_string);
 	} else {
-
+		/*
+		 * Can't reset client debug mask if client is not running. */
 		if (is_daemon_in_service()) {
 			pr_info("%s: Client not running :%d:\n",
 				__func__,
@@ -366,33 +371,34 @@ static ssize_t orangefs_debug_write(struct file *file,
 			goto out;
 		}
 
-		new_op = op_alloc(PVFS2_VFS_OP_PARAM);
+		debug_string_to_mask(buf, &c_mask, 1);
+		debug_mask_to_string(&c_mask, 1);
+		debug_string = client_debug_string;
+
+
+/*
+		new_op = op_alloc(xyzzy);
 		if (!new_op) {
 			pr_info("%s: op_alloc failed!\n", __func__);
 			goto out;
 		}
+				...
 
-		strcpy(new_op->upcall.req.param.s_value, buf);
-		new_op->upcall.req.param.type = PVFS2_PARAM_REQUEST_SET;
-		new_op->upcall.req.param.op =
-			PVFS2_PARAM_REQUEST_OP_CLIENT_DEBUG;
-
+*/
 		/* service_operation returns 0 on success... */
+/*
 		rc = service_operation(new_op,
-				       "pvfs2_param",
+				       "xyzzy",
 					PVFS2_OP_INTERRUPTIBLE);
 
 		if (rc == 0) {
-			debug_mask_to_string(
-				&(new_op->downcall.resp.param.value),
-				1);
-			debug_string = client_debug_string;
 			gossip_debug(GOSSIP_PROC_DEBUG,
-				     "New client debug string is %s\n",
+				     "it worked!",
 				     client_debug_string);
 		}
 
 		op_release(new_op);
+*/
 	}
 
 	mutex_lock(&orangefs_debug_lock);

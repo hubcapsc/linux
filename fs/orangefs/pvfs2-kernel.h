@@ -162,8 +162,8 @@ enum PVFS_async_io_type {
 };
 
 /*
- * an array of these will be built to hold debug keyword/mask values
- * fetched from userspace.
+ * An array of client_debug_mask will be built to hold debug keyword/mask
+ * values fetched from userspace.
  */
 struct client_debug_mask {
         char *keyword;
@@ -219,14 +219,15 @@ void kernel_debug_mask_to_string(uint64_t);
 void client_debug_string_to_mask(char *, struct client_debug_mask*);
 void client_debug_mask_to_string(struct client_debug_mask *);
 
-__u64 debug_string_to_mask(char *, void *, int);
+void debug_string_to_mask(char *, void *, int);
 void do_c_mask(int, char *, struct client_debug_mask **);
-void do_k_mask(int, char *, __u64 *);
+void do_k_mask(int, char *, __u64 **);
 
 void debug_mask_to_string(void *, int);
 void do_k_string(void *, int);
 void do_c_string(void *, int);
 int check_amalgam_keyword(void *, int);
+int keyword_is_amalgam(char *);
 
 /*these variables are defined in pvfs2-proc.c*/
 extern char kernel_debug_string[PVFS2_MAX_DEBUG_STRING_LEN];

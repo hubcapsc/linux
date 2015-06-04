@@ -117,7 +117,7 @@ static int __init pvfs2_init(void)
 /*
 	gossip_debug_mask = kernel_debug_string_to_mask(kernel_debug_string);
 */
-	gossip_debug_mask = debug_string_to_mask(kernel_debug_string, NULL, 0);
+	debug_string_to_mask(kernel_debug_string, &gossip_debug_mask, 0);
 
 	/*
 	 * if the mask has a non-zero value, then indicate that the mask

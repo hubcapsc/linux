@@ -1230,7 +1230,7 @@ void debug_mask_to_string(void *mask, int type) {
 		goto out;
 
 	/* Build the debug string. */
-	for (i = 0; i < element_count - 1; i++)
+	for (i = 0; i < element_count; i++)
 		if (type)
 			do_c_string(mask, i);
 		else
@@ -1255,6 +1255,9 @@ out:
 void do_k_string(void *k_mask, int index) {
 	__u64 *mask = (__u64 *) k_mask;
 
+	if (keyword_is_amalgam((char *) s_kmod_keyword_mask_map[index].keyword))
+			goto out;
+
 	if (*mask & s_kmod_keyword_mask_map[index].mask_val) {
 		if ((strlen(kernel_debug_string) +
 		     strlen(s_kmod_keyword_mask_map[index].keyword))
@@ -1277,6 +1280,9 @@ out:
 void do_c_string(void *c_mask, int index) {
 	struct client_debug_mask *mask = (struct client_debug_mask *) c_mask;
 
+	if (keyword_is_amalgam(cdm_array[index].keyword))
+		goto out;
+
 	if ((mask->mask1 & cdm_array[index].mask1) ||
 	    (mask->mask2 & cdm_array[index].mask2)) {
 		if ((strlen(client_debug_string) +
@@ -1293,6 +1299,15 @@ void do_c_string(void *c_mask, int index) {
 	}
 out:
 	return;
+}
+
+int keyword_is_amalgam(char *keyword) {
+	int rc = 0;
+
+	if ((!strcmp(keyword, PVFS2_ALL)) || (!strcmp(keyword, PVFS2_VERBOSE)))
+		rc = 1;
+
+	return rc;
 }
 
 /*
@@ -1328,7 +1343,7 @@ int check_amalgam_keyword(void *mask, int type) {
 		k_mask = (__u64 *) mask;
 
 		if (*k_mask >= s_kmod_keyword_mask_map[k_all_index].mask_val) {
-			strcpy(kernel_debug_string, "all");
+			strcpy(kernel_debug_string, PVFS2_ALL);
 			rc = 1;
 			goto out;
 		}
@@ -1362,18 +1377,20 @@ void client_debug_string_to_mask(char *debug_string,
  * kernel = type 0
  * client = type 1
  */
-__u64 debug_string_to_mask(char *debug_string, void *mask, int type) {
+void debug_string_to_mask(char *debug_string, void *mask, int type) {
 	char *unchecked_keyword;
 	int i;
-	__u64 sane_k_mask = 0;
 	char *strsep_fodder = kstrdup(debug_string, GFP_KERNEL);
-	struct client_debug_mask *sane_c_mask;
 	int element_count = 0;
+	struct client_debug_mask *c_mask;
+	__u64 *k_mask;
 
 	if (type) {
-		sane_c_mask = (struct client_debug_mask *) mask;
+		c_mask = (struct client_debug_mask *)&mask;
 		element_count = cdm_element_count;
 	} else {
+		k_mask = (__u64 *)mask;
+		*k_mask = 0;
 		element_count = num_kmod_keyword_mask_map;
 	}
 
@@ -1383,17 +1400,14 @@ __u64 debug_string_to_mask(char *debug_string, void *mask, int type) {
 				if (type)
 					do_c_mask(i,
 						  unchecked_keyword,
-						  &sane_c_mask);
+						  &c_mask);
 				else
 					do_k_mask(i,
 						  unchecked_keyword,
-						  &sane_k_mask);
+						  &k_mask);
 		}
 
 	kfree(strsep_fodder);
-
-	/* Return value irrelevant when client mask... */
-	return sane_k_mask;
 }
 	
 void do_c_mask(int i,
@@ -1406,8 +1420,10 @@ void do_c_mask(int i,
 	}
 }
 
-void do_k_mask(int i, char *unchecked_keyword, __u64 *sane_mask) {
+void do_k_mask(int i, char *unchecked_keyword, __u64 **sane_mask) {
 
 	if (!strcmp(s_kmod_keyword_mask_map[i].keyword, unchecked_keyword))
-		*sane_mask = *sane_mask | s_kmod_keyword_mask_map[i].mask_val;
+		**sane_mask = (**sane_mask) |
+				s_kmod_keyword_mask_map[i].mask_val;
+pr_info("THREE: :%llx:\n", (unsigned long long) **sane_mask);
 }
