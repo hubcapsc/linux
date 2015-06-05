@@ -186,6 +186,7 @@ enum pvfs2_param_request_op {
 	PVFS2_PARAM_REQUEST_OP_CAPCACHE_HARD_LIMIT = 22,
 	PVFS2_PARAM_REQUEST_OP_CAPCACHE_SOFT_LIMIT = 23,
 	PVFS2_PARAM_REQUEST_OP_CAPCACHE_RECLAIM_PERCENTAGE = 24,
+	PVFS2_PARAM_REQUEST_OP_TWO_MASK_VALUES = 25,
 };
 
 struct pvfs2_param_request_t {
@@ -211,7 +212,7 @@ struct pvfs2_fs_key_request_t {
 	int32_t __pad1;
 };
 
-/* typedef pvfs2_upcall_t exposed to client-core (userland) */
+/* typedef pvfs2_upcall_t exposed to client-core. */
 typedef struct pvfs2_upcall_s {
 	int32_t type;
 	uint32_t uid;
