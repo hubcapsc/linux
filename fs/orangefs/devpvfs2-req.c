@@ -715,7 +715,7 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 */
 			kernel_debug_mask_to_string(mask_info.mask_value);
 			debug_string_to_mask(kernel_debug_string,
-					     gossip_debug_mask,
+					     &gossip_debug_mask,
 					     0);
 /*
 			gossip_debug_mask = mask_info.mask_value;

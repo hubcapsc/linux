@@ -903,6 +903,11 @@ int PVFS_proc_mask_to_eventlog(uint64_t mask, char *debug_string)
 				  debug_string);
 }
 
+/*
+ * After obtaining a representation of the client's debug
+ * keyword/mask values with a service operation, this function
+ * is called to build an array of these values.
+ */
 int orangefs_prepare_cdm_array(char *debug_array_string)
 {
 	int i;
@@ -974,6 +979,19 @@ out:
 
 }
 
+/*
+ * /sys/kernel/debug/orangefs/debug-help can be catted to
+ * see all the available kernel and client debug keywords.
+ *
+ * When the kernel boots, we have no idea what keywords the
+ * client supports, nor their associated masks.
+ *
+ * We pass through this function once at boot and stamp a 
+ * boilerplate "we don't know" message for the client in the
+ * debug-help file, and we pass through here again later (the
+ * first time an orangefs filesystem is mounted after boot) when
+ * we can get the information needed to build a proper debug-help file.
+ */
 int orangefs_prepare_debugfs_help_string(void)
 {
 	int rc = -ENOMEM;
@@ -986,12 +1004,7 @@ int orangefs_prepare_debugfs_help_string(void)
 
 	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: start\n", __func__);
 
-	/*
-	 * Count the bytes destined for debug_help_string. Until
-	 * the client-core starts, the client keywords are unknown.
-	 * We should pass through here once when the kernel boots,
-	 * and another time when the filesystem is first mounted.
-	 */
+	/* Count the bytes destined for debug_help_string. */
 	byte_count = strlen(kernel_title);
 
 	if (is_daemon_in_service() == -EIO) {
@@ -1008,9 +1021,7 @@ int orangefs_prepare_debugfs_help_string(void)
 			goto out;
 		}
 	
-		/*
-		 * service operation will return zero on success...
-		 */
+		/* service operation will return zero on success. */
 		rc = service_operation(new_op,
 					"pvfs2_client_debug_mask",
 					PVFS2_OP_INTERRUPTIBLE);
@@ -1048,9 +1059,7 @@ int orangefs_prepare_debugfs_help_string(void)
 				     cdm_element_count);
 		}
 	} else {
-		/*
-		 * never thought we'd get here.
-		 */
+		/* never thought we'd get here. */
 		pr_info("%s: unexpected condition!\n", __func__);
 		rc = -EINVAL;
 		goto out;
@@ -1066,9 +1075,7 @@ int orangefs_prepare_debugfs_help_string(void)
 		}
 	}
 
-	/*
-	 * build debug_help_string
-	 */
+	/* build debug_help_string. */
 	eebug_help_string = kzalloc(DEBUG_HELP_STRING_SIZE, GFP_KERNEL);
 	if (!eebug_help_string) {
 		pr_info("debug_help_string malloc failed!\n");
@@ -1386,7 +1393,7 @@ void debug_string_to_mask(char *debug_string, void *mask, int type) {
 	__u64 *k_mask;
 
 	if (type) {
-		c_mask = (struct client_debug_mask *)&mask;
+		c_mask = (struct client_debug_mask *)mask;
 		element_count = cdm_element_count;
 	} else {
 		k_mask = (__u64 *)mask;
@@ -1415,8 +1422,8 @@ void do_c_mask(int i,
 	       struct client_debug_mask **sane_mask) {
 
 	if (!strcmp(cdm_array[i].keyword, unchecked_keyword)) {
-		(*sane_mask)->mask1 = (*sane_mask)->mask1 | cdm_array[i].mask1;
-		(*sane_mask)->mask2 = (*sane_mask)->mask2 | cdm_array[i].mask2;
+		(**sane_mask).mask1 = (**sane_mask).mask1 | cdm_array[i].mask1;
+		(**sane_mask).mask2 = (**sane_mask).mask2 | cdm_array[i].mask2;
 	}
 }
 
@@ -1425,5 +1432,4 @@ void do_k_mask(int i, char *unchecked_keyword, __u64 **sane_mask) {
 	if (!strcmp(s_kmod_keyword_mask_map[i].keyword, unchecked_keyword))
 		**sane_mask = (**sane_mask) |
 				s_kmod_keyword_mask_map[i].mask_val;
-pr_info("THREE: :%llx:\n", (unsigned long long) **sane_mask);
 }
