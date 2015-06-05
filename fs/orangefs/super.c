@@ -442,7 +442,7 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
 	if (!help_string_initialized) {
 
 		/* Free the "we don't know yet" default string... */
-		kfree(eebug_help_string);
+		kfree(debug_help_string);
 
 		rc = orangefs_prepare_debugfs_help_string();
 		if (rc) {
@@ -462,7 +462,7 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
 		d = debugfs_create_file(ORANGEFS_KMOD_DEBUG_HELP_FILE,
 					0444,
 					debug_dir,
-					eebug_help_string,
+					debug_help_string,
 					&debug_help_fops);
 		if (!d)
 			gossip_err("%s: debugfs_create_file failed!\n",

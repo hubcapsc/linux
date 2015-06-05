@@ -76,7 +76,7 @@ int pvfs2_debugfs_init(void)
 	help_file_dentry = debugfs_create_file(ORANGEFS_KMOD_DEBUG_HELP_FILE,
 				  0444,
 				  debug_dir,
-				  eebug_help_string,
+				  debug_help_string,
 				  &debug_help_fops);
 	if (!help_file_dentry)
 		goto out;
