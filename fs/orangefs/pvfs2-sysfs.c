@@ -681,7 +681,6 @@ int sysfs_service_op_show(char *kobj_id, char *buf, void *attr)
 		     "sysfs_service_op_show: id:%s:\n",
 		     kobj_id);
 
-
 	if (strcmp(kobj_id, PC_KOBJ_ID)) {
 		op_alloc_type = PVFS2_VFS_OP_PARAM;
 	} else {
@@ -691,6 +690,14 @@ int sysfs_service_op_show(char *kobj_id, char *buf, void *attr)
 	new_op = op_alloc(op_alloc_type);
 	if (!new_op) {
 		rc = -ENOMEM;
+		goto out;
+	}
+
+	/* Can't do a service_operation if the client is not running... */
+	if ((rc = is_daemon_in_service())) {
+		pr_info("%s: Client not running :%d:\n",
+			__func__,
+			is_daemon_in_service());
 		goto out;
 	}
 
@@ -951,6 +958,14 @@ int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
                 rc = -ENOMEM;
 		goto out;
 	}
+
+        /* Can't do a service_operation if the client is not running... */
+        if ((rc = is_daemon_in_service())) {
+                pr_info("%s: Client not running :%d:\n",
+                        __func__,
+                        is_daemon_in_service());
+                goto out;
+        }
 
 	/*
 	 * The value we want to send back to userspace is in buf.

@@ -229,7 +229,7 @@ void do_c_string(void *, int);
 int check_amalgam_keyword(void *, int);
 int keyword_is_amalgam(char *);
 
-/*these variables are defined in pvfs2-proc.c*/
+/*these variables are defined in pvfs2-debugfs.c*/
 extern char kernel_debug_string[PVFS2_MAX_DEBUG_STRING_LEN];
 extern char client_debug_string[PVFS2_MAX_DEBUG_STRING_LEN];
 

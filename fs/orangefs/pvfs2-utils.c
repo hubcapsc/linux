@@ -1076,29 +1076,29 @@ int orangefs_prepare_debugfs_help_string(void)
 	}
 
 	/* build debug_help_string. */
-	eebug_help_string = kzalloc(DEBUG_HELP_STRING_SIZE, GFP_KERNEL);
-	if (!eebug_help_string) {
+	debug_help_string = kzalloc(DEBUG_HELP_STRING_SIZE, GFP_KERNEL);
+	if (!debug_help_string) {
 		pr_info("debug_help_string malloc failed!\n");
 		goto out;
 	}
 
-	strcat(eebug_help_string, client_title);
+	strcat(debug_help_string, client_title);
 
 	if (help_string_initialized) {
 		for (i = 0; i < cdm_element_count; i++) {
-			strcat(eebug_help_string, "\t");
-			strcat(eebug_help_string, cdm_array[i].keyword);
-			strcat(eebug_help_string, "\n");
+			strcat(debug_help_string, "\t");
+			strcat(debug_help_string, cdm_array[i].keyword);
+			strcat(debug_help_string, "\n");
 		}
 	}
 
-	strcat(eebug_help_string, "\n");
-	strcat(eebug_help_string, kernel_title);
+	strcat(debug_help_string, "\n");
+	strcat(debug_help_string, kernel_title);
 
 	for (i = 0; i < num_kmod_keyword_mask_map; i++) {
-		strcat(eebug_help_string, "\t");
-		strcat(eebug_help_string, s_kmod_keyword_mask_map[i].keyword);
-		strcat(eebug_help_string, "\n");
+		strcat(debug_help_string, "\t");
+		strcat(debug_help_string, s_kmod_keyword_mask_map[i].keyword);
+		strcat(debug_help_string, "\n");
 	}
 
 	rc = 0;
@@ -1106,104 +1106,6 @@ int orangefs_prepare_debugfs_help_string(void)
 out:
 
 	return rc;
-	
-}
-
-void client_debug_mask_to_string(struct client_debug_mask *mask) {
-	int i;
-	int len = 0;
-
-	memset(client_debug_string, 0, PVFS2_MAX_DEBUG_STRING_LEN);
-
-	if ((mask->mask1 == cdm_array[client_all_index].mask1) &&
-	    (mask->mask2 == cdm_array[client_all_index].mask2)) {
-		strcpy(client_debug_string, PVFS2_ALL);
-		goto out;
-	}
-
-	if ((mask->mask1 == cdm_array[client_verbose_index].mask1) &&
-	    (mask->mask2 == cdm_array[client_verbose_index].mask2)) {
-		strcpy(client_debug_string, PVFS2_VERBOSE);
-		goto out;
-	}
-
-	/*
-	 * Ensure client_debug_string doesn't overflow. Account for
-	 * the \n\0 at the end.
-	 */
-	for (i = 0; i < cdm_element_count - 1; i++) {
-		if (i == client_all_index)
-			continue;
-		if (i == client_verbose_index)
-			continue;
-		if ((mask->mask1 & cdm_array[i].mask1) ||
-		    (mask->mask2 & cdm_array[i].mask2)) {
-			if ((strlen(client_debug_string) +
-			     strlen(cdm_array[i].keyword) +
-			     1) < PVFS2_MAX_DEBUG_STRING_LEN - 2) {
-				strcat(client_debug_string,
-					cdm_array[i].keyword);
-				strcat(client_debug_string, ",");
-			} else {
-				gossip_err("%s: overflow!\n", __func__);
-				strcpy(client_debug_string, PVFS2_ALL);
-				goto out;
-			}
-		}
-	}
-
-	len = strlen(client_debug_string);
-	if (len) {
-		client_debug_string[len - 1] = '\n';
-		client_debug_string[len] = '\0';
-	} else {
-		strcpy(client_debug_string, "none");
-	}
-
-out:
-	return;
-				
-}
-
-void kernel_debug_mask_to_string(uint64_t mask) {
-	int i;
-	int all_index = num_kmod_keyword_mask_map - 1;
-	int len = 0;
-
-	memset(kernel_debug_string, 0, PVFS2_MAX_DEBUG_STRING_LEN);
-
-	if (mask >= s_kmod_keyword_mask_map[all_index].mask_val) {
-		strcpy(kernel_debug_string, "all");
-		goto out;
-	}
-
-	/*
-	 * Ensure kernel_debug_string doesn't overflow.
-	 */
-	for (i = 0; i < num_kmod_keyword_mask_map - 1; i++) {
-		if (mask & s_kmod_keyword_mask_map[i].mask_val) {
-			if ((strlen(kernel_debug_string) +
-			     strlen(s_kmod_keyword_mask_map[i].keyword))
-			     	< PVFS2_MAX_DEBUG_STRING_LEN - 1) {
-				strcat(kernel_debug_string,
-				       s_kmod_keyword_mask_map[i].keyword);
-				strcat(kernel_debug_string, ",");
-			} else {
-				gossip_err("%s: overflow!\n", __func__);
-				strcpy(kernel_debug_string, PVFS2_ALL);
-				goto out;
-			}
-		}
-	}
-
-	len = strlen(kernel_debug_string);
-	if (len)
-		kernel_debug_string[len - 1] = '\0';
-	else
-		strcpy(kernel_debug_string, "none");
-
-out:
-	return;
 	
 }
 
@@ -1359,25 +1261,6 @@ int check_amalgam_keyword(void *mask, int type) {
 out:
 
 	return rc;
-}
-
-
-void client_debug_string_to_mask(char *debug_string,
-				struct client_debug_mask *sane_mask) {
-	char *unchecked_keyword;
-	int i;
-
-	while ((unchecked_keyword = strsep(&debug_string, ",")))
-		if (strlen(unchecked_keyword))
-			for (i = 0; i < cdm_element_count; i++)
-				if (!strcmp(cdm_array[i].keyword,
-					   unchecked_keyword)) {
-					sane_mask->mask1 = sane_mask->mask1 |
-						cdm_array[i].mask1;
-					sane_mask->mask2 = sane_mask->mask2 |
-						cdm_array[i].mask2;
-				}
-
 }
 
 /*

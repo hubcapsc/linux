@@ -9,7 +9,6 @@
 
 #include "protocol.h"
 #include "pvfs2-kernel.h"
-#include "pvfs2-proc.h"
 #include "pvfs2-debugfs.h"
 #include "pvfs2-sysfs.h"
 
@@ -21,16 +20,26 @@
 /*
  * global variables declared here
  */
+
 /* array of client debug keyword/mask values */
 struct client_debug_mask *cdm_array = NULL;
+int cdm_element_count = 0;
 
-char *eebug_help_string = NULL;
+/*
+ * These strings will be initialized by invoking the PVFS_DEV_DEBUG ioctl
+ * command when the client-core is started. Otherwise, these variables are
+ * only set via the proc sys calls.
+ */
+char client_debug_string[PVFS2_MAX_DEBUG_STRING_LEN] = "none";
+char kernel_debug_string[PVFS2_MAX_DEBUG_STRING_LEN] = "none";
+
+char *debug_help_string = NULL;
 int help_string_initialized = 0;
 struct dentry *help_file_dentry = 0;
 struct dentry *debug_dir = 0;
-int cdm_element_count = 0;
 int client_verbose_index = 0;
 int client_all_index = 0;
+struct pvfs2_stats g_pvfs2_stats;
 
 /* the size of the hash tables for ops in progress */
 int hash_table_size = 509;
@@ -41,7 +50,6 @@ unsigned int kernel_mask_set_mod_init = false;
 int op_timeout_secs = PVFS2_DEFAULT_OP_TIMEOUT_SECS;
 int slot_timeout_secs = PVFS2_DEFAULT_SLOT_TIMEOUT_SECS;
 uint32_t DEBUG_LINE = 50;
-char debug_help_string[DEBUG_HELP_STRING_SIZE] = { 0 };
 
 int fake_mmap_shared = 0;
 
@@ -96,9 +104,6 @@ DECLARE_WAIT_QUEUE_HEAD(pvfs2_request_list_waitq);
 static int __init pvfs2_init(void)
 {
 	int ret = -1;
-	uint32_t index = 0;
-	char client_title[] = "Client Debug Keywords:\n";
-	char kernel_title[] = "Kernel Debug Keywords:\n";
 	uint32_t i = 0;
 
 	/* convert input debug mask to a 64-bit unsigned integer */
@@ -108,15 +113,9 @@ static int __init pvfs2_init(void)
 	 * set the kernel's gossip debug string; invalid mask values will
 	 * be ignored.
 	 */
-/*
-	kernel_debug_mask_to_string(gossip_debug_mask);
-*/
 	debug_mask_to_string(&gossip_debug_mask, 0);
 
 	/* remove any invalid values from the mask */
-/*
-	gossip_debug_mask = kernel_debug_string_to_mask(kernel_debug_string);
-*/
 	debug_string_to_mask(kernel_debug_string, &gossip_debug_mask, 0);
 
 	/*
@@ -132,52 +131,6 @@ static int __init pvfs2_init(void)
 	pr_info("pvfs2: pvfs2_init called with debug mask: :%s: :%llx:\n",
 	       kernel_debug_string,
 	       (unsigned long long)gossip_debug_mask);
-
-	/*
-	 * load debug_help_string...this string is used during the
-	 * /proc/sys/pvfs2/debug-help operation
-	 */
-	if (strlen(client_title) < DEBUG_LINE) {
-		memcpy(&debug_help_string[index],
-		       client_title,
-		       sizeof(client_title));
-		index += strlen(client_title);
-	}
-
-	for (i = 0; i < num_keyword_mask_map; i++)
-		if ((strlen(s_keyword_mask_map[i].keyword) + 2) < DEBUG_LINE) {
-			debug_help_string[index] = '\t';
-			index++;
-			memcpy(&debug_help_string[index],
-			       s_keyword_mask_map[i].keyword,
-			       strlen(s_keyword_mask_map[i].keyword));
-			index += strlen(s_keyword_mask_map[i].keyword);
-			debug_help_string[index] = '\n';
-			index++;
-		}
-
-	if ((strlen(kernel_title) + 1) < DEBUG_LINE) {
-		debug_help_string[index] = '\n';
-		index++;
-
-		memcpy(&debug_help_string[index],
-		       kernel_title,
-		       sizeof(kernel_title));
-		index += strlen(kernel_title);
-	}
-
-	for (i = 0; i < num_kmod_keyword_mask_map; i++)
-		if ((strlen(s_kmod_keyword_mask_map[i].keyword) + 2) <
-		    DEBUG_LINE) {
-			debug_help_string[index] = '\t';
-			index++;
-			memcpy(&debug_help_string[index],
-			       s_kmod_keyword_mask_map[i].keyword,
-			       strlen(s_kmod_keyword_mask_map[i].keyword));
-			index += strlen(s_kmod_keyword_mask_map[i].keyword);
-			debug_help_string[index] = '\n';
-			index++;
-		}
 
 	ret = bdi_init(&pvfs2_backing_dev_info);
 
@@ -234,8 +187,6 @@ static int __init pvfs2_init(void)
 	if (ret < 0)
 		goto cleanup_progress_table;
 
-	pvfs2_proc_initialize();
-
 	/*
 	 * Build the contents of /sys/kernel/debug/orangefs/debug-help
 	 * from the keywords in the kernel keyword/mask array.
@@ -261,7 +212,6 @@ static int __init pvfs2_init(void)
 		return 0;
 	}
 
-	pvfs2_proc_finalize();
 	pvfs2_debugfs_cleanup();
 	orangefs_sysfs_exit();
 	fsid_key_table_finalize();
@@ -299,7 +249,6 @@ static void __exit pvfs2_exit(void)
 	gossip_debug(GOSSIP_INIT_DEBUG, "pvfs2: pvfs2_exit called\n");
 
 	unregister_filesystem(&pvfs2_fs_type);
-	pvfs2_proc_finalize();
 	pvfs2_debugfs_cleanup();
 	orangefs_sysfs_exit();
 	fsid_key_table_finalize();

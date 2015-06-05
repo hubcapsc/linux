@@ -3,7 +3,7 @@
 #include <linux/slab.h>
 
 extern struct client_debug_mask *cdm_array;
-extern char *eebug_help_string;
+extern char *debug_help_string;
 extern int help_string_initialized;
 extern struct dentry *debug_dir;
 extern struct dentry *help_file_dentry;
