@@ -623,6 +623,7 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 	struct PVFS_dev_map_desc user_desc;
 	int ret = 0;
 	struct dev_mask_info_t mask_info = { 0 };
+	int upstream_kmod = 1;
 	struct list_head *tmp = NULL;
 	struct pvfs2_sb_info_s *pvfs2_sb = NULL;
 
@@ -689,10 +690,22 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 			     "pvfs2_devreq_ioctl: priority remount complete\n");
 		mutex_unlock(&request_mutex);
 		return ret;
+
+	case PVFS_DEV_UPSTREAM:
+		ret = copy_to_user((void __user *)arg,
+				    &upstream_kmod,
+				    sizeof(upstream_kmod));
+
+		if (ret != 0)
+			return -EIO;
+		else
+			return ret;
+
 	case PVFS_DEV_DEBUG:
 		ret = copy_from_user(&mask_info,
 				     (void __user *)arg,
 				     sizeof(mask_info));
+
 		if (ret != 0)
 			return -EIO;
 

@@ -566,6 +566,7 @@ typedef struct PVFS_sys_attr_s PVFS_sys_attr;
 #define PVFS2_LOOKUP_LINK_FOLLOW    1
 
 /* pint-dev.h ***************************************************************/
+
 /* parameter structure used in PVFS_DEV_DEBUG ioctl command */
 struct dev_mask_info_t {
 	enum {
@@ -597,7 +598,8 @@ int32_t PVFS_util_translate_mode(int mode);
 #define DEV_MAP                 0x4
 #define DEV_REMOUNT_ALL         0x5
 #define DEV_DEBUG               0x6
-#define DEV_MAX_NR              0x7
+#define DEV_UPSTREAM            0x7
+#define DEV_MAX_NR              0x8
 
 /* supported ioctls, codes are with respect to user-space */
 enum {
@@ -609,6 +611,7 @@ enum {
 	PVFS_DEV_MAP = _IO(PVFS_DEV_MAGIC, DEV_MAP),
 	PVFS_DEV_REMOUNT_ALL = _IO(PVFS_DEV_MAGIC, DEV_REMOUNT_ALL),
 	PVFS_DEV_DEBUG = _IOR(PVFS_DEV_MAGIC, DEV_DEBUG, int32_t),
+	PVFS_DEV_UPSTREAM = _IOW(PVFS_DEV_MAGIC, DEV_UPSTREAM, int),
 	PVFS_DEV_MAXNR = DEV_MAX_NR,
 };
 
