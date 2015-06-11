@@ -25,17 +25,16 @@
 struct client_debug_mask *cdm_array = NULL;
 int cdm_element_count = 0;
 
-/*
- * These strings will be initialized by invoking the PVFS_DEV_DEBUG ioctl
- * command when the client-core is started. Otherwise, these variables are
- * only set via the proc sys calls.
- */
-char client_debug_string[PVFS2_MAX_DEBUG_STRING_LEN] = "none";
 char kernel_debug_string[PVFS2_MAX_DEBUG_STRING_LEN] = "none";
+char client_debug_string[PVFS2_MAX_DEBUG_STRING_LEN];
+char client_debug_array_string[PVFS2_MAX_DEBUG_STRING_LEN];
+
+struct client_debug_mask current_client_mask = { NULL, 0, 0 };
 
 char *debug_help_string = NULL;
 int help_string_initialized = 0;
 struct dentry *help_file_dentry = 0;
+struct dentry *client_debug_dentry = 0;
 struct dentry *debug_dir = 0;
 int client_verbose_index = 0;
 int client_all_index = 0;
@@ -46,6 +45,7 @@ int hash_table_size = 509;
 
 static ulong module_parm_debug_mask = 0;
 uint64_t gossip_debug_mask = 0;
+struct client_debug_mask client_debug_mask = { NULL, 0, 0 };
 unsigned int kernel_mask_set_mod_init = false;
 int op_timeout_secs = PVFS2_DEFAULT_OP_TIMEOUT_SECS;
 int slot_timeout_secs = PVFS2_DEFAULT_SLOT_TIMEOUT_SECS;
@@ -190,15 +190,18 @@ static int __init pvfs2_init(void)
 	/*
 	 * Build the contents of /sys/kernel/debug/orangefs/debug-help
 	 * from the keywords in the kernel keyword/mask array.
+	 *
 	 * The keywords in the client keyword/mask array are
-	 * unknown until the the first time the filesystem is
-	 * mounted. At mount-time, the client's keywords and
-	 * associated masks will be obtained with a 
-	 * service-operation. This decouples the upstream
-	 * kernel module from changes to the client's
-	 * available debug modes.
+	 * unknown at boot time. 
+	 *
+	 * orangefs_prepare_debugfs_help_string will be used again 
+	 * later to rebuild the debug-help file after the client starts
+	 * and passes along the needed info. The argument signifies
+	 * which time orangefs_prepare_debugfs_help_string is being
+	 * called.
+	 *
 	 */
-	ret = orangefs_prepare_debugfs_help_string();
+	ret = orangefs_prepare_debugfs_help_string(1);
 	if (ret)
 		goto out;
 

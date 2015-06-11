@@ -904,9 +904,9 @@ int PVFS_proc_mask_to_eventlog(uint64_t mask, char *debug_string)
 }
 
 /*
- * After obtaining a representation of the client's debug
- * keyword/mask values with a service operation, this function
- * is called to build an array of these values.
+ * After obtaining a string representation of the client's debug
+ * keyword and their associated masks, this function is called to build an
+ * array of these values.
  */
 int orangefs_prepare_cdm_array(char *debug_array_string)
 {
@@ -988,89 +988,59 @@ out:
  *
  * We pass through this function once at boot and stamp a 
  * boilerplate "we don't know" message for the client in the
- * debug-help file, and we pass through here again later (the
- * first time an orangefs filesystem is mounted after boot) when
- * we can get the information needed to build a proper debug-help file.
+ * debug-help file. We pass through here again when the client
+ * starts and then we can fill out the debug-help file fully.
+ *
+ * The client might be restarted any number of times between
+ * reboots, we only build the debug-help file the first time.
  */
-int orangefs_prepare_debugfs_help_string(void)
+int orangefs_prepare_debugfs_help_string(int at_boot)
 {
-	int rc = -ENOMEM;
+	int rc = -EINVAL;
 	int i;
 	int byte_count = 0;
         char *client_title = "Client Debug Keywords:\n";
         char *kernel_title = "Kernel Debug Keywords:\n";
-	struct pvfs2_kernel_op *new_op;
-	char *buf = NULL;
 
 	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: start\n", __func__);
 
-	/* Count the bytes destined for debug_help_string. */
-	byte_count = strlen(kernel_title);
-
-	if (is_daemon_in_service() == -EIO) {
+	if (at_boot) {
 		byte_count += strlen(HELP_STRING_UNINITIALIZED);
 		client_title = HELP_STRING_UNINITIALIZED;
-	} else if (!help_string_initialized) {
+	} else {
 		/*
-		 * Obtain a representation of the client keyword/mask array
-		 * from userspace.
+		 * fill the client keyword/mask array and remember
+		 * how many elements there were.
 		 */
-		new_op = op_alloc(PVFS2_VFS_OP_CLIENT_DEBUG_MASK);
-		if (!new_op) {
-			pr_info("pvfs2_init: op_alloc failed!\n");
+		cdm_element_count =
+			orangefs_prepare_cdm_array(client_debug_array_string);
+		if (cdm_element_count <= 0) {
 			goto out;
 		}
-	
-		/* service operation will return zero on success. */
-		rc = service_operation(new_op,
-					"pvfs2_client_debug_mask",
-					PVFS2_OP_INTERRUPTIBLE);
-		if (!rc) {
-	
-			/*
-			 * fill the client keyword/mask array and remember
-			 * how many elements there were.
-			 */
-			buf = new_op->downcall.resp.client_debug_mask.buffer;
-			cdm_element_count = orangefs_prepare_cdm_array(buf);
-			if (cdm_element_count <= 0) {
-				rc = cdm_element_count;
+
+		/* Count the bytes destined for debug_help_string. */
+		byte_count += strlen(client_title);
+
+		for (i = 0; i < cdm_element_count; i++) {
+			byte_count += strlen(cdm_array[i].keyword + 2);
+			if (byte_count >= DEBUG_HELP_STRING_SIZE) {
+				pr_info("%s: overflow 1!\n", __func__);
 				goto out;
 			}
-
-			/*
-			 * Keep counting the bytes the client keywords
-			 * will use up in the help-string, bail if
-			 * it looks like there are too many...
-			 */
-			byte_count = strlen(client_title);
-			for (i = 0; i < cdm_element_count; i++) {
-				byte_count += strlen(cdm_array[i].keyword + 2);
-				if (byte_count >= DEBUG_HELP_STRING_SIZE) {
-					pr_info("%s: overflow 1!\n", __func__);
-					rc = -EINVAL;
-					goto out;
-				}
-			}
-			help_string_initialized++;
-			gossip_debug(GOSSIP_UTILS_DEBUG,
-				     "%s: cdm_element_count:%d:\n",
-				     __func__,
-				     cdm_element_count);
 		}
-	} else {
-		/* never thought we'd get here. */
-		pr_info("%s: unexpected condition!\n", __func__);
-		rc = -EINVAL;
-		goto out;
+
+		gossip_debug(GOSSIP_UTILS_DEBUG,
+			     "%s: cdm_element_count:%d:\n",
+			     __func__,
+			     cdm_element_count);
 	}
 
+	byte_count += strlen(kernel_title);
 	for (i = 0; i < num_kmod_keyword_mask_map; i++) {
 		byte_count +=
 			strlen(s_kmod_keyword_mask_map[i].keyword +2);
 		if (byte_count >= DEBUG_HELP_STRING_SIZE) {
 			pr_info("%s: overflow 2!\n", __func__);
-			rc = -EINVAL;
 			goto out;
 		}
 	}
@@ -1079,12 +1049,13 @@ int orangefs_prepare_debugfs_help_string(void)
 	debug_help_string = kzalloc(DEBUG_HELP_STRING_SIZE, GFP_KERNEL);
 	if (!debug_help_string) {
 		pr_info("debug_help_string malloc failed!\n");
+		rc = -ENOMEM;
 		goto out;
 	}
 
 	strcat(debug_help_string, client_title);
 
-	if (help_string_initialized) {
+	if (!at_boot) {
 		for (i = 0; i < cdm_element_count; i++) {
 			strcat(debug_help_string, "\t");
 			strcat(debug_help_string, cdm_array[i].keyword);
@@ -1118,6 +1089,8 @@ void debug_mask_to_string(void *mask, int type) {
 	int len = 0;
 	char *debug_string;
 	int element_count = 0;
+
+	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: start\n", __func__);
 
 	if (type) {
 		debug_string = client_debug_string;
@@ -1157,6 +1130,8 @@ void debug_mask_to_string(void *mask, int type) {
 		strcpy(kernel_debug_string, "none");
 
 out:
+gossip_debug(GOSSIP_UTILS_DEBUG, "%s: string:%s:\n", __func__, debug_string);
+
 	return;
 	
 }
@@ -1274,6 +1249,8 @@ void debug_string_to_mask(char *debug_string, void *mask, int type) {
 	int element_count = 0;
 	struct client_debug_mask *c_mask;
 	__u64 *k_mask;
+
+	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: start\n", __func__);
 
 	if (type) {
 		c_mask = (struct client_debug_mask *)mask;

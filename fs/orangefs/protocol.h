@@ -7,6 +7,7 @@ extern char *debug_help_string;
 extern int help_string_initialized;
 extern struct dentry *debug_dir;
 extern struct dentry *help_file_dentry;
+extern struct dentry *client_debug_dentry;
 extern const struct file_operations debug_help_fops;
 extern int client_all_index;
 extern int client_verbose_index;
@@ -14,7 +15,7 @@ extern int cdm_element_count;
 #define DEBUG_HELP_STRING_SIZE 4096
 #define HELP_STRING_UNINITIALIZED \
 	"Client Debug Keywords are unknown until the first time\n" \
-	"the filesystem is mounted after boot.\n"
+	"the client is started after boot.\n"
 #define ORANGEFS_KMOD_DEBUG_HELP_FILE "debug-help"
 #define ORANGEFS_KMOD_DEBUG_FILE "kernel-debug"
 #define ORANGEFS_CLIENT_DEBUG_FILE "client-debug"
@@ -576,6 +577,11 @@ struct dev_mask_info_t {
 	uint64_t mask_value;
 };
 
+struct dev_mask2_info_s {
+	uint64_t mask1_value;
+	uint64_t mask2_value;
+};
+
 /* pvfs2-util.h *************************************************************/
 #define PVFS_util_min(x1, x2) (((x1) > (x2)) ? (x2) : (x1))
 int32_t PVFS_util_translate_mode(int mode);
@@ -599,7 +605,9 @@ int32_t PVFS_util_translate_mode(int mode);
 #define DEV_REMOUNT_ALL         0x5
 #define DEV_DEBUG               0x6
 #define DEV_UPSTREAM            0x7
-#define DEV_MAX_NR              0x8
+#define DEV_CLIENT_MASK         0x8
+#define DEV_CLIENT_STRING       0x9
+#define DEV_MAX_NR              0xa
 
 /* supported ioctls, codes are with respect to user-space */
 enum {
@@ -612,6 +620,12 @@ enum {
 	PVFS_DEV_REMOUNT_ALL = _IO(PVFS_DEV_MAGIC, DEV_REMOUNT_ALL),
 	PVFS_DEV_DEBUG = _IOR(PVFS_DEV_MAGIC, DEV_DEBUG, int32_t),
 	PVFS_DEV_UPSTREAM = _IOW(PVFS_DEV_MAGIC, DEV_UPSTREAM, int),
+	PVFS_DEV_CLIENT_MASK = _IOW(PVFS_DEV_MAGIC,
+				    DEV_CLIENT_MASK,
+				    struct dev_mask2_info_s),
+	PVFS_DEV_CLIENT_STRING = _IOW(PVFS_DEV_MAGIC,
+				      DEV_CLIENT_STRING,
+				      char *),
 	PVFS_DEV_MAXNR = DEV_MAX_NR,
 };
 
@@ -648,6 +662,7 @@ struct PVFS_dev_map_desc {
 #define gossip_debug(mask, format, f...) do {} while (0)
 #else
 extern uint64_t gossip_debug_mask;
+extern struct client_debug_mask client_debug_mask;
 
 /* try to avoid function call overhead by checking masks in macro */
 #define gossip_debug(mask, format, f...)			\

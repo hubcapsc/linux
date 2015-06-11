@@ -163,7 +163,7 @@ static int help_show(struct seq_file *m, void *v)
 }
 
 /*
- * initialize the kmod debug keyword file.
+ * initialize the kernel-debug file.
  */
 int pvfs2_kernel_debug_init(void)
 {
@@ -171,9 +171,8 @@ int pvfs2_kernel_debug_init(void)
 	int rc = -ENOMEM;
 	struct dentry *ret;
 	char *k_buffer = NULL;
-	char *c_buffer = NULL;
 
-	gossip_debug(GOSSIP_PROC_DEBUG, "pvfs2_kernel_debug_init: start\n");
+	gossip_debug(GOSSIP_PROC_DEBUG, "%s: start\n", __func__);
 
 	k_buffer = kzalloc(PVFS2_MAX_DEBUG_STRING_LEN, GFP_KERNEL);
 	if (!k_buffer) {
@@ -202,6 +201,27 @@ int pvfs2_kernel_debug_init(void)
 		goto out;
 	}
 
+	rc = 0;
+
+out:
+	if (rc)
+		pvfs2_debugfs_cleanup();
+
+	gossip_debug(GOSSIP_PROC_DEBUG, "%s: rc:%d:\n", __func__, rc);
+	return rc;
+}
+
+/*
+ * initialize the client-debug file.
+ */
+int pvfs2_client_debug_init(void)
+{
+
+	int rc = -ENOMEM;
+	char *c_buffer = NULL;
+
+	gossip_debug(GOSSIP_PROC_DEBUG, "%s: start\n", __func__);
+
 	c_buffer = kzalloc(PVFS2_MAX_DEBUG_STRING_LEN, GFP_KERNEL);
 	if (!c_buffer) {
 		gossip_debug(GOSSIP_PROC_DEBUG,
@@ -217,12 +237,12 @@ int pvfs2_kernel_debug_init(void)
 		pr_info("%s: overflow! 2\n", __func__);
 	}
 
-	ret = debugfs_create_file(ORANGEFS_CLIENT_DEBUG_FILE,
-				  0444,
-				  debug_dir,
-				  c_buffer,
-				  &kernel_debug_fops);
-	if (!ret) {
+	client_debug_dentry = debugfs_create_file(ORANGEFS_CLIENT_DEBUG_FILE,
+						  0444,
+						  debug_dir,
+						  c_buffer,
+						  &kernel_debug_fops);
+	if (!client_debug_dentry) {
 		pr_info("%s: failed to create %s.\n",
 			__func__,
 			ORANGEFS_CLIENT_DEBUG_FILE);
@@ -235,9 +255,7 @@ out:
 	if (rc)
 		pvfs2_debugfs_cleanup();
 
-	gossip_debug(GOSSIP_PROC_DEBUG,
-		     "pvfs2_kernel_debug_init: rc:%d:\n",
-		     rc);
+	gossip_debug(GOSSIP_PROC_DEBUG, "%s: rc:%d:\n", __func__, rc);
 	return rc;
 }
 

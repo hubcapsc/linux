@@ -213,11 +213,10 @@ uint64_t PVFS_proc_kmod_eventlog_to_mask(const char *event_logging);
 int PVFS_proc_kmod_mask_to_eventlog(uint64_t mask, char *debug_string);
 int PVFS_proc_mask_to_eventlog(uint64_t mask, char *debug_string);
 int orangefs_prepare_cdm_array(char *debug_array_string);
-int orangefs_prepare_debugfs_help_string(void);
-uint64_t kernel_debug_string_to_mask(char *);
-void kernel_debug_mask_to_string(uint64_t);
-void client_debug_string_to_mask(char *, struct client_debug_mask*);
-void client_debug_mask_to_string(struct client_debug_mask *);
+int orangefs_prepare_debugfs_help_string(int);
+
+/* defined in pvfs2-debugfs.c */
+int pvfs2_client_debug_init(void);
 
 void debug_string_to_mask(char *, void *, int);
 void do_c_mask(int, char *, struct client_debug_mask **);
@@ -229,11 +228,11 @@ void do_c_string(void *, int);
 int check_amalgam_keyword(void *, int);
 int keyword_is_amalgam(char *);
 
-/*these variables are defined in pvfs2-debugfs.c*/
+/*these variables are defined in pvfs2-mod.c */
 extern char kernel_debug_string[PVFS2_MAX_DEBUG_STRING_LEN];
 extern char client_debug_string[PVFS2_MAX_DEBUG_STRING_LEN];
-
-/*these variables are defined in pvfs2-mod.c*/
+extern char client_debug_array_string[PVFS2_MAX_DEBUG_STRING_LEN];
+extern struct client_debug_mask current_client_mask;
 extern unsigned int kernel_mask_set_mod_init;
 
 extern int pvfs2_init_acl(struct inode *inode, struct inode *dir);
