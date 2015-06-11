@@ -12,6 +12,9 @@
 #include "pvfs2-dev-proto.h"
 #include "pvfs2-bufmap.h"
 
+#include <linux/debugfs.h>
+#include <linux/slab.h>
+
 /* this file implements the /dev/pvfs2-req device node */
 
 static int open_access_count;
@@ -623,10 +626,10 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 	struct PVFS_dev_map_desc user_desc;
 	int ret = 0;
 	struct dev_mask_info_t mask_info = { 0 };
+	struct dev_mask2_info_s mask2_info = { 0, 0 };
 	int upstream_kmod = 1;
 	struct list_head *tmp = NULL;
 	struct pvfs2_sb_info_s *pvfs2_sb = NULL;
-
 
 	/* mtmoore: add locking here */
 
@@ -700,6 +703,85 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 			return -EIO;
 		else
 			return ret;
+
+	case PVFS_DEV_CLIENT_MASK:
+		ret = copy_from_user(&mask2_info,
+				     (void __user *)arg,
+				     sizeof(struct dev_mask2_info_s));
+
+		if (ret != 0)
+			return -EIO;
+
+		client_debug_mask.mask1 = mask2_info.mask1_value;
+		client_debug_mask.mask2 = mask2_info.mask2_value;
+
+		pr_info("%s: client debug mask has been been received "
+			":%llx: :%llx:\n",
+			__func__,
+			(unsigned long long)client_debug_mask.mask1,
+			(unsigned long long)client_debug_mask.mask2);
+
+		return ret;
+
+	case PVFS_DEV_CLIENT_STRING:
+		ret = copy_from_user(&client_debug_array_string,
+				     (void __user *)arg,
+				     PVFS2_MAX_DEBUG_STRING_LEN);
+		if (ret != 0) {
+			pr_info("%s: "
+				"PVFS_DEV_CLIENT_STRING: copy_from_user failed"
+				"\n",
+				__func__);
+			return -EIO;
+		}
+
+		pr_info("%s: client debug array string has been been received."
+			"\n",
+			__func__);
+
+		if (!help_string_initialized) {
+
+			/* Free the "we don't know yet" default string... */
+			kfree(debug_help_string);
+
+			/* build a proper debug help string */
+			if (orangefs_prepare_debugfs_help_string(0)) {
+				gossip_err("%s: "
+					   "prepare_debugfs_help_string failed"
+					   "\n",
+					   __func__);
+				return -EIO;
+			}
+
+			/* Replace the boilerplate boot-time debug-help file. */
+			debugfs_remove(help_file_dentry);
+
+			help_file_dentry =
+				debugfs_create_file(
+					ORANGEFS_KMOD_DEBUG_HELP_FILE,
+					0444,
+					debug_dir,
+					debug_help_string,
+					&debug_help_fops);
+
+			if (!help_file_dentry) {
+				gossip_err("%s: debugfs_create_file failed for"
+					   " :%s:!\n",
+					   __func__,
+					   ORANGEFS_KMOD_DEBUG_HELP_FILE);
+				return -EIO;
+			}
+		}
+
+		debug_mask_to_string(&client_debug_mask, 1);
+
+		debugfs_remove(client_debug_dentry);
+
+		pvfs2_client_debug_init();
+
+		help_string_initialized++;
+
+		return ret;
 
 	case PVFS_DEV_DEBUG:
 		ret = copy_from_user(&mask_info,
