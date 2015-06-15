@@ -905,7 +905,7 @@ int PVFS_proc_mask_to_eventlog(uint64_t mask, char *debug_string)
 
 /*
  * After obtaining a string representation of the client's debug
- * keyword and their associated masks, this function is called to build an
+ * keywords and their associated masks, this function is called to build an
  * array of these values.
  */
 int orangefs_prepare_cdm_array(char *debug_array_string)

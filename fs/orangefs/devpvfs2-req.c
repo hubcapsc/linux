@@ -327,14 +327,8 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 		dev_req_release(buffer);
 		return -EPROTO;
 	}
-/* client_debug_mask 
-	if (proto_ver != PVFS_KERNEL_PROTO_VERSION) {
-		gossip_err("Error: Device protocol version numbers do not match.\n");
-		gossip_err("Please check that your pvfs2 module and pvfs2-client versions are consistent.\n");
-		dev_req_release(buffer);
-		return -EPROTO;
-	}
-*/
+
+gossip_err("HUBCAP: proto_ver:%d: KPV:%d:\n", proto_ver, PVFS_KERNEL_PROTO_VERSION);
 
 	op = pvfs2_devreq_remove_op(tag);
 	if (op) {
@@ -342,11 +336,11 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 		get_op(op);
 		/* cut off magic and tag from payload size */
 		payload_size -= (2 * sizeof(int32_t) + sizeof(uint64_t));
-		if (payload_size <= sizeof(struct pvfs2_downcall))
+		if (payload_size <= sizeof(struct pvfs2_downcall_s))
 			/* copy the passed in downcall into the op */
 			memcpy(&op->downcall,
 			       ptr,
-			       sizeof(struct pvfs2_downcall));
+			       sizeof(struct pvfs2_downcall_s));
 		else
 			gossip_debug(GOSSIP_DEV_DEBUG,
 				     "writev: Ignoring %d bytes\n",
