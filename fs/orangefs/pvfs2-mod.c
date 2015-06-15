@@ -42,12 +42,12 @@ struct pvfs2_stats g_pvfs2_stats;
 int hash_table_size = 509;
 
 static ulong module_parm_debug_mask = 0;
-uint64_t gossip_debug_mask = 0;
+__u64 gossip_debug_mask = 0;
 struct client_debug_mask client_debug_mask = { NULL, 0, 0 };
 unsigned int kernel_mask_set_mod_init = false;
 int op_timeout_secs = PVFS2_DEFAULT_OP_TIMEOUT_SECS;
 int slot_timeout_secs = PVFS2_DEFAULT_SLOT_TIMEOUT_SECS;
-uint32_t DEBUG_LINE = 50;
+__u32 DEBUG_LINE = 50;
 
 int fake_mmap_shared = 0;
 
@@ -102,7 +102,7 @@ DECLARE_WAIT_QUEUE_HEAD(pvfs2_request_list_waitq);
 static int __init pvfs2_init(void)
 {
 	int ret = -1;
-	uint32_t i = 0;
+	__u32 i = 0;
 
 	/* convert input debug mask to a 64-bit unsigned integer */
 	gossip_debug_mask = (unsigned long long) module_parm_debug_mask;

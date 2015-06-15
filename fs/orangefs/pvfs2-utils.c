@@ -8,9 +8,9 @@
 #include "pvfs2-dev-proto.h"
 #include "pvfs2-bufmap.h"
 
-int32_t fsid_of_op(struct pvfs2_kernel_op_s *op)
+__s32 fsid_of_op(struct pvfs2_kernel_op_s *op)
 {
-	int32_t fsid = PVFS_FS_ID_NULL;
+	__s32 fsid = PVFS_FS_ID_NULL;
 	if (op) {
 		switch (op->upcall.type) {
 		case PVFS2_VFS_OP_FILE_IO:
@@ -354,7 +354,7 @@ static inline int copy_attributes_from_inode(struct inode *inode,
  * issues a pvfs2 getattr request and fills in the appropriate inode
  * attributes if successful.  returns 0 on success; -errno otherwise
  */
-int pvfs2_inode_getattr(struct inode *inode, uint32_t getattr_mask)
+int pvfs2_inode_getattr(struct inode *inode, __u32 getattr_mask)
 {
 	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
 	struct pvfs2_kernel_op_s *new_op;
@@ -570,7 +570,7 @@ int pvfs2_unmount_sb(struct super_block *sb)
  * NOTE: on successful cancellation, be sure to return -EINTR, as
  * that's the return value the caller expects
  */
-int pvfs2_cancel_op_in_progress(uint64_t tag)
+int pvfs2_cancel_op_in_progress(__u64 tag)
 {
 	int ret = -EINVAL;
 	struct pvfs2_kernel_op_s *new_op = NULL;
@@ -665,18 +665,18 @@ void unmask_blocked_signals(sigset_t *orig_sigset)
 	spin_unlock_irqrestore(&pvfs2_current_signal_lock, irqflags);
 }
 
-uint64_t pvfs2_convert_time_field(void *time_ptr)
+__u64 pvfs2_convert_time_field(void *time_ptr)
 {
-	uint64_t pvfs2_time;
+	__u64 pvfs2_time;
 	struct timespec *tspec = (struct timespec *)time_ptr;
-	pvfs2_time = (uint64_t) ((time_t) tspec->tv_sec);
+	pvfs2_time = (__u64) ((time_t) tspec->tv_sec);
 	return pvfs2_time;
 }
 
 /* macro defined in include/pvfs2-types.h */
 DECLARE_ERRNO_MAPPING_AND_FN();
 
-int pvfs2_normalize_to_errno(int32_t error_code)
+int pvfs2_normalize_to_errno(__s32 error_code)
 {
 	if (error_code > 0) {
 		gossip_err("pvfs2: error status receieved.\n");
@@ -705,7 +705,7 @@ int pvfs2_normalize_to_errno(int32_t error_code)
 }
 
 #define NUM_MODES 11
-int32_t PVFS_util_translate_mode(int mode)
+__s32 PVFS_util_translate_mode(int mode)
 {
 	int ret = 0;
 	int i = 0;
@@ -737,9 +737,9 @@ static char *pvfs2_strtok(char *s, const char *toks)
 	/* starting value of in_string_p during this iteration. */
 	char *this_string_p;
 	/* # of tokens */
-	uint32_t toks_len = strlen(toks);
+	__u32 toks_len = strlen(toks);
 	/* index */
-	uint32_t i;
+	__u32 i;
 
 	/* when s has a value, we are using a new input string */
 	if (s)
@@ -771,7 +771,7 @@ static char *pvfs2_strtok(char *s, const char *toks)
 /*convert 64-bit debug mask into a readable string of keywords*/
 static int proc_mask_to_debug(struct __keyword_mask_s *mask_map,
 			      int num_mask_map,
-			      uint64_t mask,
+			      __u64 mask,
 			      char *debug_string)
 {
 	unsigned int index = 0;
@@ -823,11 +823,11 @@ static int proc_mask_to_debug(struct __keyword_mask_s *mask_map,
 	return 0;
 }
 
-static uint64_t proc_debug_to_mask(struct __keyword_mask_s *mask_map,
+static __u64 proc_debug_to_mask(struct __keyword_mask_s *mask_map,
 				   int num_mask_map,
 				   const char *event_logging)
 {
-	uint64_t mask = 0;
+	__u64 mask = 0;
 	char *s = NULL;
 	char *t = NULL;
 	const char *toks = ", ";
@@ -879,14 +879,14 @@ static uint64_t proc_debug_to_mask(struct __keyword_mask_s *mask_map,
  * Prefix a keyword with "-" to turn it off.  All keywords
  * processed in specified order.
  */
-uint64_t PVFS_proc_kmod_eventlog_to_mask(const char *event_logging)
+__u64 PVFS_proc_kmod_eventlog_to_mask(const char *event_logging)
 {
 	return proc_debug_to_mask(s_kmod_keyword_mask_map,
 				  num_kmod_keyword_mask_map,
 				  event_logging);
 }
 
-int PVFS_proc_kmod_mask_to_eventlog(uint64_t mask, char *debug_string)
+int PVFS_proc_kmod_mask_to_eventlog(__u64 mask, char *debug_string)
 {
 	return proc_mask_to_debug(s_kmod_keyword_mask_map,
 				  num_kmod_keyword_mask_map,
@@ -894,7 +894,7 @@ int PVFS_proc_kmod_mask_to_eventlog(uint64_t mask, char *debug_string)
 				  debug_string);
 }
 
-int PVFS_proc_mask_to_eventlog(uint64_t mask, char *debug_string)
+int PVFS_proc_mask_to_eventlog(__u64 mask, char *debug_string)
 {
 
 	return proc_mask_to_debug(s_keyword_mask_map,
