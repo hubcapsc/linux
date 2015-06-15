@@ -75,10 +75,10 @@
 #define PVFS2_MAX_MOUNT_OPT_LEN        0x00000080
 #define PVFS2_MAX_FSKEY_LEN            64
 
-#define MAX_DEV_REQ_UPSIZE (2*sizeof(int32_t) +   \
-sizeof(uint64_t) + sizeof(struct pvfs2_upcall_s))
-#define MAX_DEV_REQ_DOWNSIZE (2*sizeof(int32_t) + \
-sizeof(uint64_t) + sizeof(struct pvfs2_downcall_s))
+#define MAX_DEV_REQ_UPSIZE (2*sizeof(__s32) +   \
+sizeof(__u64) + sizeof(struct pvfs2_upcall_s))
+#define MAX_DEV_REQ_DOWNSIZE (2*sizeof(__s32) + \
+sizeof(__u64) + sizeof(struct pvfs2_downcall_s))
 
 #define BITS_PER_LONG_DIV_8 (BITS_PER_LONG >> 3)
 
@@ -167,8 +167,8 @@ enum PVFS_async_io_type {
  */
 struct client_debug_mask {
         char *keyword;
-        uint64_t mask1;
-        uint64_t mask2;
+        __u64 mask1;
+        __u64 mask2;
 };
 
 /*
@@ -209,9 +209,9 @@ struct client_debug_mask {
 #define PVFS2_XATTR_NAME_DEFAULT_PREFIX ""
 
 /* these functions are defined in pvfs2-utils.c */
-uint64_t PVFS_proc_kmod_eventlog_to_mask(const char *event_logging);
-int PVFS_proc_kmod_mask_to_eventlog(uint64_t mask, char *debug_string);
-int PVFS_proc_mask_to_eventlog(uint64_t mask, char *debug_string);
+__u64 PVFS_proc_kmod_eventlog_to_mask(const char *event_logging);
+int PVFS_proc_kmod_mask_to_eventlog(__u64 mask, char *debug_string);
+int PVFS_proc_mask_to_eventlog(__u64 mask, char *debug_string);
 int orangefs_prepare_cdm_array(char *debug_array_string);
 int orangefs_prepare_debugfs_help_string(int);
 
@@ -270,7 +270,7 @@ struct xtvec {
  */
 typedef struct pvfs2_kernel_op {
 	enum pvfs2_vfs_op_states op_state;
-	uint64_t tag;
+	__u64 tag;
 
 	/*
 	 * Set uses_shared_memory to 1 if this operation uses shared memory.
@@ -300,7 +300,7 @@ typedef struct pvfs2_kernel_op {
 	 * so we expect callers with trailers
 	 * to set this field to 2 and others to set it to 1.
 	 */
-	int32_t op_linger, op_linger_tmp;
+	__s32 op_linger, op_linger_tmp;
 	/* VFS aio fields */
 
 	/* used by the async I/O code to stash the pvfs2_kiocb_s structure */
@@ -318,7 +318,7 @@ typedef struct pvfs2_kernel_op {
 typedef struct pvfs2_inode_s {
 	struct pvfs2_object_kref refn;
 	char link_target[PVFS_NAME_MAX];
-	int64_t blksize;
+	__s64 blksize;
 	/*
 	 * Reading/Writing Extended attributes need to acquire the appropriate
 	 * reader/writer semaphore on the pvfs2_inode_t structure.
@@ -362,7 +362,7 @@ typedef struct pvfs2_inode_s {
 /* per superblock private pvfs2 info */
 typedef struct pvfs2_sb_info_s {
 	struct pvfs2_khandle root_khandle;
-	int32_t fs_id;
+	__s32 fs_id;
 	int id;
 	int flags;
 #define PVFS2_OPT_INTR		0x01
@@ -378,10 +378,10 @@ typedef struct pvfs2_sb_info_s {
  * mount time data provided along with a private superblock structure
  * that is allocated before a 'kernel' superblock is allocated.
 */
-struct pvfs2_mount_sb_info_t {
+struct pvfs2_mount_sb_info_s {
 	void *data;
 	struct pvfs2_khandle root_khandle;
-	int32_t fs_id;
+	__s32 fs_id;
 	int id;
 };
 
@@ -452,7 +452,7 @@ static inline ino_t pvfs2_khandle_to_ino(struct pvfs2_khandle *khandle)
 {
 	union {
 		unsigned char u[8];
-		uint64_t ino;
+		__u64 ino;
 	} ihandle;
 
 	ihandle.u[0] = khandle->u[0] ^ khandle->u[4];
@@ -472,7 +472,7 @@ static inline struct pvfs2_khandle *get_khandle_from_ino(struct inode *inode)
 	return &(PVFS2_I(inode)->refn.khandle);
 }
 
-static inline int32_t get_fsid_from_ino(struct inode *inode)
+static inline __s32 get_fsid_from_ino(struct inode *inode)
 {
 	return PVFS2_I(inode)->refn.fs_id;
 }
@@ -527,8 +527,8 @@ static inline int match_handle(struct pvfs2_khandle resp_handle,
  */
 int op_cache_initialize(void);
 int op_cache_finalize(void);
-struct pvfs2_kernel_op *op_alloc(int32_t type);
-struct pvfs2_kernel_op *op_alloc_trailer(int32_t type);
+struct pvfs2_kernel_op *op_alloc(__s32 type);
+struct pvfs2_kernel_op *op_alloc_trailer(__s32 type);
 char *get_opname_string(struct pvfs2_kernel_op *new_op);
 void op_release(struct pvfs2_kernel_op *op);
 
@@ -575,7 +575,7 @@ void fsid_key_table_finalize(void);
 /*
  * defined in inode.c
  */
-uint32_t convert_to_pvfs2_mask(unsigned long lite_mask);
+__u32 convert_to_pvfs2_mask(unsigned long lite_mask);
 struct inode *pvfs2_new_inode(struct super_block *sb,
 			      struct inode *dir,
 			      int mode,
@@ -622,12 +622,12 @@ ssize_t pvfs2_inode_read(struct inode *inode,
 int pvfs2_dev_init(void);
 void pvfs2_dev_cleanup(void);
 int is_daemon_in_service(void);
-int fs_mount_pending(int32_t fsid);
+int fs_mount_pending(__s32 fsid);
 
 /*
  * defined in pvfs2-utils.c
  */
-int32_t fsid_of_op(struct pvfs2_kernel_op *op);
+__s32 fsid_of_op(struct pvfs2_kernel_op *op);
 
 int pvfs2_flush_inode(struct inode *inode);
 
@@ -644,7 +644,7 @@ int pvfs2_inode_setxattr(struct inode *inode,
 			 size_t size,
 			 int flags);
 
-int pvfs2_inode_getattr(struct inode *inode, uint32_t mask);
+int pvfs2_inode_getattr(struct inode *inode, __u32 mask);
 
 int pvfs2_inode_setattr(struct inode *inode, struct iattr *iattr);
 
@@ -658,11 +658,11 @@ void unmask_blocked_signals(sigset_t *orig_sigset);
 
 int pvfs2_unmount_sb(struct super_block *sb);
 
-int pvfs2_cancel_op_in_progress(uint64_t tag);
+int pvfs2_cancel_op_in_progress(__u64 tag);
 
-uint64_t pvfs2_convert_time_field(void *time_ptr);
+__u64 pvfs2_convert_time_field(void *time_ptr);
 
-int pvfs2_normalize_to_errno(int32_t error_code);
+int pvfs2_normalize_to_errno(__s32 error_code);
 
 extern struct mutex devreq_mutex;
 extern struct mutex request_mutex;
