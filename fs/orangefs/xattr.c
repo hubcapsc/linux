@@ -349,7 +349,7 @@ ssize_t pvfs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	struct inode *inode = dentry->d_inode;
 	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
 	struct pvfs2_kernel_op_s *new_op;
-	uint64_t token = PVFS_ITERATE_START;
+	__u64 token = PVFS_ITERATE_START;
 	ssize_t ret = -ENOMEM;
 	ssize_t total = 0;
 	ssize_t length = 0;
