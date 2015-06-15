@@ -769,7 +769,7 @@ static char *pvfs2_strtok(char *s, const char *toks)
 }
 
 /*convert 64-bit debug mask into a readable string of keywords*/
-static int proc_mask_to_debug(struct __keyword_mask_t *mask_map,
+static int proc_mask_to_debug(struct __keyword_mask_s *mask_map,
 			      int num_mask_map,
 			      uint64_t mask,
 			      char *debug_string)
@@ -823,7 +823,7 @@ static int proc_mask_to_debug(struct __keyword_mask_t *mask_map,
 	return 0;
 }
 
-static uint64_t proc_debug_to_mask(struct __keyword_mask_t *mask_map,
+static uint64_t proc_debug_to_mask(struct __keyword_mask_s *mask_map,
 				   int num_mask_map,
 				   const char *event_logging)
 {
