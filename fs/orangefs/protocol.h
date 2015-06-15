@@ -46,8 +46,8 @@ typedef struct pvfs2_khandle {
  */
 typedef struct pvfs2_object_kref {
 	struct pvfs2_khandle khandle;
-	int32_t fs_id;
-	int32_t __pad1;
+	__s32 fs_id;
+	__s32 __pad1;
 } PVFS_object_kref;
 
 /*
@@ -96,16 +96,16 @@ static __inline__ void PVFS_khandle_from(struct pvfs2_khandle *kh,
 }
 
 /* pvfs2-types.h ************************************************************/
-typedef uint32_t PVFS_uid;
-typedef uint32_t PVFS_gid;
-typedef int32_t PVFS_fs_id;
-typedef uint32_t PVFS_permissions;
-typedef uint64_t PVFS_time;
-typedef int64_t PVFS_size;
-typedef uint64_t PVFS_flags;
-typedef uint64_t PVFS_ds_position;
-typedef int32_t PVFS_error;
-typedef int64_t PVFS_offset;
+typedef __u32 PVFS_uid;
+typedef __u32 PVFS_gid;
+typedef __s32 PVFS_fs_id;
+typedef __u32 PVFS_permissions;
+typedef __u64 PVFS_time;
+typedef __s64 PVFS_size;
+typedef __u64 PVFS_flags;
+typedef __u64 PVFS_ds_position;
+typedef __s32 PVFS_error;
+typedef __s64 PVFS_offset;
 
 #define PVFS2_SUPER_MAGIC 0x20030528
 #define PVFS_ERROR_BIT           (1 << 30)
@@ -117,11 +117,11 @@ typedef int64_t PVFS_offset;
 
 /* 7 bits are used for the errno mapped error codes */
 #define PVFS_ERROR_CODE(__error) \
-((__error) & (int32_t)(0x7f|PVFS_ERROR_BIT))
+((__error) & (__s32)(0x7f|PVFS_ERROR_BIT))
 #define PVFS_ERROR_CLASS(__error) \
-((__error) & ~((int32_t)(0x7f|PVFS_ERROR_BIT|PVFS_NON_ERRNO_ERROR_BIT)))
+((__error) & ~((__s32)(0x7f|PVFS_ERROR_BIT|PVFS_NON_ERRNO_ERROR_BIT)))
 #define PVFS_NON_ERRNO_ERROR_CODE(__error) \
-((__error) & (int32_t)(127|PVFS_ERROR_BIT|PVFS_NON_ERRNO_ERROR_BIT))
+((__error) & (__s32)(127|PVFS_ERROR_BIT|PVFS_NON_ERRNO_ERROR_BIT))
 
 /* PVFS2 error codes, compliments of asm/errno.h */
 #define PVFS_EPERM            E(1)	/* Operation not permitted */
@@ -238,7 +238,7 @@ typedef int64_t PVFS_offset;
 	 PVFS_ERROR_DEV)
 
 #define DECLARE_ERRNO_MAPPING()                       \
-int32_t PINT_errno_mapping[PVFS_ERRNO_MAX + 1] = { \
+__s32 PINT_errno_mapping[PVFS_ERRNO_MAX + 1] = { \
 	0,     /* leave this one empty */                 \
 	EPERM, /* 1 */                                    \
 	ENOENT,                                           \
@@ -314,7 +314,7 @@ const char *PINT_non_errno_strerror_mapping[] = {     \
 	"Path contains non-PVFS elements",                \
 	"Security error",                                 \
 };                                                    \
-int32_t PINT_non_errno_mapping[] = {               \
+__s32 PINT_non_errno_mapping[] = {               \
 	0,     /* leave this one empty */                 \
 	PVFS_ECANCEL,   /* 1 */                           \
 	PVFS_EDEVINIT,  /* 2 */                           \
@@ -337,13 +337,13 @@ int32_t PINT_non_errno_mapping[] = {               \
  *   passed in value will be returned unchanged.
  */
 #define DECLARE_ERRNO_MAPPING_AND_FN()					\
-extern int32_t PINT_errno_mapping[];					\
-extern int32_t PINT_non_errno_mapping[];				\
+extern __s32 PINT_errno_mapping[];					\
+extern __s32 PINT_non_errno_mapping[];				\
 extern const char *PINT_non_errno_strerror_mapping[];			\
-int32_t PVFS_get_errno_mapping(int32_t error)			\
+__s32 PVFS_get_errno_mapping(__s32 error)			\
 {									\
-	int32_t ret = error, mask = 0;				\
-	int32_t positive = ((error > -1) ? 1 : 0);			\
+	__s32 ret = error, mask = 0;				\
+	__s32 positive = ((error > -1) ? 1 : 0);			\
 	if (IS_PVFS_NON_ERRNO_ERROR((positive ? error : -error))) {	\
 		mask = (PVFS_NON_ERRNO_ERROR_BIT |			\
 			PVFS_ERROR_BIT |				\
@@ -363,9 +363,9 @@ int32_t PVFS_get_errno_mapping(int32_t error)			\
 	}								\
 	return ret;							\
 }									\
-int32_t PVFS_errno_to_error(int err)					\
+__s32 PVFS_errno_to_error(int err)					\
 {									\
-	int32_t e = 0;						\
+	__s32 e = 0;						\
 									\
 	for (; e < PVFS_ERRNO_MAX; ++e)					\
 		if (PINT_errno_mapping[e] == err)			\
@@ -400,7 +400,7 @@ DECLARE_ERRNO_MAPPING()
 #define PVFS_NOATIME_FL   FS_NOATIME_FL
 #define PVFS_MIRROR_FL    0x01000000ULL
 #define PVFS_O_EXECUTE (1 << 0)
-#define PVFS_FS_ID_NULL       ((int32_t)0)
+#define PVFS_FS_ID_NULL       ((__s32)0)
 #define PVFS_ATTR_SYS_UID                   (1 << 0)
 #define PVFS_ATTR_SYS_GID                   (1 << 1)
 #define PVFS_ATTR_SYS_PERM                  (1 << 2)
@@ -489,7 +489,7 @@ enum pvfs2_ds_type {
  * The buffer can be converted to an OpenSSL X509 struct for use.
  */
 struct PVFS_certificate {
-	uint32_t buf_size;
+	__u32 buf_size;
 	unsigned char *buf;
 };
 
@@ -498,17 +498,17 @@ struct PVFS_certificate {
  * private key.
  */
 struct PVFS_credential {
-	uint32_t userid;	/* user id */
-	uint32_t num_groups;	/* length of group_array */
-	uint32_t *group_array;	/* groups for which the user is a member */
+	__u32 userid;	/* user id */
+	__u32 num_groups;	/* length of group_array */
+	__u32 *group_array;	/* groups for which the user is a member */
 	char *issuer;		/* alias of the issuing server */
-	uint64_t timeout;	/* seconds after epoch to time out */
-	uint32_t sig_size;	/* length of the signature in bytes */
+	__u64 timeout;	/* seconds after epoch to time out */
+	__u32 sig_size;	/* length of the signature in bytes */
 	unsigned char *signature;	/* digital signature */
 	struct PVFS_certificate certificate;	/* user certificate buffer */
 };
 #define extra_size_PVFS_credential (PVFS_REQ_LIMIT_GROUPS	*	\
-				    sizeof(uint32_t)		+	\
+				    sizeof(__u32)		+	\
 				    PVFS_REQ_LIMIT_ISSUER	+	\
 				    PVFS_REQ_LIMIT_SIGNATURE	+	\
 				    extra_size_PVFS_certificate)
@@ -516,38 +516,38 @@ struct PVFS_credential {
 /* This structure is used by the VFS-client interaction alone */
 struct PVFS_keyval_pair {
 	char key[PVFS_MAX_XATTR_NAMELEN];
-	int32_t key_sz;	/* int32_t for portable, fixed-size structures */
-	int32_t val_sz;
+	__s32 key_sz;	/* __s32 for portable, fixed-size structures */
+	__s32 val_sz;
 	char val[PVFS_MAX_XATTR_VALUELEN];
 };
 
 /* pvfs2-sysint.h ***********************************************************/
 /* Describes attributes for a file, directory, or symlink. */
 struct PVFS_sys_attr_s {
-	uint32_t owner;
-	uint32_t group;
-	PVFS2_ALIGN_VAR(uint32_t, perms);
-	uint64_t atime;
-	uint64_t mtime;
-	uint64_t ctime;
-	int64_t size;
+	__u32 owner;
+	__u32 group;
+	PVFS2_ALIGN_VAR(__u32, perms);
+	__u64 atime;
+	__u64 mtime;
+	__u64 ctime;
+	__s64 size;
 
 	/* NOTE: caller must free if valid */
 	PVFS2_ALIGN_VAR(char *, link_target); /* caller must free if valid */
 
-	/* Changed to int32_t so that size of structure does not change */
-	PVFS2_ALIGN_VAR(int32_t, dfile_count);
+	/* Changed to __s32 so that size of structure does not change */
+	PVFS2_ALIGN_VAR(__s32, dfile_count);
 
-	/* Changed to int32_t so that size of structure does not change */
-	PVFS2_ALIGN_VAR(int32_t, distr_dir_servers_initial);
+	/* Changed to __s32 so that size of structure does not change */
+	PVFS2_ALIGN_VAR(__s32, distr_dir_servers_initial);
 
-	/* Changed to int32_t so that size of structure does not change */
-	PVFS2_ALIGN_VAR(int32_t, distr_dir_servers_max);
+	/* Changed to __s32 so that size of structure does not change */
+	PVFS2_ALIGN_VAR(__s32, distr_dir_servers_max);
 
-	/* Changed to int32_t so that size of structure does not change */
-	PVFS2_ALIGN_VAR(int32_t, distr_dir_split_size);
+	/* Changed to __s32 so that size of structure does not change */
+	PVFS2_ALIGN_VAR(__s32, distr_dir_split_size);
 
-	PVFS2_ALIGN_VAR(uint32_t, mirror_copies_count);
+	PVFS2_ALIGN_VAR(__u32, mirror_copies_count);
 
 	/* NOTE: caller must free if valid */
 	PVFS2_ALIGN_VAR(char *, dist_name);
@@ -555,11 +555,11 @@ struct PVFS_sys_attr_s {
 	/* NOTE: caller must free if valid */
 	PVFS2_ALIGN_VAR(char *, dist_params);
 
-	int64_t dirent_count;
+	__s64 dirent_count;
 	enum pvfs2_ds_type objtype;
-	uint64_t flags;
-	uint32_t mask;
-	int64_t blksize;
+	__u64 flags;
+	__u32 mask;
+	__s64 blksize;
 };
 typedef struct PVFS_sys_attr_s PVFS_sys_attr;
 
@@ -569,22 +569,22 @@ typedef struct PVFS_sys_attr_s PVFS_sys_attr;
 /* pint-dev.h ***************************************************************/
 
 /* parameter structure used in PVFS_DEV_DEBUG ioctl command */
-struct dev_mask_info_t {
+struct dev_mask_info_s {
 	enum {
 		KERNEL_MASK,
 		CLIENT_MASK,
 	} mask_type;
-	uint64_t mask_value;
+	__u64 mask_value;
 };
 
 struct dev_mask2_info_s {
-	uint64_t mask1_value;
-	uint64_t mask2_value;
+	__u64 mask1_value;
+	__u64 mask2_value;
 };
 
 /* pvfs2-util.h *************************************************************/
 #define PVFS_util_min(x1, x2) (((x1) > (x2)) ? (x2) : (x1))
-int32_t PVFS_util_translate_mode(int mode);
+__s32 PVFS_util_translate_mode(int mode);
 
 /* pvfs2-debug.h ************************************************************/
 #include "pvfs2-debug.h"
@@ -611,14 +611,14 @@ int32_t PVFS_util_translate_mode(int mode);
 
 /* supported ioctls, codes are with respect to user-space */
 enum {
-	PVFS_DEV_GET_MAGIC = _IOW(PVFS_DEV_MAGIC, DEV_GET_MAGIC, int32_t),
+	PVFS_DEV_GET_MAGIC = _IOW(PVFS_DEV_MAGIC, DEV_GET_MAGIC, __s32),
 	PVFS_DEV_GET_MAX_UPSIZE =
-	    _IOW(PVFS_DEV_MAGIC, DEV_GET_MAX_UPSIZE, int32_t),
+	    _IOW(PVFS_DEV_MAGIC, DEV_GET_MAX_UPSIZE, __s32),
 	PVFS_DEV_GET_MAX_DOWNSIZE =
-	    _IOW(PVFS_DEV_MAGIC, DEV_GET_MAX_DOWNSIZE, int32_t),
+	    _IOW(PVFS_DEV_MAGIC, DEV_GET_MAX_DOWNSIZE, __s32),
 	PVFS_DEV_MAP = _IO(PVFS_DEV_MAGIC, DEV_MAP),
 	PVFS_DEV_REMOUNT_ALL = _IO(PVFS_DEV_MAGIC, DEV_REMOUNT_ALL),
-	PVFS_DEV_DEBUG = _IOR(PVFS_DEV_MAGIC, DEV_DEBUG, int32_t),
+	PVFS_DEV_DEBUG = _IOR(PVFS_DEV_MAGIC, DEV_DEBUG, __s32),
 	PVFS_DEV_UPSTREAM = _IOW(PVFS_DEV_MAGIC, DEV_UPSTREAM, int),
 	PVFS_DEV_CLIENT_MASK = _IOW(PVFS_DEV_MAGIC,
 				    DEV_CLIENT_MASK,
@@ -651,9 +651,9 @@ enum {
  */
 struct PVFS_dev_map_desc {
 	void *ptr;
-	int32_t total_size;
-	int32_t size;
-	int32_t count;
+	__s32 total_size;
+	__s32 size;
+	__s32 count;
 };
 
 /* gossip.h *****************************************************************/
@@ -661,7 +661,7 @@ struct PVFS_dev_map_desc {
 #ifdef GOSSIP_DISABLE_DEBUG
 #define gossip_debug(mask, format, f...) do {} while (0)
 #else
-extern uint64_t gossip_debug_mask;
+extern __u64 gossip_debug_mask;
 extern struct client_debug_mask client_debug_mask;
 
 /* try to avoid function call overhead by checking masks in macro */

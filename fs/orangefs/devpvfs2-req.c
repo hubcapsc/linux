@@ -619,7 +619,7 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 	static int32_t max_down_size = MAX_ALIGNED_DEV_REQ_DOWNSIZE;
 	struct PVFS_dev_map_desc user_desc;
 	int ret = 0;
-	struct dev_mask_info_t mask_info = { 0 };
+	struct dev_mask_info_s mask_info = { 0 };
 	struct dev_mask2_info_s mask2_info = { 0, 0 };
 	int upstream_kmod = 1;
 	struct list_head *tmp = NULL;
