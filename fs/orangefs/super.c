@@ -353,8 +353,8 @@ int pvfs2_fill_sb(struct super_block *sb, void *data, int silent)
 	int ret = -EINVAL;
 	struct inode *root = NULL;
 	struct dentry *root_dentry = NULL;
-	struct pvfs2_mount_sb_info_t *mount_sb_info =
-		(struct pvfs2_mount_sb_info_t *) data;
+	struct pvfs2_mount_sb_info_s *mount_sb_info =
+		(struct pvfs2_mount_sb_info_s *) data;
 	PVFS_object_kref root_object;
 
 	/* alloc and init our private pvfs2 sb info */
@@ -422,7 +422,7 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
 	int ret = -EINVAL;
 	struct super_block *sb = ERR_PTR(-EINVAL);
 	struct pvfs2_kernel_op *new_op;
-	struct pvfs2_mount_sb_info_t mount_sb_info;
+	struct pvfs2_mount_sb_info_s mount_sb_info;
 	struct dentry *mnt_sb_d = ERR_PTR(-EINVAL);
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
