@@ -121,7 +121,7 @@ static ssize_t wait_for_direct_io(enum PVFS_io_type type, struct inode *inode,
 	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
 	struct pvfs2_khandle *handle = &pvfs2_inode->refn.khandle;
 	struct pvfs2_bufmap *bufmap = NULL;
-	struct pvfs2_kernel_op *new_op = NULL;
+	struct pvfs2_kernel_op_s *new_op = NULL;
 	int buffer_index = -1;
 	ssize_t ret;
 
@@ -786,7 +786,7 @@ static ssize_t pvfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 long pvfs2_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int ret = -ENOTTY;
-	uint64_t val = 0;
+	__u64 val = 0;
 	unsigned long uval;
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
@@ -898,7 +898,7 @@ int pvfs2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	int ret = -EINVAL;
 	struct pvfs2_inode_s *pvfs2_inode =
 		PVFS2_I(file->f_path.dentry->d_inode);
-	struct pvfs2_kernel_op *new_op = NULL;
+	struct pvfs2_kernel_op_s *new_op = NULL;
 
 	/* required call */
 	filemap_write_and_wait_range(file->f_mapping, start, end);

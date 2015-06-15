@@ -8,7 +8,7 @@
 #include "pvfs2-kernel.h"
 #include "pvfs2-bufmap.h"
 
-struct readdir_handle_t {
+struct readdir_handle_s {
 	int buffer_index;
 	struct pvfs2_readdir_response_s readdir_response;
 	void *dents_buf;
@@ -43,7 +43,7 @@ static long decode_dirents(char *ptr, struct pvfs2_readdir_response_s *readdir)
 	return (unsigned long)*pptr - (unsigned long)ptr;
 }
 
-static long readdir_handle_ctor(struct readdir_handle_t *rhandle, void *buf,
+static long readdir_handle_ctor(struct readdir_handle_s *rhandle, void *buf,
 				int buffer_index)
 {
 	long ret;
@@ -72,7 +72,7 @@ static long readdir_handle_ctor(struct readdir_handle_t *rhandle, void *buf,
 }
 
 static void readdir_handle_dtor(struct pvfs2_bufmap *bufmap,
-		struct readdir_handle_t *rhandle)
+		struct readdir_handle_s *rhandle)
 {
 	if (rhandle == NULL)
 		return;
@@ -117,14 +117,14 @@ static int pvfs2_readdir(struct file *file, struct dir_context *ctx)
 	struct pvfs2_bufmap *bufmap = NULL;
 	int ret = 0;
 	int buffer_index;
-	uint64_t *ptoken = file->private_data;
-	uint64_t pos = 0;
+	__u64 *ptoken = file->private_data;
+	__u64 pos = 0;
 	ino_t ino = 0;
 	struct dentry *dentry = file->f_path.dentry;
-	struct pvfs2_kernel_op *new_op = NULL;
+	struct pvfs2_kernel_op_s *new_op = NULL;
 	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(dentry->d_inode);
 	int buffer_full = 0;
-	struct readdir_handle_t rhandle;
+	struct readdir_handle_s rhandle;
 	int i = 0;
 	int len = 0;
 	ino_t current_ino = 0;
@@ -137,7 +137,7 @@ static int pvfs2_readdir(struct file *file, struct dir_context *ctx)
 		      lld(ctx->pos),
 		      llu(*ptoken));
 
-	pos = (uint64_t) ctx->pos;
+	pos = (__u64) ctx->pos;
 
 	/* are we done? */
 	if (pos == PVFS_READDIR_END) {
@@ -368,9 +368,9 @@ out_free_op:
 
 static int pvfs2_dir_open(struct inode *inode, struct file *file)
 {
-	uint64_t *ptoken;
+	__u64 *ptoken;
 
-	file->private_data = kmalloc(sizeof(uint64_t), GFP_KERNEL);
+	file->private_data = kmalloc(sizeof(__u64), GFP_KERNEL);
 	if (!file->private_data)
 		return -ENOMEM;
 

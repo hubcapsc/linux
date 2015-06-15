@@ -8,7 +8,7 @@
 #include "pvfs2-kernel.h"
 
 /* tags assigned to kernel upcall operations */
-static uint64_t next_tag_value;
+static __u64 next_tag_value;
 static DEFINE_SPINLOCK(next_tag_value_lock);
 
 /* the pvfs2 memory caches */
@@ -25,7 +25,7 @@ static struct kmem_cache *pvfs2_kiocb_cache;
 int op_cache_initialize(void)
 {
 	op_cache = kmem_cache_create("pvfs2_op_cache",
-				     sizeof(struct pvfs2_kernel_op),
+				     sizeof(struct pvfs2_kernel_op_s),
 				     0,
 				     PVFS2_CACHE_CREATE_FLAGS,
 				     NULL);
@@ -48,10 +48,10 @@ int op_cache_finalize(void)
 	return 0;
 }
 
-char *get_opname_string(struct pvfs2_kernel_op *new_op)
+char *get_opname_string(struct pvfs2_kernel_op_s *new_op)
 {
 	if (new_op) {
-		int32_t type = new_op->upcall.type;
+		__s32 type = new_op->upcall.type;
 		if (type == PVFS2_VFS_OP_FILE_IO)
 			return "OP_FILE_IO";
 		else if (type == PVFS2_VFS_OP_LOOKUP)
@@ -108,13 +108,13 @@ char *get_opname_string(struct pvfs2_kernel_op *new_op)
 	return "OP_UNKNOWN?";
 }
 
-static struct pvfs2_kernel_op *op_alloc_common(int32_t op_linger, int32_t type)
+static struct pvfs2_kernel_op_s *op_alloc_common(__s32 op_linger, __s32 type)
 {
-	struct pvfs2_kernel_op *new_op = NULL;
+	struct pvfs2_kernel_op_s *new_op = NULL;
 
 	new_op = kmem_cache_alloc(op_cache, PVFS2_CACHE_ALLOC_FLAGS);
 	if (new_op) {
-		memset(new_op, 0, sizeof(struct pvfs2_kernel_op));
+		memset(new_op, 0, sizeof(struct pvfs2_kernel_op_s));
 
 		INIT_LIST_HEAD(&new_op->list);
 		spin_lock_init(&new_op->lock);
@@ -150,17 +150,17 @@ static struct pvfs2_kernel_op *op_alloc_common(int32_t op_linger, int32_t type)
 	return new_op;
 }
 
-struct pvfs2_kernel_op *op_alloc(int32_t type)
+struct pvfs2_kernel_op_s *op_alloc(__s32 type)
 {
 	return op_alloc_common(1, type);
 }
 
-struct pvfs2_kernel_op *op_alloc_trailer(int32_t type)
+struct pvfs2_kernel_op_s *op_alloc_trailer(__s32 type)
 {
 	return op_alloc_common(2, type);
 }
 
-void op_release(struct pvfs2_kernel_op *pvfs2_op)
+void op_release(struct pvfs2_kernel_op_s *pvfs2_op)
 {
 	if (pvfs2_op) {
 		gossip_debug(GOSSIP_CACHE_DEBUG,

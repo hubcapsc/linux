@@ -268,7 +268,7 @@ struct xtvec {
 /*
  * pvfs2 data structures
  */
-typedef struct pvfs2_kernel_op {
+struct pvfs2_kernel_op_s {
 	enum pvfs2_vfs_op_states op_state;
 	__u64 tag;
 
@@ -294,7 +294,7 @@ typedef struct pvfs2_kernel_op {
 	 * device to dequeue the upcall.
 	 * if op_linger field goes to 0, we dequeue this op off the list.
 	 * else we let it stay. What gets passed to the read() is
-	 * a) if op_linger field is = 1, pvfs2_kernel_op_t itself
+	 * a) if op_linger field is = 1, pvfs2_kernel_op_s itself
 	 * b) else if = 0, we pass ->upcall.trailer_buf
 	 * We expect to have only a single upcall trailer buffer,
 	 * so we expect callers with trailers
@@ -312,7 +312,7 @@ typedef struct pvfs2_kernel_op {
 	int attempts;
 
 	struct list_head list;
-} pvfs2_kernel_op_t;
+};
 
 /* per inode private pvfs2 info */
 typedef struct pvfs2_inode_s {
@@ -403,7 +403,7 @@ typedef struct pvfs2_kiocb_s {
 	int buffer_index;
 
 	/* pvfs2 kernel operation type */
-	struct pvfs2_kernel_op *op;
+	struct pvfs2_kernel_op_s *op;
 
 	/* The user space buffers from/to which I/O is being staged */
 	struct iovec *iov;
@@ -527,10 +527,10 @@ static inline int match_handle(struct pvfs2_khandle resp_handle,
  */
 int op_cache_initialize(void);
 int op_cache_finalize(void);
-struct pvfs2_kernel_op *op_alloc(__s32 type);
-struct pvfs2_kernel_op *op_alloc_trailer(__s32 type);
-char *get_opname_string(struct pvfs2_kernel_op *new_op);
-void op_release(struct pvfs2_kernel_op *op);
+struct pvfs2_kernel_op_s *op_alloc(__s32 type);
+struct pvfs2_kernel_op_s *op_alloc_trailer(__s32 type);
+char *get_opname_string(struct pvfs2_kernel_op_s *new_op);
+void op_release(struct pvfs2_kernel_op_s *op);
 
 int dev_req_cache_initialize(void);
 int dev_req_cache_finalize(void);
@@ -553,9 +553,9 @@ void purge_inprogress_ops(void);
 /*
  * defined in waitqueue.c
  */
-int wait_for_matching_downcall(struct pvfs2_kernel_op *op);
-int wait_for_cancellation_downcall(struct pvfs2_kernel_op *op);
-void pvfs2_clean_up_interrupted_operation(struct pvfs2_kernel_op *op);
+int wait_for_matching_downcall(struct pvfs2_kernel_op_s *op);
+int wait_for_cancellation_downcall(struct pvfs2_kernel_op_s *op);
+void pvfs2_clean_up_interrupted_operation(struct pvfs2_kernel_op_s *op);
 void purge_waiting_ops(void);
 
 /*
@@ -627,7 +627,7 @@ int fs_mount_pending(__s32 fsid);
 /*
  * defined in pvfs2-utils.c
  */
-__s32 fsid_of_op(struct pvfs2_kernel_op *op);
+__s32 fsid_of_op(struct pvfs2_kernel_op_s *op);
 
 int pvfs2_flush_inode(struct inode *inode);
 
@@ -648,7 +648,7 @@ int pvfs2_inode_getattr(struct inode *inode, __u32 mask);
 
 int pvfs2_inode_setattr(struct inode *inode, struct iattr *iattr);
 
-void pvfs2_op_initialize(struct pvfs2_kernel_op *op);
+void pvfs2_op_initialize(struct pvfs2_kernel_op_s *op);
 
 void pvfs2_make_bad_inode(struct inode *inode);
 
@@ -721,12 +721,12 @@ do {								\
 	do {								\
 		struct list_head *tmp = NULL;				\
 		struct list_head *tmp_safe = NULL;			\
-		struct pvfs2_kernel_op *tmp_op = NULL;			\
+		struct pvfs2_kernel_op_s *tmp_op = NULL;		\
 									\
 		spin_lock(&pvfs2_request_list_lock);			\
 		list_for_each_safe(tmp, tmp_safe, &pvfs2_request_list) { \
 			tmp_op = list_entry(tmp,			\
-					    struct pvfs2_kernel_op,	\
+					    struct pvfs2_kernel_op_s,	\
 					    list);			\
 			if (tmp_op && (tmp_op == op)) {			\
 				list_del(&tmp_op->list);		\
@@ -742,7 +742,7 @@ do {								\
 #define PVFS2_OP_NO_SEMAPHORE  8   /* don't acquire semaphore */
 #define PVFS2_OP_ASYNC         16  /* Queue it, but don't wait */
 
-int service_operation(struct pvfs2_kernel_op *op,
+int service_operation(struct pvfs2_kernel_op_s *op,
 		      const char *op_name,
 		      int flags);
 

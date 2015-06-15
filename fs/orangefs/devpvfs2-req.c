@@ -34,12 +34,12 @@ do {                                                                          \
 	gossip_err("*****************************************************\n");\
 } while (0)
 
-static int hash_func(uint64_t tag, int table_size)
+static int hash_func(__u64 tag, int table_size)
 {
 	return tag % ((unsigned int)table_size);
 }
 
-static void pvfs2_devreq_add_op(struct pvfs2_kernel_op *op)
+static void pvfs2_devreq_add_op(struct pvfs2_kernel_op_s *op)
 {
 	int index = hash_func(op->tag, hash_table_size);
 
@@ -48,9 +48,9 @@ static void pvfs2_devreq_add_op(struct pvfs2_kernel_op *op)
 	spin_unlock(&htable_ops_in_progress_lock);
 }
 
-static struct pvfs2_kernel_op *pvfs2_devreq_remove_op(uint64_t tag)
+static struct pvfs2_kernel_op_s *pvfs2_devreq_remove_op(__u64 tag)
 {
-	struct pvfs2_kernel_op *op, *next;
+	struct pvfs2_kernel_op_s *op, *next;
 	int index;
 
 	index = hash_func(tag, hash_table_size);
@@ -106,20 +106,20 @@ static ssize_t pvfs2_devreq_read(struct file *file,
 {
 	int ret = 0;
 	ssize_t len = 0;
-	struct pvfs2_kernel_op *cur_op = NULL;
-	static int32_t magic = PVFS2_DEVREQ_MAGIC;
-	int32_t proto_ver = PVFS_KERNEL_PROTO_VERSION;
+	struct pvfs2_kernel_op_s *cur_op = NULL;
+	static __s32 magic = PVFS2_DEVREQ_MAGIC;
+	__s32 proto_ver = PVFS_KERNEL_PROTO_VERSION;
 
 	if (!(file->f_flags & O_NONBLOCK)) {
 		/* We do not support blocking reads/opens any more */
 		gossip_err("pvfs2: blocking reads are not supported! (pvfs2-client-core bug)\n");
 		return -EINVAL;
 	} else {
-		struct pvfs2_kernel_op *op = NULL, *temp = NULL;
+		struct pvfs2_kernel_op_s *op = NULL, *temp = NULL;
 		/* get next op (if any) from top of list */
 		spin_lock(&pvfs2_request_list_lock);
 		list_for_each_entry_safe(op, temp, &pvfs2_request_list, list) {
-			int32_t fsid = fsid_of_op(op);
+			__s32 fsid = fsid_of_op(op);
 			/*
 			 * Check if this op's fsid is known and needs
 			 * remounting
@@ -193,21 +193,21 @@ static ssize_t pvfs2_devreq_read(struct file *file,
 			if ((size_t) len <= count) {
 			    ret = copy_to_user(buf,
 					       &proto_ver,
-					       sizeof(int32_t));
+					       sizeof(__s32));
 			    if (ret == 0) {
-				ret = copy_to_user(buf + sizeof(int32_t),
+				ret = copy_to_user(buf + sizeof(__s32),
 						   &magic,
-						   sizeof(int32_t));
+						   sizeof(__s32));
 				if (ret == 0) {
-				    ret = copy_to_user(buf+2 * sizeof(int32_t),
+				    ret = copy_to_user(buf+2 * sizeof(__s32),
 						       &cur_op->tag,
-						       sizeof(uint64_t));
+						       sizeof(__u64));
 				    if (ret == 0) {
 					ret = copy_to_user(
 						buf +
 						  2 *
-						  sizeof(int32_t) +
-						  sizeof(uint64_t),
+						  sizeof(__s32) +
+						  sizeof(__u64),
 						&cur_op->upcall,
 						sizeof(struct pvfs2_upcall_s));
 				    }
@@ -264,7 +264,7 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 				   size_t count,
 				   loff_t *offset)
 {
-	struct pvfs2_kernel_op *op = NULL;
+	struct pvfs2_kernel_op_s *op = NULL;
 	void *buffer = NULL;
 	void *ptr = NULL;
 	unsigned long i = 0;
@@ -272,9 +272,9 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 	int ret = 0, num_remaining = max_downsize;
 	int notrailer_count = 4; /* num elements in iovec without trailer */
 	int payload_size = 0;
-	int32_t magic = 0;
-	int32_t proto_ver = 0;
-	uint64_t tag = 0;
+	__s32 magic = 0;
+	__s32 proto_ver = 0;
+	__u64 tag = 0;
 	ssize_t total_returned_size = 0;
 
 	/* Either there is a trailer or there isn't */
@@ -313,14 +313,14 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 	 * make it 8 bytes big, or use get_unaligned when asigning.
 	 */
 	ptr = buffer;
-	proto_ver = *((int32_t *) ptr);
-	ptr += sizeof(int32_t);
+	proto_ver = *((__s32 *) ptr);
+	ptr += sizeof(__s32);
 
-	magic = *((int32_t *) ptr);
-	ptr += sizeof(int32_t);
+	magic = *((__s32 *) ptr);
+	ptr += sizeof(__s32);
 
-	tag = *((uint64_t *) ptr);
-	ptr += sizeof(uint64_t);
+	tag = *((__u64 *) ptr);
+	ptr += sizeof(__u64);
 
 	if (magic != PVFS2_DEVREQ_MAGIC) {
 		gossip_err("Error: Device magic number does not match.\n");
@@ -335,7 +335,7 @@ gossip_err("HUBCAP: proto_ver:%d: KPV:%d:\n", proto_ver, PVFS_KERNEL_PROTO_VERSI
 		/* Increase ref count! */
 		get_op(op);
 		/* cut off magic and tag from payload size */
-		payload_size -= (2 * sizeof(int32_t) + sizeof(uint64_t));
+		payload_size -= (2 * sizeof(__s32) + sizeof(__u64));
 		if (payload_size <= sizeof(struct pvfs2_downcall_s))
 			/* copy the passed in downcall into the op */
 			memcpy(&op->downcall,
@@ -522,7 +522,7 @@ static int mark_all_pending_mounts(void)
  *           0 if already mounted
  *           1 if needs remount
  */
-int fs_mount_pending(int32_t fsid)
+int fs_mount_pending(__s32 fsid)
 {
 	int mount_pending = -1;
 	struct pvfs2_sb_info_s *pvfs2_sb = NULL;
@@ -614,9 +614,9 @@ static inline long check_ioctl_command(unsigned int command)
 
 static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 {
-	static int32_t magic = PVFS2_DEVREQ_MAGIC;
-	static int32_t max_up_size = MAX_ALIGNED_DEV_REQ_UPSIZE;
-	static int32_t max_down_size = MAX_ALIGNED_DEV_REQ_DOWNSIZE;
+	static __s32 magic = PVFS2_DEVREQ_MAGIC;
+	static __s32 max_up_size = MAX_ALIGNED_DEV_REQ_UPSIZE;
+	static __s32 max_down_size = MAX_ALIGNED_DEV_REQ_DOWNSIZE;
 	struct PVFS_dev_map_desc user_desc;
 	int ret = 0;
 	struct dev_mask_info_s mask_info = { 0 };
@@ -629,17 +629,17 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 
 	switch (command) {
 	case PVFS_DEV_GET_MAGIC:
-		return ((put_user(magic, (int32_t __user *) arg) == -EFAULT) ?
+		return ((put_user(magic, (__s32 __user *) arg) == -EFAULT) ?
 			-EIO :
 			0);
 	case PVFS_DEV_GET_MAX_UPSIZE:
 		return ((put_user(max_up_size,
-				  (int32_t __user *) arg) == -EFAULT) ?
+				  (__s32 __user *) arg) == -EFAULT) ?
 					-EIO :
 					0);
 	case PVFS_DEV_GET_MAX_DOWNSIZE:
 		return ((put_user(max_down_size,
-				  (int32_t __user *) arg) == -EFAULT) ?
+				  (__s32 __user *) arg) == -EFAULT) ?
 					-EIO :
 					0);
 	case PVFS_DEV_MAP:
@@ -841,9 +841,9 @@ static long pvfs2_devreq_ioctl(struct file *file,
 /*  Compat structure for the PVFS_DEV_MAP ioctl */
 struct PVFS_dev_map_desc32 {
 	compat_uptr_t ptr;
-	int32_t total_size;
-	int32_t size;
-	int32_t count;
+	__s32 total_size;
+	__s32 size;
+	__s32 count;
 };
 
 static unsigned long translate_dev_map26(unsigned long args, long *error)
@@ -865,11 +865,11 @@ static unsigned long translate_dev_map26(unsigned long args, long *error)
 	if (put_user(compat_ptr(addr), &p->ptr))
 		goto err;
 	/* copy the remaining fields */
-	if (copy_in_user(&p->total_size, &p32->total_size, sizeof(int32_t)))
+	if (copy_in_user(&p->total_size, &p32->total_size, sizeof(__s32)))
 		goto err;
-	if (copy_in_user(&p->size, &p32->size, sizeof(int32_t)))
+	if (copy_in_user(&p->size, &p32->size, sizeof(__s32)))
 		goto err;
-	if (copy_in_user(&p->count, &p32->count, sizeof(int32_t)))
+	if (copy_in_user(&p->count, &p32->count, sizeof(__s32)))
 		goto err;
 	return (unsigned long)p;
 err:

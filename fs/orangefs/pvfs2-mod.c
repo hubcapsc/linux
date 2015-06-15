@@ -245,7 +245,7 @@ out:
 static void __exit pvfs2_exit(void)
 {
 	int i = 0;
-	struct pvfs2_kernel_op *cur_op = NULL;
+	struct pvfs2_kernel_op_s *cur_op = NULL;
 
 	gossip_debug(GOSSIP_INIT_DEBUG, "pvfs2: pvfs2_exit called\n");
 
@@ -258,7 +258,7 @@ static void __exit pvfs2_exit(void)
 	spin_lock(&pvfs2_request_list_lock);
 	while (!list_empty(&pvfs2_request_list)) {
 		cur_op = list_entry(pvfs2_request_list.next,
-				    struct pvfs2_kernel_op,
+				    struct pvfs2_kernel_op_s,
 				    list);
 		list_del(&cur_op->list);
 		gossip_debug(GOSSIP_INIT_DEBUG,
@@ -271,7 +271,7 @@ static void __exit pvfs2_exit(void)
 	for (i = 0; i < hash_table_size; i++)
 		while (!list_empty(&htable_ops_in_progress[i])) {
 			cur_op = list_entry(htable_ops_in_progress[i].next,
-					    struct pvfs2_kernel_op,
+					    struct pvfs2_kernel_op_s,
 					    list);
 			op_release(cur_op);
 		}
@@ -297,8 +297,8 @@ void purge_inprogress_ops(void)
 	int i;
 
 	for (i = 0; i < hash_table_size; i++) {
-		struct pvfs2_kernel_op *op;
-		struct pvfs2_kernel_op *next;
+		struct pvfs2_kernel_op_s *op;
+		struct pvfs2_kernel_op_s *next;
 
 		list_for_each_entry_safe(op,
 					 next,
