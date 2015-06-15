@@ -19,8 +19,8 @@ static int read_one_page(struct page *page)
 	int max_block;
 	ssize_t bytes_read = 0;
 	struct inode *inode = page->mapping->host;
-	const uint32_t blocksize = PAGE_CACHE_SIZE;	/* inode->i_blksize */
-	const uint32_t blockbits = PAGE_CACHE_SHIFT;	/* inode->i_blkbits */
+	const __u32 blocksize = PAGE_CACHE_SIZE;	/* inode->i_blksize */
+	const __u32 blockbits = PAGE_CACHE_SHIFT;	/* inode->i_blkbits */
 
 	gossip_debug(GOSSIP_INODE_DEBUG,
 		    "pvfs2_readpage called with page %p\n",
@@ -157,7 +157,7 @@ const struct address_space_operations pvfs2_address_operations = {
 static int pvfs2_setattr_size(struct inode *inode, struct iattr *iattr)
 {
 	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
-	struct pvfs2_kernel_op *new_op;
+	struct pvfs2_kernel_op_s *new_op;
 	loff_t orig_size = i_size_read(inode);
 	int ret = -EINVAL;
 
@@ -176,7 +176,7 @@ static int pvfs2_setattr_size(struct inode *inode, struct iattr *iattr)
 		return -ENOMEM;
 
 	new_op->upcall.req.truncate.refn = pvfs2_inode->refn;
-	new_op->upcall.req.truncate.size = (int64_t) iattr->ia_size;
+	new_op->upcall.req.truncate.size = (__s64) iattr->ia_size;
 
 	ret = service_operation(new_op, __func__,
 				get_interruptible_flag(inode));

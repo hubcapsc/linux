@@ -328,7 +328,7 @@ static ssize_t orangefs_debug_write(struct file *file,
 	int rc = -EFAULT;
 	size_t silly = 0;
 	char *debug_string;
-	pvfs2_kernel_op_t *new_op = NULL;
+	struct pvfs2_kernel_op_s *new_op = NULL;
 	struct client_debug_mask c_mask = { NULL, 0, 0 };
 
 	gossip_debug(GOSSIP_PROC_DEBUG,

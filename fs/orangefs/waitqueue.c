@@ -25,7 +25,7 @@
  */
 void purge_waiting_ops(void)
 {
-	struct pvfs2_kernel_op *op;
+	struct pvfs2_kernel_op_s *op;
 	spin_lock(&pvfs2_request_list_lock);
 	list_for_each_entry(op, &pvfs2_request_list, list) {
 		gossip_debug(GOSSIP_WAIT_DEBUG,
@@ -51,7 +51,7 @@ void purge_waiting_ops(void)
  *
  * Returns contents of op->downcall.status for convenience
  */
-int service_operation(struct pvfs2_kernel_op *op,
+int service_operation(struct pvfs2_kernel_op_s *op,
 		      const char *op_name,
 		      int flags)
 {
@@ -253,7 +253,7 @@ retry_servicing:
 	return ret;
 }
 
-void pvfs2_clean_up_interrupted_operation(struct pvfs2_kernel_op *op)
+void pvfs2_clean_up_interrupted_operation(struct pvfs2_kernel_op_s *op)
 {
 	/*
 	 * handle interrupted cases depending on what state we were in when
@@ -332,7 +332,7 @@ void pvfs2_clean_up_interrupted_operation(struct pvfs2_kernel_op *op)
  * operation since client-core seems to be exiting too often
  * or if we were interrupted.
  */
-int wait_for_matching_downcall(struct pvfs2_kernel_op *op)
+int wait_for_matching_downcall(struct pvfs2_kernel_op_s *op)
 {
 	int ret = -EINVAL;
 	DECLARE_WAITQUEUE(wait_entry, current);
@@ -445,7 +445,7 @@ int wait_for_matching_downcall(struct pvfs2_kernel_op *op)
  *      cancellation upcall anyway.  the only way to exit this is to either
  *      timeout or have the cancellation be serviced properly.
  */
-int wait_for_cancellation_downcall(struct pvfs2_kernel_op *op)
+int wait_for_cancellation_downcall(struct pvfs2_kernel_op_s *op)
 {
 	int ret = -EINVAL;
 	DECLARE_WAITQUEUE(wait_entry, current);

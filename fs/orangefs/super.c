@@ -133,7 +133,7 @@ static void pvfs2_destroy_inode(struct inode *inode)
 static int pvfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	int ret = -ENOMEM;
-	struct pvfs2_kernel_op *new_op = NULL;
+	struct pvfs2_kernel_op_s *new_op = NULL;
 	int flags = 0;
 	struct super_block *sb = NULL;
 
@@ -209,7 +209,7 @@ static int pvfs2_remount_fs(struct super_block *sb, int *flags, char *data)
  */
 int pvfs2_remount(struct super_block *sb)
 {
-	struct pvfs2_kernel_op *new_op;
+	struct pvfs2_kernel_op_s *new_op;
 	int ret = -EINVAL;
 
 	gossip_debug(GOSSIP_SUPER_DEBUG, "pvfs2_remount: called\n");
@@ -421,7 +421,7 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
 {
 	int ret = -EINVAL;
 	struct super_block *sb = ERR_PTR(-EINVAL);
-	struct pvfs2_kernel_op *new_op;
+	struct pvfs2_kernel_op_s *new_op;
 	struct pvfs2_mount_sb_info_s mount_sb_info;
 	struct dentry *mnt_sb_d = ERR_PTR(-EINVAL);
 
