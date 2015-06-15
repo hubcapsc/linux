@@ -96,8 +96,6 @@ char *get_opname_string(struct pvfs2_kernel_op *new_op)
 			return "OP_PARAM";
 		else if (type == PVFS2_VFS_OP_PERF_COUNT)
 			return "OP_PERF_COUNT";
-		else if (type == PVFS2_VFS_OP_CLIENT_DEBUG_MASK)
-			return "OP_CLIENT_DEBUG_MASK";
 		else if (type == PVFS2_VFS_OP_CANCEL)
 			return "OP_CANCEL";
 		else if (type == PVFS2_VFS_OP_FSYNC)

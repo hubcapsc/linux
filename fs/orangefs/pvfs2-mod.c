@@ -29,8 +29,6 @@ char kernel_debug_string[PVFS2_MAX_DEBUG_STRING_LEN] = "none";
 char client_debug_string[PVFS2_MAX_DEBUG_STRING_LEN];
 char client_debug_array_string[PVFS2_MAX_DEBUG_STRING_LEN];
 
-struct client_debug_mask current_client_mask = { NULL, 0, 0 };
-
 char *debug_help_string = NULL;
 int help_string_initialized = 0;
 struct dentry *help_file_dentry = 0;

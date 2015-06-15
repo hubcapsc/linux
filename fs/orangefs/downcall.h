@@ -16,11 +16,11 @@
  * for clean 32-64 bit usage
  */
 struct pvfs2_io_response {
-	int64_t amt_complete;
+	__s64 amt_complete;
 };
 
 struct pvfs2_iox_response {
-	int64_t amt_complete;
+	__s64 amt_complete;
 };
 
 struct pvfs2_lookup_response {
@@ -55,39 +55,39 @@ struct pvfs2_dirent {
 };
 
 struct pvfs2_statfs_response {
-	int64_t block_size;
-	int64_t blocks_total;
-	int64_t blocks_avail;
-	int64_t files_total;
-	int64_t files_avail;
+	__s64 block_size;
+	__s64 blocks_total;
+	__s64 blocks_avail;
+	__s64 files_total;
+	__s64 files_avail;
 };
 
 struct pvfs2_fs_mount_response {
-	int32_t fs_id;
-	int32_t id;
+	__s32 fs_id;
+	__s32 id;
 	struct pvfs2_khandle root_khandle;
 };
 
 /* the getxattr response is the attribute value */
 struct pvfs2_getxattr_response {
-	int32_t val_sz;
-	int32_t __pad1;
+	__s32 val_sz;
+	__s32 __pad1;
 	char val[PVFS_MAX_XATTR_VALUELEN];
 };
 
 /* the listxattr response is an array of attribute names */
 struct pvfs2_listxattr_response {
-	int32_t returned_count;
-	int32_t __pad1;
-	uint64_t token;
+	__s32 returned_count;
+	__s32 __pad1;
+	__u64 token;
 	char key[PVFS_MAX_XATTR_LISTLEN * PVFS_MAX_XATTR_NAMELEN];
-	int32_t keylen;
-	int32_t __pad2;
-	int32_t lengths[PVFS_MAX_XATTR_LISTLEN];
+	__s32 keylen;
+	__s32 __pad2;
+	__s32 lengths[PVFS_MAX_XATTR_LISTLEN];
 };
 
 struct pvfs2_param_response {
-	int64_t value;
+	__s64 value;
 };
 
 #define PERF_COUNT_BUF_SIZE 4096
@@ -95,25 +95,18 @@ struct pvfs2_perf_count_response {
 	char buffer[PERF_COUNT_BUF_SIZE];
 };
 
-struct pvfs2_client_debug_mask_response {
-	char buffer[PVFS2_MAX_DEBUG_ARRAY_LEN];
-};
-
 #define FS_KEY_BUF_SIZE 4096
 struct pvfs2_fs_key_response {
-	int32_t fs_keylen;
-	int32_t __pad1;
+	__s32 fs_keylen;
+	__s32 __pad1;
 	char fs_key[FS_KEY_BUF_SIZE];
 };
 
-/*
- * this typedef is exposed to the client core (userspace).
- */
-typedef struct pvfs2_downcall {
-	int32_t type;
-	int32_t status;
+struct pvfs2_downcall_s {
+	__s32 type;
+	__s32 status;
 	/* currently trailer is used only by readdir */
-	int64_t trailer_size;
+	__s64 trailer_size;
 	PVFS2_ALIGN_VAR(char *, trailer_buf);
 
 	union {
@@ -130,20 +123,16 @@ typedef struct pvfs2_downcall {
 		struct pvfs2_listxattr_response listxattr;
 		struct pvfs2_param_response param;
 		struct pvfs2_perf_count_response perf_count;
-		struct pvfs2_client_debug_mask_response client_debug_mask;
 		struct pvfs2_fs_key_response fs_key;
 	} resp;
-} pvfs2_downcall_t;
+};
 
-/*
- * this typedef is exposed to the client core (userspace).
- */
-typedef struct pvfs2_readdir_response {
-	uint64_t token;
-	uint64_t directory_version;
-	uint32_t  __pad2;
-	uint32_t pvfs_dirent_outcount;
+struct pvfs2_readdir_response_s {
+	__u64 token;
+	__u64 directory_version;
+	__u32 __pad2;
+	__u32 pvfs_dirent_outcount;
 	struct pvfs2_dirent *dirent_array;
-} pvfs2_readdir_response_t;
+};
 
 #endif /* __DOWNCALL_H */

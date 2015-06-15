@@ -10,18 +10,18 @@
 
 struct readdir_handle_t {
 	int buffer_index;
-	struct pvfs2_readdir_response readdir_response;
+	struct pvfs2_readdir_response_s readdir_response;
 	void *dents_buf;
 };
 
 /*
  * decode routine needed by kmod to make sense of the shared page for readdirs.
  */
-static long decode_dirents(char *ptr, struct pvfs2_readdir_response *readdir)
+static long decode_dirents(char *ptr, struct pvfs2_readdir_response_s *readdir)
 {
 	int i;
-	struct pvfs2_readdir_response *rd =
-		(struct pvfs2_readdir_response *) ptr;
+	struct pvfs2_readdir_response_s *rd =
+		(struct pvfs2_readdir_response_s *) ptr;
 	char *buf = ptr;
 	char **pptr = &buf;
 
@@ -32,7 +32,7 @@ static long decode_dirents(char *ptr, struct pvfs2_readdir_response *readdir)
 					GFP_KERNEL);
 	if (readdir->dirent_array == NULL)
 		return -ENOMEM;
-	*pptr += offsetof(struct pvfs2_readdir_response, dirent_array);
+	*pptr += offsetof(struct pvfs2_readdir_response_s, dirent_array);
 	for (i = 0; i < readdir->pvfs_dirent_outcount; i++) {
 		dec_string(pptr, &readdir->dirent_array[i].d_name,
 			   &readdir->dirent_array[i].d_length);

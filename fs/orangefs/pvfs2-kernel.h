@@ -78,7 +78,7 @@
 #define MAX_DEV_REQ_UPSIZE (2*sizeof(int32_t) +   \
 sizeof(uint64_t) + sizeof(struct pvfs2_upcall_s))
 #define MAX_DEV_REQ_DOWNSIZE (2*sizeof(int32_t) + \
-sizeof(uint64_t) + sizeof(pvfs2_downcall_t))
+sizeof(uint64_t) + sizeof(struct pvfs2_downcall_s))
 
 #define BITS_PER_LONG_DIV_8 (BITS_PER_LONG >> 3)
 
@@ -232,7 +232,9 @@ int keyword_is_amalgam(char *);
 extern char kernel_debug_string[PVFS2_MAX_DEBUG_STRING_LEN];
 extern char client_debug_string[PVFS2_MAX_DEBUG_STRING_LEN];
 extern char client_debug_array_string[PVFS2_MAX_DEBUG_STRING_LEN];
+/* HELLO
 extern struct client_debug_mask current_client_mask;
+*/
 extern unsigned int kernel_mask_set_mod_init;
 
 extern int pvfs2_init_acl(struct inode *inode, struct inode *dir);
@@ -278,7 +280,7 @@ typedef struct pvfs2_kernel_op {
 	int uses_shared_memory;
 
 	struct pvfs2_upcall_s upcall;
-	pvfs2_downcall_t downcall;
+	struct pvfs2_downcall_s downcall;
 
 	wait_queue_head_t waitq;
 	spinlock_t lock;
