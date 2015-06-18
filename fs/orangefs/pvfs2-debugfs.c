@@ -1,3 +1,41 @@
+/*
+ * Documentation/ABI/stable/orangefs-debugfs:
+ *
+ * What:		/sys/kernel/debug/orangefs/debug-help
+ * Date:		June 2015
+ * Contact:		Mike Marshall <hubcap@omnibond.com>
+ * Description:
+ * 			List of client and kernel debug keywords.
+ *
+ *
+ * What:		/sys/kernel/debug/orangefs/client-debug
+ * Date:		June 2015
+ * Contact:		Mike Marshall <hubcap@omnibond.com>
+ * Description:
+ * 			Debug setting for "the client", the userspace
+ * 			helper for the kernel module. 
+ *
+ *
+ * What:		/sys/kernel/debug/orangefs/kernel-debug
+ * Date:		June 2015
+ * Contact:		Mike Marshall <hubcap@omnibond.com>
+ * Description:
+ * 			Debug setting for the orangefs kernel module.
+ *
+ * 			Any of the keywords, or comma-separated lists
+ * 			of keywords, from debug-help can be catted to
+ * 			client-debug or kernel-debug. 
+ *
+ * 			"none", "all" and "verbose" are special keywords
+ * 			for client-debug. Setting client-debug to "all"
+ * 			is kind of like trying to drink water from a 
+ * 			pressurized four-inch pipe, "verbose" triggers
+ * 			most of the same output except for the constant
+ * 			flow of output from the main wait loop.
+ *
+ * 			"none" and "all" are similar settings for kernel-debug
+ * 			no need for a "verbose".
+ */
 #include <linux/debugfs.h>
 #include <linux/slab.h>
 
@@ -9,11 +47,6 @@
 
 static int orangefs_debug_disabled = 1;
 
-/*
- * You can cat /sys/kernel/debug/orangefs/debug-help 
- * and see all the possible debug directives for the kmod
- * and the userspace client.
- */
 static int orangefs_debug_help_open(struct inode *, struct file *);
 
 const struct file_operations debug_help_fops = {

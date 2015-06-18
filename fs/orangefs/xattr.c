@@ -132,7 +132,7 @@ ssize_t pvfs2_inode_getxattr(struct inode *inode, const char *prefix,
 	/*
 	 * Length returned includes null terminator.
 	 */
-	length = new_op->downcall.resp.getxattr.val_sz - 1;
+	length = new_op->downcall.resp.getxattr.val_sz;
 
 	/*
 	 * Just return the length of the queried attribute.
@@ -309,18 +309,14 @@ int pvfs2_inode_setxattr(struct inode *inode, const char *prefix,
 		       prefix, name);
 	new_op->upcall.req.setxattr.keyval.key_sz = ret + 1;
 	memcpy(new_op->upcall.req.setxattr.keyval.val, value, size);
-	new_op->upcall.req.setxattr.keyval.val[size] = '\0';
-	/* For some reason, val_sz should include the \0 at the end
-	 * as well.
-	 */
-	new_op->upcall.req.setxattr.keyval.val_sz = size + 1;
+	new_op->upcall.req.setxattr.keyval.val_sz = size;
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
 		     "pvfs2_inode_setxattr: key %s, key_sz %d "
 		     " value size %zd\n",
 		     (char *)new_op->upcall.req.setxattr.keyval.key,
 		     (int)new_op->upcall.req.setxattr.keyval.key_sz,
-		     size + 1);
+		     size);
 
 	ret = service_operation(new_op,
 				"pvfs2_inode_setxattr",
