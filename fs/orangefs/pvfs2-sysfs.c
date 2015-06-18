@@ -1,8 +1,85 @@
 
 /*
- * TODO:
+ * Documentation/ABI/stable/orangefs-sysfs:
  *
- * Documentation/ABI
+ * What:		/sys/fs/orangefs/perf_counter_reset
+ * Date:		June 2015
+ * Contact:		Mike Marshall <hubcap@omnibond.com>
+ * Description:
+ * 			echo a 0 or a 1 into perf_counter_reset to
+ * 			reset all the counters in
+ * 			/sys/fs/orangefs/perf_counters
+ *
+ *
+ * What:		/sys/fs/orangefs/perf_counters/...
+ * Date:		Jun 2015
+ * Contact:		Mike Marshall <hubcap@omnibond.com>
+ * Description:
+ * 			Counters and settings for various caches.
+ * 			Read only.
+ *
+ *
+ * What:		/sys/fs/orangefs/perf_history_size
+ * Date:		Jun 2015
+ * Contact:		Mike Marshall <hubcap@omnibond.com>
+ * Description:
+ * 			?????????????????????????????????????
+ *
+ *
+ * What:		/sys/fs/orangefs/op_timeout_secs
+ * Date:		Jun 2015
+ * Contact:		Mike Marshall <hubcap@omnibond.com>
+ * Description:
+ *			Operation timeout in seconds.
+ *
+ *
+ * What:		/sys/fs/orangefs/slot_timeout_secs
+ * Date:		Jun 2015
+ * Contact:		Mike Marshall <hubcap@omnibond.com>
+ * Description:
+ *			"Slot" timeout in seconds. A "slot"
+ *			is an indexed buffer in the shared
+ *			memory segment used for communication
+ *			between the kernel module and userspace.
+ *			Slots are requested and waited for,
+ *			the wait times out after slot_timeout_secs.
+ *
+ *
+ * What:		/sys/fs/orangefs/perf_time_interval_secs
+ * Date:		Jun 2015
+ * Contact:		Mike Marshall <hubcap@omnibond.com>
+ * Description:
+ *			Length of perf counter intervals in
+ *			seconds.
+ *
+ *
+ * What:		/sys/fs/orangefs/acache/...
+ * Date:		Jun 2015
+ * Contact:		Mike Marshall <hubcap@omnibond.com>
+ * Description:
+ * 			Attribute cache configurable settings.
+ *
+ *
+ * What:		/sys/fs/orangefs/ncache/...
+ * Date:		Jun 2015
+ * Contact:		Mike Marshall <hubcap@omnibond.com>
+ * Description:
+ * 			Name cache configurable settings.
+ *
+ *
+ * What:		/sys/fs/orangefs/capcache/...
+ * Date:		Jun 2015
+ * Contact:		Mike Marshall <hubcap@omnibond.com>
+ * Description:
+ * 			Capability cache configurable settings.
+ *
+ *
+ * What:		/sys/fs/orangefs/ccache/...
+ * Date:		Jun 2015
+ * Contact:		Mike Marshall <hubcap@omnibond.com>
+ * Description:
+ * 			Credential cache configurable settings.
+ *
  */
 
 #include <linux/fs.h>
@@ -321,8 +398,8 @@ static const struct sysfs_ops capcache_orangefs_sysfs_ops = {
 };
 
 static ssize_t ccache_orangefs_attr_show(struct kobject *kobj,
-					   struct attribute *attr,
-					   char *buf)
+					 struct attribute *attr,
+					 char *buf)
 {
 	struct ccache_orangefs_attribute *attribute;
 	struct ccache_orangefs_obj *ccache_orangefs_obj;
@@ -345,9 +422,9 @@ out:
 }
 
 static ssize_t ccache_orangefs_attr_store(struct kobject *kobj,
-					    struct attribute *attr,
-					    const char *buf,
-					    size_t len)
+					  struct attribute *attr,
+					  const char *buf,
+					  size_t len)
 {
 	struct ccache_orangefs_attribute *attribute;
 	struct ccache_orangefs_obj *ccache_orangefs_obj;
@@ -433,8 +510,8 @@ static const struct sysfs_ops ncache_orangefs_sysfs_ops = {
 };
 
 static ssize_t pc_orangefs_attr_show(struct kobject *kobj,
-					 struct attribute *attr,
-					 char *buf)
+				     struct attribute *attr,
+				     char *buf)
 {
 	struct pc_orangefs_attribute *attribute;
 	struct pc_orangefs_obj *pc_orangefs_obj;
@@ -460,8 +537,8 @@ static const struct sysfs_ops pc_orangefs_sysfs_ops = {
 };
 
 static ssize_t stats_orangefs_attr_show(struct kobject *kobj,
-					 struct attribute *attr,
-					 char *buf)
+					struct attribute *attr,
+					char *buf)
 {
 	struct stats_orangefs_attribute *attribute;
 	struct stats_orangefs_obj *stats_orangefs_obj;
