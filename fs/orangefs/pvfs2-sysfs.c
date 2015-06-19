@@ -9,6 +9,7 @@
  * 			echo a 0 or a 1 into perf_counter_reset to
  * 			reset all the counters in
  * 			/sys/fs/orangefs/perf_counters
+ * 			except ones with PINT_PERF_PRESERVE set.
  *
  *
  * What:		/sys/fs/orangefs/perf_counters/...
@@ -19,18 +20,35 @@
  * 			Read only.
  *
  *
+ * What:		/sys/fs/orangefs/perf_time_interval_secs
+ * Date:		Jun 2015
+ * Contact:		Mike Marshall <hubcap@omnibond.com>
+ * Description:
+ *			Length of perf counter intervals in
+ *			seconds.
+ *
+ *
  * What:		/sys/fs/orangefs/perf_history_size
  * Date:		Jun 2015
  * Contact:		Mike Marshall <hubcap@omnibond.com>
  * Description:
- * 			?????????????????????????????????????
+ * 			The perf_counters cache statistics have N, or
+ * 			perf_history_size, samples. The default is
+ * 			one.
+ *
+ *			Every perf_time_interval_secs the (first)
+ *			samples are reset.
+ *
+ *			If N is greater than one, the "current" set
+ *			of samples is reset, and the samples from the
+ *			other N-1 intervals remain available.
  *
  *
  * What:		/sys/fs/orangefs/op_timeout_secs
  * Date:		Jun 2015
  * Contact:		Mike Marshall <hubcap@omnibond.com>
  * Description:
- *			Operation timeout in seconds.
+ *			Service operation timeout in seconds.
  *
  *
  * What:		/sys/fs/orangefs/slot_timeout_secs
@@ -43,14 +61,6 @@
  *			between the kernel module and userspace.
  *			Slots are requested and waited for,
  *			the wait times out after slot_timeout_secs.
- *
- *
- * What:		/sys/fs/orangefs/perf_time_interval_secs
- * Date:		Jun 2015
- * Contact:		Mike Marshall <hubcap@omnibond.com>
- * Description:
- *			Length of perf counter intervals in
- *			seconds.
  *
  *
  * What:		/sys/fs/orangefs/acache/...
