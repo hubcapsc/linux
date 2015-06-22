@@ -135,7 +135,7 @@ static int orangefs_debug_help_open(struct inode *inode, struct file *file)
 	int rc = -ENODEV;
 	int ret;
 
-	gossip_debug(GOSSIP_PROC_DEBUG,
+	gossip_debug(GOSSIP_DEBUGFS_DEBUG,
 		     "orangefs_debug_help_open: start\n");
 
 	if (orangefs_debug_disabled)
@@ -150,7 +150,7 @@ static int orangefs_debug_help_open(struct inode *inode, struct file *file)
 	rc = 0;
 
 out:
-	gossip_debug(GOSSIP_PROC_DEBUG,
+	gossip_debug(GOSSIP_DEBUGFS_DEBUG,
 		     "orangefs_debug_help_open: rc:%d:\n",
 		     rc);
 	return rc;
@@ -166,7 +166,7 @@ static void *help_start(struct seq_file *m, loff_t *pos)
 {
 	void *payload = NULL;
 
-	gossip_debug(GOSSIP_PROC_DEBUG, "help_start: start\n");
+	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "help_start: start\n");
 
 	if (*pos == 0)
 		payload = m->private;
@@ -176,19 +176,19 @@ static void *help_start(struct seq_file *m, loff_t *pos)
 
 static void *help_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	gossip_debug(GOSSIP_PROC_DEBUG, "help_next: start\n");
+	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "help_next: start\n");
 
 	return NULL;
 }
 
 static void help_stop(struct seq_file *m, void *p)
 {
-	gossip_debug(GOSSIP_PROC_DEBUG, "help_stop: start\n");
+	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "help_stop: start\n");
 }
 
 static int help_show(struct seq_file *m, void *v)
 {
-	gossip_debug(GOSSIP_PROC_DEBUG, "help_show: start\n");
+	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "help_show: start\n");
 
 	seq_puts(m, v);
 
@@ -205,11 +205,11 @@ int pvfs2_kernel_debug_init(void)
 	struct dentry *ret;
 	char *k_buffer = NULL;
 
-	gossip_debug(GOSSIP_PROC_DEBUG, "%s: start\n", __func__);
+	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "%s: start\n", __func__);
 
 	k_buffer = kzalloc(PVFS2_MAX_DEBUG_STRING_LEN, GFP_KERNEL);
 	if (!k_buffer) {
-		gossip_debug(GOSSIP_PROC_DEBUG,
+		gossip_debug(GOSSIP_DEBUGFS_DEBUG,
 			     "pvfs2_kernel_debug_init: kmalloc 1 failed!\n");
 		goto out;
 	}
@@ -240,7 +240,7 @@ out:
 	if (rc)
 		pvfs2_debugfs_cleanup();
 
-	gossip_debug(GOSSIP_PROC_DEBUG, "%s: rc:%d:\n", __func__, rc);
+	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "%s: rc:%d:\n", __func__, rc);
 	return rc;
 }
 
@@ -253,11 +253,11 @@ int pvfs2_client_debug_init(void)
 	int rc = -ENOMEM;
 	char *c_buffer = NULL;
 
-	gossip_debug(GOSSIP_PROC_DEBUG, "%s: start\n", __func__);
+	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "%s: start\n", __func__);
 
 	c_buffer = kzalloc(PVFS2_MAX_DEBUG_STRING_LEN, GFP_KERNEL);
 	if (!c_buffer) {
-		gossip_debug(GOSSIP_PROC_DEBUG,
+		gossip_debug(GOSSIP_DEBUGFS_DEBUG,
 			     "pvfs2_kernel_debug_init: kmalloc 2 failed!\n");
 		goto out;
 	}
@@ -288,7 +288,7 @@ out:
 	if (rc)
 		pvfs2_debugfs_cleanup();
 
-	gossip_debug(GOSSIP_PROC_DEBUG, "%s: rc:%d:\n", __func__, rc);
+	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "%s: rc:%d:\n", __func__, rc);
 	return rc;
 }
 
@@ -297,7 +297,7 @@ int orangefs_debug_open(struct inode *inode, struct file *file)
 {
 	int rc = -ENODEV;
 
-	gossip_debug(GOSSIP_PROC_DEBUG,
+	gossip_debug(GOSSIP_DEBUGFS_DEBUG,
 		     "%s: orangefs_debug_disabled: %d\n",
 		     __func__,
 		     orangefs_debug_disabled);
@@ -311,7 +311,7 @@ int orangefs_debug_open(struct inode *inode, struct file *file)
 	mutex_unlock(&orangefs_debug_lock);
 
 out:
-	gossip_debug(GOSSIP_PROC_DEBUG,
+	gossip_debug(GOSSIP_DEBUGFS_DEBUG,
 		     "orangefs_debug_open: rc: %d\n",
 		     rc);
 	return rc;
@@ -327,11 +327,11 @@ static ssize_t orangefs_debug_read(struct file *file,
 	int sprintf_ret;
 	ssize_t read_ret = -ENOMEM;;
 
-	gossip_debug(GOSSIP_PROC_DEBUG, "orangefs_debug_read: start\n");
+	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "orangefs_debug_read: start\n");
 
 	buf = kmalloc(PVFS2_MAX_DEBUG_STRING_LEN, GFP_KERNEL);
 	if (!buf) {
-		gossip_debug(GOSSIP_PROC_DEBUG,
+		gossip_debug(GOSSIP_DEBUGFS_DEBUG,
 			     "orangefs_debug_read: kmalloc failed!\n");
 		goto out;
 	}
@@ -345,7 +345,7 @@ static ssize_t orangefs_debug_read(struct file *file,
 	kfree(buf);
 
 out:
-	gossip_debug(GOSSIP_PROC_DEBUG,
+	gossip_debug(GOSSIP_DEBUGFS_DEBUG,
 		     "orangefs_debug_read: ret: %zu\n",
 		     read_ret);
 
@@ -364,7 +364,7 @@ static ssize_t orangefs_debug_write(struct file *file,
 	struct pvfs2_kernel_op_s *new_op = NULL;
 	struct client_debug_mask c_mask = { NULL, 0, 0 };
 
-	gossip_debug(GOSSIP_PROC_DEBUG,
+	gossip_debug(GOSSIP_DEBUGFS_DEBUG,
 		"orangefs_debug_write: %s\n",
 		file->f_path.dentry->d_name.name);
 
@@ -379,14 +379,14 @@ static ssize_t orangefs_debug_write(struct file *file,
 
 	buf = kmalloc(PVFS2_MAX_DEBUG_STRING_LEN, GFP_KERNEL);
 	if (!buf) {
-		gossip_debug(GOSSIP_PROC_DEBUG,
+		gossip_debug(GOSSIP_DEBUGFS_DEBUG,
 			     "orangefs_debug_write: kmalloc failed!\n");
 		goto out;
 	}
 	memset(buf, 0, PVFS2_MAX_DEBUG_STRING_LEN);
 
 	if (copy_from_user(buf, ubuf, count - 1)) {
-		gossip_debug(GOSSIP_PROC_DEBUG,
+		gossip_debug(GOSSIP_DEBUGFS_DEBUG,
 			     "%s: copy_from_user failed!\n",
 			     __func__);
 		goto out;
@@ -406,7 +406,7 @@ static ssize_t orangefs_debug_write(struct file *file,
 		debug_string_to_mask(buf, &gossip_debug_mask, 0);
 		debug_mask_to_string(&gossip_debug_mask, 0);
 		debug_string = kernel_debug_string;
-		gossip_debug(GOSSIP_PROC_DEBUG,
+		gossip_debug(GOSSIP_DEBUGFS_DEBUG,
 			     "New kernel debug string is %s\n",
 			     kernel_debug_string);
 	} else {
@@ -445,7 +445,7 @@ static ssize_t orangefs_debug_write(struct file *file,
 					PVFS2_OP_INTERRUPTIBLE);
 
 		if (rc)
-			gossip_debug(GOSSIP_PROC_DEBUG,
+			gossip_debug(GOSSIP_DEBUGFS_DEBUG,
 				     "%s: service_operation failed! rc:%d:\n",
 				     __func__,
 				     rc);
@@ -465,7 +465,7 @@ static ssize_t orangefs_debug_write(struct file *file,
 		rc = count;
 
 out:
-	gossip_debug(GOSSIP_PROC_DEBUG,
+	gossip_debug(GOSSIP_DEBUGFS_DEBUG,
 		     "orangefs_debug_write: rc: %d\n",
 		     rc);
 	kfree(buf);

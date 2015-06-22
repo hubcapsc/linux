@@ -273,7 +273,7 @@ static ssize_t orangefs_attr_store(struct kobject *kobj,
 	struct orangefs_obj *orangefs_obj;
 	int rc;
 
-	gossip_debug(GOSSIP_PROC_DEBUG,
+	gossip_debug(GOSSIP_SYSFS_DEBUG,
 		     "orangefs_attr_store: start\n");
 
 	attribute = container_of(attr, struct orangefs_attribute, attr);
@@ -327,7 +327,7 @@ static ssize_t acache_orangefs_attr_store(struct kobject *kobj,
 	struct acache_orangefs_obj *acache_orangefs_obj;
 	int rc;
 
-	gossip_debug(GOSSIP_PROC_DEBUG,
+	gossip_debug(GOSSIP_SYSFS_DEBUG,
 		     "acache_orangefs_attr_store: start\n");
 
 	attribute = container_of(attr, struct acache_orangefs_attribute, attr);
@@ -383,7 +383,7 @@ static ssize_t capcache_orangefs_attr_store(struct kobject *kobj,
 	struct capcache_orangefs_obj *capcache_orangefs_obj;
 	int rc;
 
-	gossip_debug(GOSSIP_PROC_DEBUG,
+	gossip_debug(GOSSIP_SYSFS_DEBUG,
 		     "capcache_orangefs_attr_store: start\n");
 
 	attribute =
@@ -440,7 +440,7 @@ static ssize_t ccache_orangefs_attr_store(struct kobject *kobj,
 	struct ccache_orangefs_obj *ccache_orangefs_obj;
 	int rc;
 
-	gossip_debug(GOSSIP_PROC_DEBUG,
+	gossip_debug(GOSSIP_SYSFS_DEBUG,
 		     "ccache_orangefs_attr_store: start\n");
 
 	attribute =
@@ -496,7 +496,7 @@ static ssize_t ncache_orangefs_attr_store(struct kobject *kobj,
 	struct ncache_orangefs_obj *ncache_orangefs_obj;
 	int rc;
 
-	gossip_debug(GOSSIP_PROC_DEBUG,
+	gossip_debug(GOSSIP_SYSFS_DEBUG,
 		     "ncache_orangefs_attr_store: start\n");
 
 	attribute = container_of(attr, struct ncache_orangefs_attribute, attr);
@@ -641,7 +641,7 @@ static ssize_t sysfs_int_show(char *kobj_id, char *buf, void *attr)
 	struct orangefs_attribute *orangefs_attr;
 	struct stats_orangefs_attribute *stats_orangefs_attr;
 
-	gossip_debug(GOSSIP_PROC_DEBUG, "sysfs_int_show: id:%s:\n", kobj_id);
+	gossip_debug(GOSSIP_SYSFS_DEBUG, "sysfs_int_show: id:%s:\n", kobj_id);
 
 	if (!strcmp(kobj_id, ORANGEFS_KOBJ_ID)) {
 		orangefs_attr = (struct orangefs_attribute *)attr;
@@ -694,7 +694,7 @@ static ssize_t int_orangefs_show(struct orangefs_obj *orangefs_obj,
 {
 	int rc;
 
-	gossip_debug(GOSSIP_PROC_DEBUG,
+	gossip_debug(GOSSIP_SYSFS_DEBUG,
                      "int_orangefs_show:start attr->attr.name:%s:\n",
 		     attr->attr.name);
 
@@ -709,7 +709,7 @@ static ssize_t int_stats_show(struct stats_orangefs_obj *stats_orangefs_obj,
 {
 	int rc;
 
-	gossip_debug(GOSSIP_PROC_DEBUG,
+	gossip_debug(GOSSIP_SYSFS_DEBUG,
                      "int_stats_show:start attr->attr.name:%s:\n",
 		     attr->attr.name);
 
@@ -725,7 +725,7 @@ static ssize_t int_store(struct orangefs_obj *orangefs_obj,
 {
 	int rc = 0;
 
-	gossip_debug(GOSSIP_PROC_DEBUG,
+	gossip_debug(GOSSIP_SYSFS_DEBUG,
 		     "int_store: start attr->attr.name:%s: buf:%s:\n",
 		     attr->attr.name, buf);
 
@@ -764,7 +764,7 @@ int sysfs_service_op_show(char *kobj_id, char *buf, void *attr)
 	struct pc_orangefs_attribute *pc_attr;
 	__u32 op_alloc_type;
 
-	gossip_debug(GOSSIP_PROC_DEBUG,
+	gossip_debug(GOSSIP_SYSFS_DEBUG,
 		     "sysfs_service_op_show: id:%s:\n",
 		     kobj_id);
 
@@ -889,10 +889,9 @@ int sysfs_service_op_show(char *kobj_id, char *buf, void *attr)
 			new_op->upcall.req.perf_count.type =
 				PVFS2_PERF_COUNT_REQUEST_ACACHE;
 
-/* CHANGE THIS ONE AFTER PROC STUFF IS GONE */
 		if (!strcmp(pc_attr->attr.name, CAPCACHE_KOBJ_ID))
 			new_op->upcall.req.perf_count.type =
-				PVFS2_PERF_COUNT_REQUEST_STATIC_ACACHE;
+				PVFS2_PERF_COUNT_REQUEST_CAPCACHE;
 
 		if (!strcmp(pc_attr->attr.name, NCACHE_KOBJ_ID))
 			new_op->upcall.req.perf_count.type =
@@ -1036,7 +1035,7 @@ int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 	struct ccache_orangefs_attribute *ccache_attr;
 	struct ncache_orangefs_attribute *ncache_attr;
 
-	gossip_debug(GOSSIP_PROC_DEBUG,
+	gossip_debug(GOSSIP_SYSFS_DEBUG,
 		     "sysfs_service_op_store: id:%s:\n",
 		     kobj_id);
 
@@ -1626,7 +1625,7 @@ int orangefs_sysfs_init(void)
 {
 	int rc;
 
-	gossip_debug(GOSSIP_PROC_DEBUG, "orangefs_sysfs_init: start\n");
+	gossip_debug(GOSSIP_SYSFS_DEBUG, "orangefs_sysfs_init: start\n");
 
 	/* create /sys/fs/orangefs. */
 	orangefs_obj = kzalloc(sizeof(*orangefs_obj), GFP_KERNEL);
@@ -1773,7 +1772,7 @@ out:
 
 void orangefs_sysfs_exit(void)
 {
-	gossip_debug(GOSSIP_PROC_DEBUG, "orangefs_sysfs_exit: start\n");
+	gossip_debug(GOSSIP_SYSFS_DEBUG, "orangefs_sysfs_exit: start\n");
 
 	kobject_put(&acache_orangefs_obj->kobj);
 	kobject_put(&capcache_orangefs_obj->kobj);
