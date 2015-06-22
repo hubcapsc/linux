@@ -199,7 +199,7 @@ struct pvfs2_param_request_s {
 enum pvfs2_perf_count_request_type {
 	PVFS2_PERF_COUNT_REQUEST_ACACHE = 1,
 	PVFS2_PERF_COUNT_REQUEST_NCACHE = 2,
-	PVFS2_PERF_COUNT_REQUEST_STATIC_ACACHE = 3,
+	PVFS2_PERF_COUNT_REQUEST_CAPCACHE = 3,
 };
 
 struct pvfs2_perf_count_request_s {

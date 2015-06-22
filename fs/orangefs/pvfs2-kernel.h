@@ -209,9 +209,6 @@ struct client_debug_mask {
 #define PVFS2_XATTR_NAME_DEFAULT_PREFIX ""
 
 /* these functions are defined in pvfs2-utils.c */
-__u64 PVFS_proc_kmod_eventlog_to_mask(const char *event_logging);
-int PVFS_proc_kmod_mask_to_eventlog(__u64 mask, char *debug_string);
-int PVFS_proc_mask_to_eventlog(__u64 mask, char *debug_string);
 int orangefs_prepare_cdm_array(char *debug_array_string);
 int orangefs_prepare_debugfs_help_string(int);
 
