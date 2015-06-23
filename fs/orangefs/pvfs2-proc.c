@@ -166,6 +166,7 @@ static int pvfs2_param_proc_handler(struct ctl_table *ctl,
 	 * handler
 	 */
 	tmp_ctl.data = &val;
+pr_info("ppph_show: val:%d:\n",val);
 	tmp_ctl.extra1 = &extra->min;
 	tmp_ctl.extra2 = &extra->max;
 
@@ -174,9 +175,12 @@ static int pvfs2_param_proc_handler(struct ctl_table *ctl,
 	if (!new_op)
 		return -ENOMEM;
 
+pr_info("ppph_show2: val:%d:\n",val);
 	if (write) {
 		/* use generic proc handling function to retrive value to set */
 		ret = proc_dointvec_minmax(&tmp_ctl, write, buffer, lenp, ppos);
+pr_info("ppph_show3: val:%d:\n",val);
+pr_info("ppph_show: ret:%d:\n",ret);
 		if (ret != 0) {
 			op_release(new_op);
 			return ret;
