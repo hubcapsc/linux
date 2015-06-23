@@ -307,7 +307,6 @@ struct inode_operations pvfs2_file_inode_operations = {
 static int pvfs2_init_iops(struct inode *inode)
 {
 	inode->i_mapping->a_ops = &pvfs2_address_operations;
-	inode->i_mapping->backing_dev_info = &pvfs2_backing_dev_info;
 
 	switch (inode->i_mode & S_IFMT) {
 	case S_IFREG:

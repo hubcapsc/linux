@@ -485,28 +485,6 @@ static ssize_t do_readv_writev(enum PVFS_io_type type, struct file *file,
 		(int)count);
 
 	if (type == PVFS_IO_WRITE) {
-		if (file->f_flags & O_APPEND) {
-			/*
-			 * Make sure generic_write_checks sees an uptodate
-			 * inode size.
-			 */
-			ret = pvfs2_inode_getattr(inode, PVFS_ATTR_SYS_SIZE);
-			if (ret != 0)
-				goto out;
-		} else if (file->f_pos > i_size_read(inode))
-			pvfs2_i_size_write(inode, file->f_pos);
-	
-
-		ret = generic_write_checks(file,
-					   offset,
-					   &count,
-					   S_ISBLK(inode->i_mode));
-		if (ret != 0) {
-			gossip_err("%s: failed generic argument checks.\n",
-				   __func__);
-			goto out;
-		}
-
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s(%pU): proceeding with offset : %llu, "
 			     "size %d\n",
@@ -768,15 +746,47 @@ static ssize_t pvfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 
 	gossip_debug(GOSSIP_FILE_DEBUG,"pvfs2_file_write_iter\n");
 
-	g_pvfs2_stats.writes++;
+	mutex_lock(&file->f_mapping->host->i_mutex);
+
+	/* Make sure generic_write_checks sees an up to date inode size. */
+	if (file->f_flags & O_APPEND) {
+		rc = pvfs2_inode_getattr(file->f_mapping->host,
+					 PVFS_ATTR_SYS_SIZE);
+		if (rc) {
+			gossip_err("%s: pvfs2_inode_getattr failed, rc:%zd:.\n",
+				   __func__, rc);
+			goto out;
+		}
+	}
+
+	if (file->f_pos > i_size_read(file->f_mapping->host))
+		pvfs2_i_size_write(file->f_mapping->host, file->f_pos);
+
+	rc = generic_write_checks(iocb, iter);
+
+	if (rc <= 0) {
+		gossip_err("%s: generic_write_checks failed, rc:%zd:.\n",
+			   __func__, rc);
+		goto out;
+	}
 
 	rc = do_readv_writev(PVFS_IO_WRITE,
 			     file,
 			     &pos,
 			     iter->iov,
 			     nr_segs);
-	iocb->ki_pos = pos;
+	if (rc < 0) {
+		gossip_err("%s: do_readv_writev failed, rc:%zd:.\n",
+			   __func__, rc);
+		goto out;
+	}
 
+	iocb->ki_pos = pos;
+	g_pvfs2_stats.writes++;
+
+out:
+
+	mutex_unlock(&file->f_mapping->host->i_mutex);
 	return rc;
 }
 
@@ -992,8 +1002,6 @@ int pvfs2_lock(struct file *filp, int cmd, struct file_lock *fl)
 /** PVFS2 implementation of VFS file operations */
 const struct file_operations pvfs2_file_operations = {
 	.llseek		= pvfs2_file_llseek,
-	.read		= new_sync_read,
-	.write		= new_sync_write,
 	.read_iter	= pvfs2_file_read_iter,
 	.write_iter	= pvfs2_file_write_iter,
 	.lock		= pvfs2_lock,
