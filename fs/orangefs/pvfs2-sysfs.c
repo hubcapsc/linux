@@ -742,7 +742,7 @@ static ssize_t int_store(struct orangefs_obj *orangefs_obj,
 out:
 	if (!rc)
 		rc = -EINVAL;
-	else 
+	else
 		rc = count;
 
 	return rc;
@@ -810,76 +810,76 @@ int sysfs_service_op_show(char *kobj_id, char *buf, void *attr)
 		acache_attr = (struct acache_orangefs_attribute *)attr;
 
 		if (!strcmp(acache_attr->attr.name, "timeout_msecs"))
-			new_op->upcall.req.param.op = 
+			new_op->upcall.req.param.op =
 				PVFS2_PARAM_REQUEST_OP_ACACHE_TIMEOUT_MSECS;
 
 		if (!strcmp(acache_attr->attr.name, "hard_limit"))
-			new_op->upcall.req.param.op = 
+			new_op->upcall.req.param.op =
 				PVFS2_PARAM_REQUEST_OP_ACACHE_HARD_LIMIT;
 
 		if (!strcmp(acache_attr->attr.name, "soft_limit"))
-			new_op->upcall.req.param.op = 
+			new_op->upcall.req.param.op =
 				PVFS2_PARAM_REQUEST_OP_ACACHE_SOFT_LIMIT;
 
 		if (!strcmp(acache_attr->attr.name, "reclaim_percentage"))
-			new_op->upcall.req.param.op = 
+			new_op->upcall.req.param.op =
 			  PVFS2_PARAM_REQUEST_OP_ACACHE_RECLAIM_PERCENTAGE;
 
 	} else if (!strcmp(kobj_id, CAPCACHE_KOBJ_ID)) {
 		capcache_attr = (struct capcache_orangefs_attribute *)attr;
 
 		if (!strcmp(capcache_attr->attr.name, "timeout_secs"))
-			new_op->upcall.req.param.op = 
+			new_op->upcall.req.param.op =
 				PVFS2_PARAM_REQUEST_OP_CAPCACHE_TIMEOUT_SECS;
 
 		if (!strcmp(capcache_attr->attr.name, "hard_limit"))
-			new_op->upcall.req.param.op = 
+			new_op->upcall.req.param.op =
 				PVFS2_PARAM_REQUEST_OP_CAPCACHE_HARD_LIMIT;
 
 		if (!strcmp(capcache_attr->attr.name, "soft_limit"))
-			new_op->upcall.req.param.op = 
+			new_op->upcall.req.param.op =
 				PVFS2_PARAM_REQUEST_OP_CAPCACHE_SOFT_LIMIT;
 
 		if (!strcmp(capcache_attr->attr.name, "reclaim_percentage"))
-			new_op->upcall.req.param.op = 
+			new_op->upcall.req.param.op =
 			  PVFS2_PARAM_REQUEST_OP_CAPCACHE_RECLAIM_PERCENTAGE;
 
 	} else if (!strcmp(kobj_id, CCACHE_KOBJ_ID)) {
 		ccache_attr = (struct ccache_orangefs_attribute *)attr;
 
 		if (!strcmp(ccache_attr->attr.name, "timeout_secs"))
-			new_op->upcall.req.param.op = 
+			new_op->upcall.req.param.op =
 				PVFS2_PARAM_REQUEST_OP_CCACHE_TIMEOUT_SECS;
 
 		if (!strcmp(ccache_attr->attr.name, "hard_limit"))
-			new_op->upcall.req.param.op = 
+			new_op->upcall.req.param.op =
 				PVFS2_PARAM_REQUEST_OP_CCACHE_HARD_LIMIT;
 
 		if (!strcmp(ccache_attr->attr.name, "soft_limit"))
-			new_op->upcall.req.param.op = 
+			new_op->upcall.req.param.op =
 				PVFS2_PARAM_REQUEST_OP_CCACHE_SOFT_LIMIT;
 
 		if (!strcmp(ccache_attr->attr.name, "reclaim_percentage"))
-			new_op->upcall.req.param.op = 
+			new_op->upcall.req.param.op =
 			  PVFS2_PARAM_REQUEST_OP_CCACHE_RECLAIM_PERCENTAGE;
 
 	} else if (!strcmp(kobj_id, NCACHE_KOBJ_ID)) {
 		ncache_attr = (struct ncache_orangefs_attribute *)attr;
 
 		if (!strcmp(ncache_attr->attr.name, "timeout_msecs"))
-			new_op->upcall.req.param.op = 
+			new_op->upcall.req.param.op =
 				PVFS2_PARAM_REQUEST_OP_NCACHE_TIMEOUT_MSECS;
 
 		if (!strcmp(ncache_attr->attr.name, "hard_limit"))
-			new_op->upcall.req.param.op = 
+			new_op->upcall.req.param.op =
 				PVFS2_PARAM_REQUEST_OP_NCACHE_HARD_LIMIT;
 
 		if (!strcmp(ncache_attr->attr.name, "soft_limit"))
-			new_op->upcall.req.param.op = 
+			new_op->upcall.req.param.op =
 				PVFS2_PARAM_REQUEST_OP_NCACHE_SOFT_LIMIT;
 
 		if (!strcmp(ncache_attr->attr.name, "reclaim_percentage"))
-			new_op->upcall.req.param.op = 
+			new_op->upcall.req.param.op =
 			  PVFS2_PARAM_REQUEST_OP_NCACHE_RECLAIM_PERCENTAGE;
 
 	} else if (!strcmp(kobj_id, PC_KOBJ_ID)) {

@@ -13,7 +13,7 @@
  * Contact:		Mike Marshall <hubcap@omnibond.com>
  * Description:
  * 			Debug setting for "the client", the userspace
- * 			helper for the kernel module. 
+ * 			helper for the kernel module.
  *
  *
  * What:		/sys/kernel/debug/orangefs/kernel-debug
@@ -24,11 +24,11 @@
  *
  * 			Any of the keywords, or comma-separated lists
  * 			of keywords, from debug-help can be catted to
- * 			client-debug or kernel-debug. 
+ * 			client-debug or kernel-debug.
  *
  * 			"none", "all" and "verbose" are special keywords
  * 			for client-debug. Setting client-debug to "all"
- * 			is kind of like trying to drink water from a 
+ * 			is kind of like trying to drink water from a
  * 			pressurized four-inch pipe, "verbose" triggers
  * 			most of the same output except for the constant
  * 			flow of output from the main wait loop.
@@ -72,7 +72,7 @@ static const struct seq_operations help_debug_ops = {
  * Used to protect data in ORANGEFS_KMOD_DEBUG_FILE and
  * ORANGEFS_KMOD_DEBUG_FILE.
  */
-DEFINE_MUTEX(orangefs_debug_lock); 
+DEFINE_MUTEX(orangefs_debug_lock);
 
 int orangefs_debug_open(struct inode *, struct file *);
 
@@ -395,7 +395,7 @@ static ssize_t orangefs_debug_write(struct file *file,
 	/*
 	 * Map the keyword string from userspace into a valid debug mask.
 	 * The mapping process involves mapping the human-inputted string
-	 * into a valid mask, and then rebuilding the string from the 
+	 * into a valid mask, and then rebuilding the string from the
 	 * verified valid mask.
 	 *
 	 * A service operation is required to set a new client-side

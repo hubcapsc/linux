@@ -41,7 +41,7 @@ typedef struct pvfs2_khandle {
 	unsigned char u[16];
 } PVFS_khandle __attribute__ (( __aligned__ (8)));
 
-/* 
+/*
  * kernel version of an object ref.
  */
 typedef struct pvfs2_object_kref {

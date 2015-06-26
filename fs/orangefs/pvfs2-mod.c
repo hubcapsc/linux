@@ -2,7 +2,7 @@
  * (C) 2001 Clemson University and The University of Chicago
  *
  * Changes by Acxiom Corporation to add proc file handler for pvfs2 client
- * parameters, Copyright © Acxiom Corporation, 2005.
+ * parameters, Copyright Acxiom Corporation, 2005.
  *
  * See COPYING in top-level directory.
  */
@@ -190,9 +190,9 @@ static int __init pvfs2_init(void)
 	 * from the keywords in the kernel keyword/mask array.
 	 *
 	 * The keywords in the client keyword/mask array are
-	 * unknown at boot time. 
+	 * unknown at boot time.
 	 *
-	 * orangefs_prepare_debugfs_help_string will be used again 
+	 * orangefs_prepare_debugfs_help_string will be used again
 	 * later to rebuild the debug-help file after the client starts
 	 * and passes along the needed info. The argument signifies
 	 * which time orangefs_prepare_debugfs_help_string is being

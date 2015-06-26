@@ -3,7 +3,7 @@
  * (C) 2011 Omnibond Systems
  *
  * Changes by Acxiom Corporation to implement generic service_operation()
- * function, Copyright © Acxiom Corporation, 2005.
+ * function, Copyright Acxiom Corporation, 2005.
  *
  * See COPYING in top-level directory.
  */

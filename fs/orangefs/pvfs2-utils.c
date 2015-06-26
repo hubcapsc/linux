@@ -784,8 +784,8 @@ int orangefs_prepare_cdm_array(char *debug_array_string)
 		sscanf(cds_head,
 		       "%s %llx %llx",
 		       cdm_array[i].keyword,
-		       (unsigned long long *)&(cdm_array[i].mask1), 
-		       (unsigned long long *)&(cdm_array[i].mask2)); 
+		       (unsigned long long *)&(cdm_array[i].mask1),
+		       (unsigned long long *)&(cdm_array[i].mask2));
 
 		if (!strcmp(cdm_array[i].keyword, PVFS2_VERBOSE))
 			client_verbose_index = i;
@@ -813,7 +813,7 @@ out:
  * When the kernel boots, we have no idea what keywords the
  * client supports, nor their associated masks.
  *
- * We pass through this function once at boot and stamp a 
+ * We pass through this function once at boot and stamp a
  * boilerplate "we don't know" message for the client in the
  * debug-help file. We pass through here again when the client
  * starts and then we can fill out the debug-help file fully.
