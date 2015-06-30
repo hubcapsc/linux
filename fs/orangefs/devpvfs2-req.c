@@ -328,7 +328,9 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 		return -EPROTO;
 	}
 
-gossip_err("HUBCAP: proto_ver:%d: KPV:%d:\n", proto_ver, PVFS_KERNEL_PROTO_VERSION);
+	/*
+	 * proto_ver = 20902 for 2.9.2
+	 */
 
 	op = pvfs2_devreq_remove_op(tag);
 	if (op) {
