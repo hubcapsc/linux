@@ -36,7 +36,7 @@ http://www.orangefs.org/documentation/
 USERSPACE FILESYSTEM SOURCE
 ===========================
 
-http://www.orangefs.org/downloads/2.9.3
+http://www.orangefs.org/download
 
 Orangefs versions prior to 2.9.3 would not be compatible with the
 upstream version of the kernel client.
