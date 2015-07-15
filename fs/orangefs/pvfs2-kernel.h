@@ -166,9 +166,9 @@ enum PVFS_async_io_type {
  * values fetched from userspace.
  */
 struct client_debug_mask {
-        char *keyword;
-        __u64 mask1;
-        __u64 mask2;
+	char *keyword;
+	__u64 mask1;
+	__u64 mask2;
 };
 
 /*
@@ -312,13 +312,13 @@ struct pvfs2_kernel_op_s {
 };
 
 /* per inode private pvfs2 info */
-typedef struct pvfs2_inode_s {
+struct pvfs2_inode_s {
 	struct pvfs2_object_kref refn;
 	char link_target[PVFS_NAME_MAX];
 	__s64 blksize;
 	/*
 	 * Reading/Writing Extended attributes need to acquire the appropriate
-	 * reader/writer semaphore on the pvfs2_inode_t structure.
+	 * reader/writer semaphore on the pvfs2_inode_s structure.
 	 */
 	struct rw_semaphore xattr_sem;
 
@@ -331,9 +331,9 @@ typedef struct pvfs2_inode_s {
 	 */
 	unsigned long pinode_flags;
 
-	/* All allocated pvfs2_inode_t objects are chained to a list */
+	/* All allocated pvfs2_inode_s objects are chained to a list */
 	struct list_head list;
-} pvfs2_inode_t;
+};
 
 #define P_ATIME_FLAG 0
 #define P_MTIME_FLAG 1
@@ -357,7 +357,7 @@ typedef struct pvfs2_inode_s {
 #define ModeFlag(pinode)      test_bit(P_MODE_FLAG, &(pinode)->pinode_flags)
 
 /* per superblock private pvfs2 info */
-typedef struct pvfs2_sb_info_s {
+struct pvfs2_sb_info_s {
 	struct pvfs2_khandle root_khandle;
 	__s32 fs_id;
 	int id;
@@ -368,7 +368,7 @@ typedef struct pvfs2_sb_info_s {
 	struct super_block *sb;
 	int mount_pending;
 	struct list_head list;
-} pvfs2_sb_info_t;
+};
 
 /*
  * a temporary structure used only for sb mount time that groups the
@@ -388,7 +388,7 @@ struct pvfs2_mount_sb_info_s {
  * or even completion notification so that the VFS client-side daemon
  * can free up its vfs_request slots.
  */
-typedef struct pvfs2_kiocb_s {
+struct pvfs2_kiocb_s {
 	/* the pointer to the task that initiated the AIO */
 	struct task_struct *tsk;
 
@@ -419,7 +419,7 @@ typedef struct pvfs2_kiocb_s {
 
 	ssize_t bytes_copied;
 	int needs_cleanup;
-} pvfs2_kiocb;
+};
 
 struct pvfs2_stats {
 	unsigned long cache_hits;
@@ -666,7 +666,6 @@ extern struct mutex request_mutex;
 extern int debug;
 extern int op_timeout_secs;
 extern int slot_timeout_secs;
-extern int fake_mmap_shared;
 extern struct list_head pvfs2_superblocks;
 extern spinlock_t pvfs2_superblocks_lock;
 extern struct list_head pvfs2_request_list;
@@ -836,11 +835,9 @@ do {									\
 	sys_attr.mask = PVFS_ATTR_SYS_ALL_SETABLE;			\
 } while (0)
 
-#define pvfs2_inode_lock(__i) do \
-	{ mutex_lock(&(__i)->i_mutex); } while (0)
+#define pvfs2_inode_lock(__i)  mutex_lock(&(__i)->i_mutex)
 
-#define pvfs2_inode_unlock(__i) do \
-	{ mutex_unlock(&(__i)->i_mutex); } while (0)
+#define pvfs2_inode_unlock(__i) mutex_unlock(&(__i)->i_mutex)
 
 static inline void pvfs2_i_size_write(struct inode *inode, loff_t i_size)
 {
@@ -851,7 +848,6 @@ static inline void pvfs2_i_size_write(struct inode *inode, loff_t i_size)
 #if BITS_PER_LONG == 32 && defined(CONFIG_SMP)
 	pvfs2_inode_unlock(inode);
 #endif
-	return;
 }
 
 static inline unsigned int diff(struct timeval *end, struct timeval *begin)

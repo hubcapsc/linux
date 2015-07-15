@@ -10,24 +10,24 @@
 DECLARE_WAIT_QUEUE_HEAD(pvfs2_bufmap_init_waitq);
 
 struct pvfs2_bufmap {
-	atomic_t		refcnt;
+	atomic_t refcnt;
 
-	int			desc_size;
-	int			desc_shift;
-	int			desc_count;
-	int			total_size;
-	int			page_count;
+	int desc_size;
+	int desc_shift;
+	int desc_count;
+	int total_size;
+	int page_count;
 
-	struct page		**page_array;
-	struct pvfs_bufmap_desc	*desc_array;
+	struct page **page_array;
+	struct pvfs_bufmap_desc *desc_array;
 
 	/* array to track usage of buffer descriptors */
-	int			*buffer_index_array;
-	spinlock_t		buffer_index_lock;
+	int *buffer_index_array;
+	spinlock_t buffer_index_lock;
 
 	/* array to track usage of buffer descriptors for readdir */
-	int			readdir_index_array[PVFS2_READDIR_DEFAULT_DESC_COUNT];
-	spinlock_t		readdir_index_lock;
+	int readdir_index_array[PVFS2_READDIR_DEFAULT_DESC_COUNT];
+	spinlock_t readdir_index_lock;
 } *__pvfs2_bufmap;
 
 static DEFINE_SPINLOCK(pvfs2_bufmap_lock);
@@ -324,7 +324,7 @@ out:
 void pvfs_bufmap_finalize(void)
 {
 	gossip_debug(GOSSIP_BUFMAP_DEBUG, "pvfs2_bufmap_finalize: called\n");
-	BUG_ON(!__pvfs2_bufmap);	//  XXX
+	BUG_ON(!__pvfs2_bufmap);
 	pvfs2_bufmap_unref(__pvfs2_bufmap);
 	gossip_debug(GOSSIP_BUFMAP_DEBUG,
 		     "pvfs2_bufmap_finalize: exiting normally\n");
@@ -550,12 +550,12 @@ int pvfs_bufmap_copy_iovec_from_user(struct pvfs2_bufmap *bufmap,
 	/*
 	 * copy the passed in iovec so that we can change some of its fields
 	 */
-	copied_iovec = kmalloc(nr_segs * sizeof(*copied_iovec),
-			       PVFS2_BUFMAP_GFP_FLAGS);
-	if (copied_iovec == NULL) {
-		gossip_err("pvfs2_bufmap_copy_iovec_from_user: failed allocating memory\n");
+	copied_iovec = kmalloc_array(nr_segs,
+				     sizeof(*copied_iovec),
+				     PVFS2_BUFMAP_GFP_FLAGS);
+	if (copied_iovec == NULL)
 		return -ENOMEM;
-	}
+
 	memcpy(copied_iovec, iov, nr_segs * sizeof(*copied_iovec));
 	/*
 	 * Go through each segment in the iovec and make sure that
@@ -678,12 +678,12 @@ int pvfs_bufmap_copy_iovec_from_kernel(struct pvfs2_bufmap *bufmap,
 	/*
 	 * copy the passed in iovec so that we can change some of its fields
 	 */
-	copied_iovec = kmalloc(nr_segs * sizeof(*copied_iovec),
-			       PVFS2_BUFMAP_GFP_FLAGS);
-	if (copied_iovec == NULL) {
-		gossip_err("pvfs2_bufmap_copy_iovec_from_kernel: failed allocating memory\n");
+	copied_iovec = kmalloc_array(nr_segs,
+				     sizeof(*copied_iovec),
+				     PVFS2_BUFMAP_GFP_FLAGS);
+	if (copied_iovec == NULL)
 		return -ENOMEM;
-	}
+
 	memcpy(copied_iovec, iov, nr_segs * sizeof(*copied_iovec));
 	/*
 	 * Go through each segment in the iovec and make sure that
@@ -783,12 +783,12 @@ int pvfs_bufmap_copy_to_user_iovec(struct pvfs2_bufmap *bufmap,
 	/*
 	 * copy the passed in iovec so that we can change some of its fields
 	 */
-	copied_iovec = kmalloc(nr_segs * sizeof(*copied_iovec),
-			       PVFS2_BUFMAP_GFP_FLAGS);
-	if (copied_iovec == NULL) {
-		gossip_err("pvfs2_bufmap_copy_to_user_iovec: failed allocating memory\n");
+	copied_iovec = kmalloc_array(nr_segs,
+				     sizeof(*copied_iovec),
+				     PVFS2_BUFMAP_GFP_FLAGS);
+	if (copied_iovec == NULL)
 		return -ENOMEM;
-	}
+
 	memcpy(copied_iovec, iov, nr_segs * sizeof(*copied_iovec));
 	/*
 	 * Go through each segment in the iovec and make sure that
@@ -899,12 +899,12 @@ int pvfs_bufmap_copy_to_kernel_iovec(struct pvfs2_bufmap *bufmap,
 	/*
 	 * copy the passed in iovec so that we can change some of its fields
 	 */
-	copied_iovec = kmalloc(nr_segs * sizeof(*copied_iovec),
-			       PVFS2_BUFMAP_GFP_FLAGS);
-	if (copied_iovec == NULL) {
-		gossip_err("pvfs2_bufmap_copy_to_kernel_iovec: failed allocating memory\n");
+	copied_iovec = kmalloc_array(nr_segs,
+				     sizeof(*copied_iovec),
+				     PVFS2_BUFMAP_GFP_FLAGS);
+	if (copied_iovec == NULL)
 		return -ENOMEM;
-	}
+
 	memcpy(copied_iovec, iov, nr_segs * sizeof(*copied_iovec));
 	/*
 	 * Go through each segment in the iovec and make sure that

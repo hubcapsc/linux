@@ -31,6 +31,7 @@ static int read_one_page(struct page *page)
 
 	if (page->index < max_block) {
 		loff_t blockptr_offset = (((loff_t) page->index) << blockbits);
+
 		bytes_read = pvfs2_inode_read(inode,
 					      page_data,
 					      blocksize,
@@ -76,6 +77,7 @@ static int pvfs2_readpages(struct file *file,
 
 	for (page_idx = 0; page_idx < nr_pages; page_idx++) {
 		struct page *page;
+
 		page = list_entry(pages->prev, struct page, lru);
 		list_del(&page->lru);
 		if (!add_to_page_cache(page,
@@ -129,13 +131,13 @@ static int pvfs2_releasepage(struct page *page, gfp_t foo)
 static ssize_t pvfs2_direct_IO(int rw,
 			struct kiocb *iocb,
 			struct iov_iter *iter,
-                        loff_t offset)
+			loff_t offset)
 {
-        gossip_debug(GOSSIP_INODE_DEBUG,
+	gossip_debug(GOSSIP_INODE_DEBUG,
 		     "pvfs2_direct_IO: %s\n",
-                      iocb->ki_filp->f_path.dentry->d_name.name);
+		     iocb->ki_filp->f_path.dentry->d_name.name);
 
-        return -EINVAL;
+	return -EINVAL;
 }
 */
 
@@ -336,7 +338,7 @@ static int pvfs2_init_iops(struct inode *inode)
  * that will be used as a hash-index from where the handle will
  * be searched for in the VFS hash table of inodes.
  */
-static inline ino_t pvfs2_handle_hash(PVFS_object_kref *ref)
+static inline ino_t pvfs2_handle_hash(struct pvfs2_object_kref *ref)
 {
 	if (!ref)
 		return 0;
@@ -348,7 +350,7 @@ static inline ino_t pvfs2_handle_hash(PVFS_object_kref *ref)
  */
 static int pvfs2_set_inode(struct inode *inode, void *data)
 {
-	PVFS_object_kref *ref = (PVFS_object_kref *) data;
+	struct pvfs2_object_kref *ref = (struct pvfs2_object_kref *) data;
 	struct pvfs2_inode_s *pvfs2_inode = NULL;
 
 	/* Make sure that we have sane parameters */
@@ -367,7 +369,7 @@ static int pvfs2_set_inode(struct inode *inode, void *data)
  */
 static int pvfs2_test_inode(struct inode *inode, void *data)
 {
-	PVFS_object_kref *ref = (PVFS_object_kref *) data;
+	struct pvfs2_object_kref *ref = (struct pvfs2_object_kref *) data;
 	struct pvfs2_inode_s *pvfs2_inode = NULL;
 
 	pvfs2_inode = PVFS2_I(inode);
@@ -382,7 +384,7 @@ static int pvfs2_test_inode(struct inode *inode, void *data)
  * @sb: the file system super block instance.
  * @ref: The PVFS2 object for which we are trying to locate an inode structure.
  */
-struct inode *pvfs2_iget(struct super_block *sb, PVFS_object_kref *ref)
+struct inode *pvfs2_iget(struct super_block *sb, struct pvfs2_object_kref *ref)
 {
 	struct inode *inode = NULL;
 	unsigned long hash;
@@ -417,7 +419,7 @@ struct inode *pvfs2_iget(struct super_block *sb, PVFS_object_kref *ref)
  * Allocate an inode for a newly created file and insert it into the inode hash.
  */
 struct inode *pvfs2_new_inode(struct super_block *sb, struct inode *dir,
-		int mode, dev_t dev, PVFS_object_kref *ref)
+		int mode, dev_t dev, struct pvfs2_object_kref *ref)
 {
 	unsigned long hash = pvfs2_handle_hash(ref);
 	struct inode *inode;

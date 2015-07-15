@@ -52,6 +52,7 @@ char *get_opname_string(struct pvfs2_kernel_op_s *new_op)
 {
 	if (new_op) {
 		__s32 type = new_op->upcall.type;
+
 		if (type == PVFS2_VFS_OP_FILE_IO)
 			return "OP_FILE_IO";
 		else if (type == PVFS2_VFS_OP_LOOKUP)
@@ -139,9 +140,11 @@ static struct pvfs2_kernel_op_s *op_alloc_common(__s32 op_linger, __s32 type)
 			     llu(new_op->tag),
 			     get_opname_string(new_op));
 
-		new_op->upcall.uid = from_kuid(current_user_ns(), current_fsuid());
+		new_op->upcall.uid = from_kuid(current_user_ns(),
+					       current_fsuid());
 
-		new_op->upcall.gid = from_kgid(current_user_ns(), current_fsgid());
+		new_op->upcall.gid = from_kgid(current_user_ns(),
+					       current_fsgid());
 
 		new_op->op_linger = new_op->op_linger_tmp = op_linger;
 	} else {
@@ -213,7 +216,6 @@ void dev_req_release(void *buffer)
 		kmem_cache_free(dev_req_cache, buffer);
 	else
 		gossip_err("NULL pointer passed to dev_req_release\n");
-	return;
 }
 
 int kiocb_cache_initialize(void)

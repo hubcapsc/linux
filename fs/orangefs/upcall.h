@@ -220,7 +220,7 @@ struct pvfs2_upcall_s {
 	int tgid;
 	/* currently trailer is used only by readx/writex (iox) */
 	__s64 trailer_size;
-	PVFS2_ALIGN_VAR(char *, trailer_buf);
+	char *trailer_buf;
 
 	union {
 		struct pvfs2_io_request_s io;

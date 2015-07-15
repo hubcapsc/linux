@@ -22,34 +22,32 @@
  */
 
 /* array of client debug keyword/mask values */
-struct client_debug_mask *cdm_array = NULL;
-int cdm_element_count = 0;
+struct client_debug_mask *cdm_array;
+int cdm_element_count;
 
 char kernel_debug_string[PVFS2_MAX_DEBUG_STRING_LEN] = "none";
 char client_debug_string[PVFS2_MAX_DEBUG_STRING_LEN];
 char client_debug_array_string[PVFS2_MAX_DEBUG_STRING_LEN];
 
-char *debug_help_string = NULL;
-int help_string_initialized = 0;
-struct dentry *help_file_dentry = 0;
-struct dentry *client_debug_dentry = 0;
-struct dentry *debug_dir = 0;
-int client_verbose_index = 0;
-int client_all_index = 0;
+char *debug_help_string;
+int help_string_initialized;
+struct dentry *help_file_dentry;
+struct dentry *client_debug_dentry;
+struct dentry *debug_dir;
+int client_verbose_index;
+int client_all_index;
 struct pvfs2_stats g_pvfs2_stats;
 
 /* the size of the hash tables for ops in progress */
 int hash_table_size = 509;
 
-static ulong module_parm_debug_mask = 0;
-__u64 gossip_debug_mask = 0;
+static ulong module_parm_debug_mask;
+__u64 gossip_debug_mask;
 struct client_debug_mask client_debug_mask = { NULL, 0, 0 };
-unsigned int kernel_mask_set_mod_init = false;
+unsigned int kernel_mask_set_mod_init; /* implicitly false */
 int op_timeout_secs = PVFS2_DEFAULT_OP_TIMEOUT_SECS;
 int slot_timeout_secs = PVFS2_DEFAULT_SLOT_TIMEOUT_SECS;
 __u32 DEBUG_LINE = 50;
-
-int fake_mmap_shared = 0;
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("PVFS2 Development Team");
@@ -59,8 +57,6 @@ MODULE_PARM_DESC(op_timeout_secs, "Operation timeout in seconds");
 MODULE_PARM_DESC(slot_timeout_secs, "Slot timeout in seconds");
 MODULE_PARM_DESC(hash_table_size,
 		 "size of hash table for operations in progress");
-MODULE_PARM_DESC(fake_mmap_shared,
-		 "perform mmap with MAP_SHARED flag as if called with MAP_PRIVATE");
 
 static struct file_system_type pvfs2_fs_type = {
 	.name = "pvfs2",
@@ -73,7 +69,6 @@ module_param(hash_table_size, int, 0);
 module_param(module_parm_debug_mask, ulong, 0755);
 module_param(op_timeout_secs, int, 0);
 module_param(slot_timeout_secs, int, 0);
-module_param(fake_mmap_shared, int, 0);
 
 /* synchronizes the request device file */
 struct mutex devreq_mutex;
@@ -87,7 +82,7 @@ struct mutex devreq_mutex;
 struct mutex request_mutex;
 
 /* hash table for storing operations waiting for matching downcall */
-struct list_head *htable_ops_in_progress = NULL;
+struct list_head *htable_ops_in_progress;
 DEFINE_SPINLOCK(htable_ops_in_progress_lock);
 
 /* list for queueing upcall operations */
@@ -315,7 +310,6 @@ void purge_inprogress_ops(void)
 			wake_up_interruptible(&op->waitq);
 		}
 	}
-	return;
 }
 
 module_init(pvfs2_init);

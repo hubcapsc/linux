@@ -91,7 +91,6 @@ static void readdir_handle_dtor(struct pvfs2_bufmap *bufmap,
 		vfree(rhandle->dents_buf);
 		rhandle->dents_buf = NULL;
 	}
-	return;
 }
 
 /*

@@ -188,7 +188,9 @@ populate_shared_memory:
 
 	/* Stage 2: Service the I/O operation */
 	ret = service_operation(new_op,
-				type == PVFS_IO_WRITE ? "file_write" : "file_read",
+				type == PVFS_IO_WRITE ?
+					"file_write" :
+					"file_read",
 				get_interruptible_flag(inode));
 
 	/*
@@ -328,15 +330,17 @@ static int split_iovecs(unsigned long max_new_nr_segs,		/* IN */
 	*seg_count = 0;
 	*seg_array = NULL;
 	/* copy the passed in iovec descriptor to a temp structure */
-	orig_iovec = kmalloc(nr_segs * sizeof(*orig_iovec),
-			     PVFS2_BUFMAP_GFP_FLAGS);
+	orig_iovec = kmalloc_array(nr_segs,
+				   sizeof(*orig_iovec),
+				   PVFS2_BUFMAP_GFP_FLAGS);
 	if (orig_iovec == NULL) {
 		gossip_err(
 		    "split_iovecs: Could not allocate memory for %lu bytes!\n",
 		    (unsigned long)(nr_segs * sizeof(*orig_iovec)));
 		return -ENOMEM;
 	}
-	new_iovec = kzalloc(max_new_nr_segs * sizeof(*new_iovec),
+	new_iovec = kcalloc(max_new_nr_segs,
+			    sizeof(*new_iovec),
 			    PVFS2_BUFMAP_GFP_FLAGS);
 	if (new_iovec == NULL) {
 		kfree(orig_iovec);
@@ -345,7 +349,8 @@ static int split_iovecs(unsigned long max_new_nr_segs,		/* IN */
 		    (unsigned long)(max_new_nr_segs * sizeof(*new_iovec)));
 		return -ENOMEM;
 	}
-	sizes = kzalloc(max_new_nr_segs * sizeof(*sizes),
+	sizes = kcalloc(max_new_nr_segs,
+			sizeof(*sizes),
 			PVFS2_BUFMAP_GFP_FLAGS);
 	if (sizes == NULL) {
 		kfree(new_iovec);
@@ -423,6 +428,7 @@ static long bound_max_iovecs(const struct iovec *curr, unsigned long nr_segs,
 	max_nr_iovecs = 0;
 	for (i = 0; i < nr_segs; i++) {
 		const struct iovec *iv = &curr[i];
+
 		count += iv->iov_len;
 		if (unlikely((ssize_t) (count | iv->iov_len) < 0))
 			return -EINVAL;
@@ -718,10 +724,10 @@ static ssize_t pvfs2_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	loff_t pos = *(&iocb->ki_pos);
 	ssize_t rc = 0;
 	unsigned long nr_segs = iter->nr_segs;
-	
+
 	BUG_ON(iocb->private);
 
-	gossip_debug(GOSSIP_FILE_DEBUG,"pvfs2_file_read_iter\n");
+	gossip_debug(GOSSIP_FILE_DEBUG, "pvfs2_file_read_iter\n");
 
 	g_pvfs2_stats.reads++;
 
@@ -738,13 +744,13 @@ static ssize_t pvfs2_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 static ssize_t pvfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
-        loff_t pos = *(&iocb->ki_pos);
+	loff_t pos = *(&iocb->ki_pos);
 	unsigned long nr_segs = iter->nr_segs;
 	ssize_t rc;
-	
+
 	BUG_ON(iocb->private);
 
-	gossip_debug(GOSSIP_FILE_DEBUG,"pvfs2_file_write_iter\n");
+	gossip_debug(GOSSIP_FILE_DEBUG, "pvfs2_file_write_iter\n");
 
 	mutex_lock(&file->f_mapping->host->i_mutex);
 
@@ -985,7 +991,7 @@ loff_t pvfs2_file_llseek(struct file *file, loff_t offset, int origin)
  */
 int pvfs2_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
-	int rc = -ENOSYS;
+	int rc = -ENOLCK;
 
 	if (PVFS2_SB(filp->f_inode->i_sb)->flags & PVFS2_OPT_LOCAL_LOCK) {
 		if (cmd == F_GETLK) {

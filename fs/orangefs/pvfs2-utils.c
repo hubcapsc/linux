@@ -11,6 +11,7 @@
 __s32 fsid_of_op(struct pvfs2_kernel_op_s *op)
 {
 	__s32 fsid = PVFS_FS_ID_NULL;
+
 	if (op) {
 		switch (op->upcall.type) {
 		case PVFS2_VFS_OP_FILE_IO:
@@ -95,7 +96,6 @@ static void pvfs2_set_inode_flags(struct inode *inode,
 	else
 		inode->i_flags &= ~S_NOATIME;
 
-	return;
 }
 
 /* NOTE: symname is ignored unless the inode is a sym link */
@@ -669,6 +669,7 @@ __u64 pvfs2_convert_time_field(void *time_ptr)
 {
 	__u64 pvfs2_time;
 	struct timespec *tspec = (struct timespec *)time_ptr;
+
 	pvfs2_time = (__u64) ((time_t) tspec->tv_sec);
 	return pvfs2_time;
 }
@@ -742,13 +743,13 @@ int orangefs_prepare_cdm_array(char *debug_array_string)
 	char *cds_head = NULL;
 	char *cds_delimiter = NULL;
 	int keyword_len = 0;
-	
+
 	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: start\n", __func__);
 
 	/*
 	 * figure out how many elements the cdm_array needs.
 	 */
-        for (i = 0; i < strlen(debug_array_string); i++)
+	for (i = 0; i < strlen(debug_array_string); i++)
 		if (debug_array_string[i] == '\n')
 			cdm_element_count++;
 
@@ -776,7 +777,6 @@ int orangefs_prepare_cdm_array(char *debug_array_string)
 
 		cdm_array[i].keyword = kzalloc(keyword_len + 1, GFP_KERNEL);
 		if (!cdm_array[i].keyword) {
-			pr_info("malloc failed for cdm_array keyword!\n");
 			rc = -ENOMEM;
 			goto out;
 		}
@@ -826,8 +826,8 @@ int orangefs_prepare_debugfs_help_string(int at_boot)
 	int rc = -EINVAL;
 	int i;
 	int byte_count = 0;
-        char *client_title = "Client Debug Keywords:\n";
-        char *kernel_title = "Kernel Debug Keywords:\n";
+	char *client_title = "Client Debug Keywords:\n";
+	char *kernel_title = "Kernel Debug Keywords:\n";
 
 	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: start\n", __func__);
 
@@ -841,9 +841,8 @@ int orangefs_prepare_debugfs_help_string(int at_boot)
 		 */
 		cdm_element_count =
 			orangefs_prepare_cdm_array(client_debug_array_string);
-		if (cdm_element_count <= 0) {
+		if (cdm_element_count <= 0)
 			goto out;
-		}
 
 		/* Count the bytes destined for debug_help_string. */
 		byte_count += strlen(client_title);
@@ -865,7 +864,7 @@ int orangefs_prepare_debugfs_help_string(int at_boot)
 	byte_count += strlen(kernel_title);
 	for (i = 0; i < num_kmod_keyword_mask_map; i++) {
 		byte_count +=
-			strlen(s_kmod_keyword_mask_map[i].keyword +2);
+			strlen(s_kmod_keyword_mask_map[i].keyword + 2);
 		if (byte_count >= DEBUG_HELP_STRING_SIZE) {
 			pr_info("%s: overflow 2!\n", __func__);
 			goto out;
@@ -875,7 +874,6 @@ int orangefs_prepare_debugfs_help_string(int at_boot)
 	/* build debug_help_string. */
 	debug_help_string = kzalloc(DEBUG_HELP_STRING_SIZE, GFP_KERNEL);
 	if (!debug_help_string) {
-		pr_info("debug_help_string malloc failed!\n");
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -904,14 +902,15 @@ int orangefs_prepare_debugfs_help_string(int at_boot)
 out:
 
 	return rc;
-	
+
 }
 
 /*
  * kernel = type 0
  * client = type 1
  */
-void debug_mask_to_string(void *mask, int type) {
+void debug_mask_to_string(void *mask, int type)
+{
 	int i;
 	int len = 0;
 	char *debug_string;
@@ -960,10 +959,11 @@ out:
 gossip_debug(GOSSIP_UTILS_DEBUG, "%s: string:%s:\n", __func__, debug_string);
 
 	return;
-	
+
 }
 
-void do_k_string(void *k_mask, int index) {
+void do_k_string(void *k_mask, int index)
+{
 	__u64 *mask = (__u64 *) k_mask;
 
 	if (keyword_is_amalgam((char *) s_kmod_keyword_mask_map[index].keyword))
@@ -988,7 +988,8 @@ out:
 	return;
 }
 
-void do_c_string(void *c_mask, int index) {
+void do_c_string(void *c_mask, int index)
+{
 	struct client_debug_mask *mask = (struct client_debug_mask *) c_mask;
 
 	if (keyword_is_amalgam(cdm_array[index].keyword))
@@ -1012,7 +1013,8 @@ out:
 	return;
 }
 
-int keyword_is_amalgam(char *keyword) {
+int keyword_is_amalgam(char *keyword)
+{
 	int rc = 0;
 
 	if ((!strcmp(keyword, PVFS2_ALL)) || (!strcmp(keyword, PVFS2_VERBOSE)))
@@ -1027,7 +1029,8 @@ int keyword_is_amalgam(char *keyword) {
  *
  * return 1 if we found an amalgam.
  */
-int check_amalgam_keyword(void *mask, int type) {
+int check_amalgam_keyword(void *mask, int type)
+{
 	__u64 *k_mask;
 	struct client_debug_mask *c_mask;
 	int k_all_index = num_kmod_keyword_mask_map - 1;
@@ -1069,7 +1072,8 @@ out:
  * kernel = type 0
  * client = type 1
  */
-void debug_string_to_mask(char *debug_string, void *mask, int type) {
+void debug_string_to_mask(char *debug_string, void *mask, int type)
+{
 	char *unchecked_keyword;
 	int i;
 	char *strsep_fodder = kstrdup(debug_string, GFP_KERNEL);
@@ -1103,10 +1107,11 @@ void debug_string_to_mask(char *debug_string, void *mask, int type) {
 
 	kfree(strsep_fodder);
 }
-	
+
 void do_c_mask(int i,
 	       char *unchecked_keyword,
-	       struct client_debug_mask **sane_mask) {
+	       struct client_debug_mask **sane_mask)
+{
 
 	if (!strcmp(cdm_array[i].keyword, unchecked_keyword)) {
 		(**sane_mask).mask1 = (**sane_mask).mask1 | cdm_array[i].mask1;
@@ -1114,7 +1119,8 @@ void do_c_mask(int i,
 	}
 }
 
-void do_k_mask(int i, char *unchecked_keyword, __u64 **sane_mask) {
+void do_k_mask(int i, char *unchecked_keyword, __u64 **sane_mask)
+{
 
 	if (!strcmp(s_kmod_keyword_mask_map[i].keyword, unchecked_keyword))
 		**sane_mask = (**sane_mask) |

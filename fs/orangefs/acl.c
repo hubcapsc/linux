@@ -35,10 +35,9 @@ struct posix_acl *pvfs2_get_acl(struct inode *inode, int type)
 	 * I don't do that for now.
 	 */
 	value = kmalloc(PVFS_MAX_XATTR_VALUELEN, GFP_KERNEL);
-	if (value == NULL) {
-		gossip_err("pvfs2_get_acl: Could not allocate value ptr\n");
+	if (value == NULL)
 		return ERR_PTR(-ENOMEM);
-	}
+
 	gossip_debug(GOSSIP_ACL_DEBUG,
 		     "inode %pU, key %s, type %d\n",
 		     get_khandle_from_ino(inode),

@@ -818,7 +818,7 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 		}
 
 		return ret;
-		break;
+
 	default:
 		return -ENOIOCTLCMD;
 	}
@@ -964,7 +964,6 @@ void pvfs2_dev_cleanup(void)
 		     PVFS2_REQDEVICE_NAME);
 	/* unregister the ioctl32 sub-system */
 	pvfs2_ioctl32_cleanup();
-	return;
 }
 
 static unsigned int pvfs2_devreq_poll(struct file *file,

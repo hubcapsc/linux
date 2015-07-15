@@ -1,6 +1,4 @@
 /*
- * Documentation/ABI/stable/orangefs-debugfs:
- *
  * What:		/sys/kernel/debug/orangefs/debug-help
  * Date:		June 2015
  * Contact:		Mike Marshall <hubcap@omnibond.com>
@@ -29,9 +27,9 @@
  * 			"none", "all" and "verbose" are special keywords
  * 			for client-debug. Setting client-debug to "all"
  * 			is kind of like trying to drink water from a
- * 			pressurized four-inch pipe, "verbose" triggers
- * 			most of the same output except for the constant
- * 			flow of output from the main wait loop.
+ * 			fire hose, "verbose" triggers most of the same
+ * 			output except for the constant flow of output
+ * 			from the main wait loop.
  *
  * 			"none" and "all" are similar settings for kernel-debug
  * 			no need for a "verbose".
@@ -39,7 +37,7 @@
 #include <linux/debugfs.h>
 #include <linux/slab.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "pvfs2-debugfs.h"
 #include "protocol.h"
@@ -50,10 +48,10 @@ static int orangefs_debug_disabled = 1;
 static int orangefs_debug_help_open(struct inode *, struct file *);
 
 const struct file_operations debug_help_fops = {
-        .open           = orangefs_debug_help_open,
-        .read           = seq_read,
-        .release        = seq_release,
-        .llseek         = seq_lseek,
+	.open           = orangefs_debug_help_open,
+	.read           = seq_read,
+	.release        = seq_release,
+	.llseek         = seq_lseek,
 };
 
 static void *help_start(struct seq_file *, loff_t *);
@@ -87,10 +85,10 @@ static ssize_t orangefs_debug_write(struct file *,
 				  loff_t *);
 
 static const struct file_operations kernel_debug_fops = {
-        .open           = orangefs_debug_open,
-        .read           = orangefs_debug_read,
-        .write		= orangefs_debug_write,
-        .llseek         = generic_file_llseek,
+	.open           = orangefs_debug_open,
+	.read           = orangefs_debug_read,
+	.write		= orangefs_debug_write,
+	.llseek         = generic_file_llseek,
 };
 
 /*
@@ -113,7 +111,7 @@ int pvfs2_debugfs_init(void)
 				  &debug_help_fops);
 	if (!help_file_dentry)
 		goto out;
-	
+
 	orangefs_debug_disabled = 0;
 	rc = 0;
 
@@ -208,11 +206,8 @@ int pvfs2_kernel_debug_init(void)
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "%s: start\n", __func__);
 
 	k_buffer = kzalloc(PVFS2_MAX_DEBUG_STRING_LEN, GFP_KERNEL);
-	if (!k_buffer) {
-		gossip_debug(GOSSIP_DEBUGFS_DEBUG,
-			     "pvfs2_kernel_debug_init: kmalloc 1 failed!\n");
+	if (!k_buffer)
 		goto out;
-	}
 
 	if (strlen(kernel_debug_string) + 1 < PVFS2_MAX_DEBUG_STRING_LEN) {
 		strcpy(k_buffer, kernel_debug_string);
@@ -256,11 +251,8 @@ int pvfs2_client_debug_init(void)
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "%s: start\n", __func__);
 
 	c_buffer = kzalloc(PVFS2_MAX_DEBUG_STRING_LEN, GFP_KERNEL);
-	if (!c_buffer) {
-		gossip_debug(GOSSIP_DEBUGFS_DEBUG,
-			     "pvfs2_kernel_debug_init: kmalloc 2 failed!\n");
+	if (!c_buffer)
 		goto out;
-	}
 
 	if (strlen(client_debug_string) + 1 < PVFS2_MAX_DEBUG_STRING_LEN) {
 		strcpy(c_buffer, client_debug_string);
@@ -315,7 +307,6 @@ out:
 		     "orangefs_debug_open: rc: %d\n",
 		     rc);
 	return rc;
-	
 }
 
 static ssize_t orangefs_debug_read(struct file *file,
@@ -325,16 +316,13 @@ static ssize_t orangefs_debug_read(struct file *file,
 {
 	char *buf;
 	int sprintf_ret;
-	ssize_t read_ret = -ENOMEM;;
+	ssize_t read_ret = -ENOMEM;
 
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "orangefs_debug_read: start\n");
 
 	buf = kmalloc(PVFS2_MAX_DEBUG_STRING_LEN, GFP_KERNEL);
-	if (!buf) {
-		gossip_debug(GOSSIP_DEBUGFS_DEBUG,
-			     "orangefs_debug_read: kmalloc failed!\n");
+	if (!buf)
 		goto out;
-	}
 
 	mutex_lock(&orangefs_debug_lock);
 	sprintf_ret = sprintf(buf, "%s", (char *)file->private_data);
@@ -378,11 +366,8 @@ static ssize_t orangefs_debug_write(struct file *file,
 	}
 
 	buf = kmalloc(PVFS2_MAX_DEBUG_STRING_LEN, GFP_KERNEL);
-	if (!buf) {
-		gossip_debug(GOSSIP_DEBUGFS_DEBUG,
-			     "orangefs_debug_write: kmalloc failed!\n");
+	if (!buf)
 		goto out;
-	}
 	memset(buf, 0, PVFS2_MAX_DEBUG_STRING_LEN);
 
 	if (copy_from_user(buf, ubuf, count - 1)) {

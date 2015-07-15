@@ -37,25 +37,25 @@ extern int cdm_element_count;
  * The kernel module will always use the first four bytes and
  * the last four bytes as an inum.
  */
-typedef struct pvfs2_khandle {
+struct pvfs2_khandle {
 	unsigned char u[16];
-} PVFS_khandle __attribute__ (( __aligned__ (8)));
+}  __aligned(8);
 
 /*
  * kernel version of an object ref.
  */
-typedef struct pvfs2_object_kref {
+struct pvfs2_object_kref {
 	struct pvfs2_khandle khandle;
 	__s32 fs_id;
 	__s32 __pad1;
-} PVFS_object_kref;
+};
 
 /*
  * compare 2 khandles assumes little endian thus from large address to
  * small address
  */
-static __inline__ int PVFS_khandle_cmp(const struct pvfs2_khandle *kh1,
-				       const struct pvfs2_khandle *kh2)
+static inline int PVFS_khandle_cmp(const struct pvfs2_khandle *kh1,
+				   const struct pvfs2_khandle *kh2)
 {
 	int i;
 
@@ -70,8 +70,8 @@ static __inline__ int PVFS_khandle_cmp(const struct pvfs2_khandle *kh1,
 }
 
 /* copy a khandle to a field of arbitrary size */
-static __inline__ void PVFS_khandle_to(const struct pvfs2_khandle *kh,
-				       void *p, int size)
+static inline void PVFS_khandle_to(const struct pvfs2_khandle *kh,
+				   void *p, int size)
 {
 	int i;
 	unsigned char *c = p;
@@ -79,12 +79,12 @@ static __inline__ void PVFS_khandle_to(const struct pvfs2_khandle *kh,
 	memset(p, 0, size);
 
 	for (i = 0; i < 16 && i < size; i++)
-	        c[i] = kh->u[i];
+		c[i] = kh->u[i];
 }
 
 /* copy a khandle from a field of arbitrary size */
-static __inline__ void PVFS_khandle_from(struct pvfs2_khandle *kh,
-					 void *p, int size)
+static inline void PVFS_khandle_from(struct pvfs2_khandle *kh,
+				     void *p, int size)
 {
 	int i;
 	unsigned char *c = p;
@@ -438,8 +438,6 @@ DECLARE_ERRNO_MAPPING()
 	 PVFS_ATTR_SYS_BLKSIZE)
 #define PVFS_XATTR_REPLACE 0x2
 #define PVFS_XATTR_CREATE  0x1
-/* there's a 32 bit version of PVFS2_ALIGN_VAR, do we need it here? */
-#define PVFS2_ALIGN_VAR(_type, _name) _type _name
 #define PVFS_MAX_SERVER_ADDR_LEN 256
 #define PVFS_NAME_MAX            256
 /*
@@ -526,34 +524,34 @@ struct PVFS_keyval_pair {
 struct PVFS_sys_attr_s {
 	__u32 owner;
 	__u32 group;
-	PVFS2_ALIGN_VAR(__u32, perms);
+	__u32 perms;
 	__u64 atime;
 	__u64 mtime;
 	__u64 ctime;
 	__s64 size;
 
 	/* NOTE: caller must free if valid */
-	PVFS2_ALIGN_VAR(char *, link_target); /* caller must free if valid */
+	char *link_target;
 
 	/* Changed to __s32 so that size of structure does not change */
-	PVFS2_ALIGN_VAR(__s32, dfile_count);
+	__s32 dfile_count;
 
 	/* Changed to __s32 so that size of structure does not change */
-	PVFS2_ALIGN_VAR(__s32, distr_dir_servers_initial);
+	__s32 distr_dir_servers_initial;
 
 	/* Changed to __s32 so that size of structure does not change */
-	PVFS2_ALIGN_VAR(__s32, distr_dir_servers_max);
+	__s32 distr_dir_servers_max;
 
 	/* Changed to __s32 so that size of structure does not change */
-	PVFS2_ALIGN_VAR(__s32, distr_dir_split_size);
+	__s32 distr_dir_split_size;
 
-	PVFS2_ALIGN_VAR(__u32, mirror_copies_count);
+	__u32 mirror_copies_count;
 
 	/* NOTE: caller must free if valid */
-	PVFS2_ALIGN_VAR(char *, dist_name);
+	char *dist_name;
 
 	/* NOTE: caller must free if valid */
-	PVFS2_ALIGN_VAR(char *, dist_params);
+	char *dist_params;
 
 	__s64 dirent_count;
 	enum pvfs2_ds_type objtype;
@@ -561,7 +559,6 @@ struct PVFS_sys_attr_s {
 	__u32 mask;
 	__s64 blksize;
 };
-typedef struct PVFS_sys_attr_s PVFS_sys_attr;
 
 #define PVFS2_LOOKUP_LINK_NO_FOLLOW 0
 #define PVFS2_LOOKUP_LINK_FOLLOW    1
@@ -674,11 +671,11 @@ do {								\
 
 /* do file and line number printouts w/ the GNU preprocessor */
 #define gossip_ldebug(mask, format, f...)				\
-		gossip_debug(mask, "%s: " format, __func__ , ##f);
+		gossip_debug(mask, "%s: " format, __func__, ##f)
 
 #define gossip_err printk
 #define gossip_lerr(format, f...)					\
 		gossip_err("%s line %d: " format,			\
 			   __FILE__,					\
 			   __LINE__,					\
-			   ##f);
+			   ##f)

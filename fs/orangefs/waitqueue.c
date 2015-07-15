@@ -26,6 +26,7 @@
 void purge_waiting_ops(void)
 {
 	struct pvfs2_kernel_op_s *op;
+
 	spin_lock(&pvfs2_request_list_lock);
 	list_for_each_entry(op, &pvfs2_request_list, list) {
 		gossip_debug(GOSSIP_WAIT_DEBUG,
@@ -38,7 +39,6 @@ void purge_waiting_ops(void)
 		wake_up_interruptible(&op->waitq);
 	}
 	spin_unlock(&pvfs2_request_list_lock);
-	return;
 }
 
 /*

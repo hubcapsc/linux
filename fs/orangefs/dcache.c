@@ -30,7 +30,9 @@ static int pvfs2_revalidate_lookup(struct dentry *dentry)
 
 	new_op->upcall.req.lookup.sym_follow = PVFS2_LOOKUP_LINK_NO_FOLLOW;
 	new_op->upcall.req.lookup.parent_refn = parent->refn;
-	strncpy(new_op->upcall.req.lookup.d_name, dentry->d_name.name, PVFS2_NAME_LEN);
+	strncpy(new_op->upcall.req.lookup.d_name,
+		dentry->d_name.name,
+		PVFS2_NAME_LEN);
 
 	gossip_debug(GOSSIP_DCACHE_DEBUG,
 		     "%s:%s:%d interrupt flag [%d]\n",

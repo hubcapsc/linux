@@ -32,9 +32,7 @@ static int is_reserved_key(const char *key, size_t size)
 	if (size < SYSTEM_PVFS2_KEY_LEN)
 		return 1;
 
-	return strncmp(key, SYSTEM_PVFS2_KEY, SYSTEM_PVFS2_KEY_LEN) ?
-		 1 :
-		 0 ;
+	return strncmp(key, SYSTEM_PVFS2_KEY, SYSTEM_PVFS2_KEY_LEN) ?  1 : 0;
 }
 
 static inline int convert_to_internal_xattr_flags(int setxattr_flags)
@@ -361,7 +359,6 @@ ssize_t pvfs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		gossip_err("Invalid size (%d)\n", (int)size);
 		return -EINVAL;
 	}
-	
 
 	down_read(&pvfs2_inode->xattr_sem);
 	new_op = op_alloc(PVFS2_VFS_OP_LISTXATTR);
@@ -409,8 +406,10 @@ try_again:
 		 * xattrs this is a feeble attempt at defeating those by not
 		 * listing them in the output of listxattr.. sigh
 		 */
-		if (is_reserved_key(new_op->downcall.resp.listxattr.key + key_size,
-				new_op->downcall.resp.listxattr.lengths[i])) {
+		if (is_reserved_key(new_op->downcall.resp.listxattr.key +
+				    key_size,
+				    new_op->downcall.resp.
+					listxattr.lengths[i])) {
 			gossip_debug(GOSSIP_XATTR_DEBUG, "Copying key %d -> %s\n",
 					i, new_op->downcall.resp.listxattr.key +
 						key_size);

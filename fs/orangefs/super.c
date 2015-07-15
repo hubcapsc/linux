@@ -256,7 +256,6 @@ int fsid_key_table_initialize(void)
 
 void fsid_key_table_finalize(void)
 {
-	return;
 }
 
 /* Called whenever the VFS dirties the inode in response to atime updates */
@@ -285,7 +284,7 @@ struct dentry *pvfs2_fh_to_dentry(struct super_block *sb,
 				  int fh_len,
 				  int fh_type)
 {
-	PVFS_object_kref refn;
+	struct pvfs2_object_kref refn;
 
 	if (fh_len < 5 || fh_type > 2)
 		return NULL;
@@ -307,7 +306,7 @@ int pvfs2_encode_fh(struct inode *inode,
 {
 	int len = parent ? 10 : 5;
 	int type = 1;
-	PVFS_object_kref refn;
+	struct pvfs2_object_kref refn;
 
 	if (*max_len < len) {
 		gossip_lerr("fh buffer is too small for encoding\n");
@@ -355,7 +354,7 @@ int pvfs2_fill_sb(struct super_block *sb, void *data, int silent)
 	struct dentry *root_dentry = NULL;
 	struct pvfs2_mount_sb_info_s *mount_sb_info =
 		(struct pvfs2_mount_sb_info_s *) data;
-	PVFS_object_kref root_object;
+	struct pvfs2_object_kref root_object;
 
 	/* alloc and init our private pvfs2 sb info */
 	sb->s_fs_info =
@@ -433,7 +432,7 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
 		gossip_err("ERROR: device name not specified.\n");
 		return ERR_PTR(-EINVAL);
 	}
-	
+
 	new_op = op_alloc(PVFS2_VFS_OP_FS_MOUNT);
 	if (!new_op)
 		return ERR_PTR(-ENOMEM);
