@@ -16,6 +16,8 @@
 #include <linux/debugfs.h>
 #include <linux/slab.h>
 
+#include <trace/events/orangefs.h>
+
 /* this file implements the /dev/pvfs2-req device node */
 
 uint32_t orangefs_userspace_version;
@@ -265,6 +267,7 @@ restart:
 	spin_unlock(&orangefs_request_list_lock);
 
 	spin_unlock(&cur_op->lock);
+	trace_orangefs_op_get(cur_op);
 
 	/* Push the upcall out. */
 	ret = copy_to_user(buf, &proto_ver, sizeof(__s32));
@@ -816,7 +819,9 @@ static unsigned int orangefs_devreq_poll(struct file *file,
 {
 	int poll_revent_mask = 0;
 
+	trace_orangefs_igothere("before poll_wait");
 	poll_wait(file, &orangefs_request_list_waitq, poll_table);
+	trace_orangefs_igothere("after poll_wait");
 
 	if (!list_empty(&orangefs_request_list))
 		poll_revent_mask |= POLL_IN;

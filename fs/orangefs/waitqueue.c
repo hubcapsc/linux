@@ -16,6 +16,10 @@
 #include "orangefs-kernel.h"
 #include "orangefs-bufmap.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/orangefs.h>
+
+
 static int wait_for_matching_downcall(struct orangefs_kernel_op_s *, long, bool);
 static void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s *);
 
@@ -119,6 +123,7 @@ retry_servicing:
 	else
 		list_add_tail(&op->list, &orangefs_request_list);
 	spin_unlock(&op->lock);
+	trace_orangefs_op_put(op);
 	wake_up_interruptible(&orangefs_request_list_waitq);
 	if (!__is_daemon_in_service()) {
 		gossip_debug(GOSSIP_WAIT_DEBUG,
