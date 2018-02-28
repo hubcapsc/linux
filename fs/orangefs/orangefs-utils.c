@@ -183,9 +183,9 @@ static inline int copy_attributes_from_inode(struct inode *inode,
 		attrs->mask |= ORANGEFS_ATTR_SYS_CTIME;
 
 	/*
-	 * ORANGEFS cannot set size with a setattr operation.  Probably not likely
-	 * to be requested through the VFS, but just in case, don't worry about
-	 * ATTR_SIZE
+	 * ORANGEFS cannot set size with a setattr operation. Probably not
+	 * likely to be requested through the VFS, but just in case, don't
+	 * worry about ATTR_SIZE
 	 */
 
 	if (iattr->ia_valid & ATTR_MODE) {
@@ -207,7 +207,7 @@ static inline int copy_attributes_from_inode(struct inode *inode,
 
 		if (tmp_mode & (S_ISUID)) {
 			gossip_debug(GOSSIP_UTILS_DEBUG,
-				     "Attempting to set setuid bit (not supported); returning EINVAL.\n");
+				     "Setting setuid bit is not supported.\n");
 			return -EINVAL;
 		}
 
@@ -296,6 +296,19 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 	if (!new_op)
 		return -ENOMEM;
 	new_op->upcall.req.getattr.refn = orangefs_inode->refn;
+
+	/* add SIDs to the trailer... */
+	new_op->upcall.trailer_size = orangefs_inode->trailer_size;
+	new_op->upcall.trailer_buf =
+		kmalloc(orangefs_inode->trailer_size, GFP_KERNEL);
+	if (!new_op->upcall.trailer_buf) {
+		gossip_err("%s: vmalloc failed.\n", __func__);
+		return -ENOMEM;
+	}
+	memcpy(new_op->upcall.trailer_buf,
+		orangefs_inode->trailer_buf,
+		orangefs_inode->trailer_size);
+
 	/*
 	 * Size is the hardest attribute to get.  The incremental cost of any
 	 * other attribute is essentially zero.
@@ -308,6 +321,10 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 
 	ret = service_operation(new_op, __func__,
 	    get_interruptible_flag(inode));
+
+	kfree(new_op->upcall.trailer_buf);
+	new_op->upcall.trailer_size = 0;
+
 	if (ret != 0)
 		goto out;
 
@@ -323,8 +340,10 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 
 	type = orangefs_inode_type(new_op->
 	    downcall.resp.getattr.attributes.objtype);
+printk("%s: +++++++++ type:%d:\n", __func__, type);
 	switch (type) {
 	case S_IFREG:
+printk("%s: +++++++++ ONE REG\n", __func__);
 		inode->i_flags = orangefs_inode_flags(&new_op->
 		    downcall.resp.getattr.attributes);
 		if (request_mask & STATX_SIZE || new) {
@@ -343,6 +362,7 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 		}
 		break;
 	case S_IFDIR:
+printk("%s: +++++++++ TWO DIR\n", __func__);
 		if (request_mask & STATX_SIZE || new) {
 			inode->i_size = PAGE_SIZE;
 			orangefs_inode->blksize = i_blocksize(inode);
@@ -353,6 +373,7 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 		set_nlink(inode, 1);
 		break;
 	case S_IFLNK:
+printk("%s: +++++++++ THREE LNK\n", __func__);
 		if (new) {
 			inode->i_size = (loff_t)strlen(new_op->
 			    downcall.resp.getattr.link_target);
@@ -369,6 +390,7 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 		break;
 	/* i.e. -1 */
 	default:
+printk("%s: +++++++++ FOUR STALE\n", __func__);
 		/* XXX: ESTALE?  This is what is done if it is not new. */
 		orangefs_make_bad_inode(inode);
 		ret = -ESTALE;
@@ -525,7 +547,9 @@ int orangefs_normalize_to_errno(__s32 error_code)
 			error_code = -ETIMEDOUT;
 		} else {
 			/* assume a default error code */
-			gossip_err("orangefs: warning: got error code without errno equivalent: %d.\n", error_code);
+			gossip_err("%s: bad error code :%d:.\n",
+				   __func__,
+				   error_code);
 			error_code = -EINVAL;
 		}
 
@@ -542,7 +566,8 @@ int orangefs_normalize_to_errno(__s32 error_code)
 	 * there is a bug somewhere.
 	 */
 	} else {
-		gossip_err("orangefs: orangefs_normalize_to_errno: got error code which is not from ORANGEFS.\n");
+		gossip_err("%s: got error code which is not from ORANGEFS.\n",
+			   __func__);
 		error_code = -EINVAL;
 	}
 	return error_code;

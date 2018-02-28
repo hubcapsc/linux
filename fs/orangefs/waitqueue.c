@@ -198,6 +198,7 @@ out:
 		     op_name,
 		     ret,
 		     op);
+gossip_err("%s: *+*+*.... tag:%llu: type:%d:\n", __func__, op->tag, op->downcall.resp.getattr.attributes.objtype);
 	return ret;
 }
 

@@ -150,6 +150,8 @@ struct orangefs_kernel_op_s {
 	int attempts;
 
 	struct list_head list;
+
+	int upcall_processed;
 };
 
 #define set_op_state_waiting(op)     ((op)->op_state = OP_VFS_STATE_WAITING)
@@ -207,6 +209,10 @@ struct orangefs_inode_s {
 
 	unsigned long getattr_time;
 	u32 getattr_mask;
+
+	__u64 trailer_size;
+	char *trailer_buf;
+
 };
 
 /* per superblock private orangefs info */
@@ -427,7 +433,9 @@ ssize_t orangefs_listxattr(struct dentry *dentry, char *buffer, size_t size);
  * defined in namei.c
  */
 struct inode *orangefs_iget(struct super_block *sb,
-			 struct orangefs_object_kref *ref);
+			struct orangefs_object_kref *ref,
+			__u64 trailer_size,
+			char *trailer_buf);
 
 ssize_t orangefs_inode_read(struct inode *inode,
 			    struct iov_iter *iter,

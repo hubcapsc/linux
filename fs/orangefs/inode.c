@@ -238,7 +238,9 @@ int orangefs_setattr(struct dentry *dentry, struct iattr *iattr)
 		ret = posix_acl_chmod(inode, inode->i_mode);
 
 out:
-	gossip_debug(GOSSIP_INODE_DEBUG, "orangefs_setattr: returning %d\n", ret);
+	gossip_debug(GOSSIP_INODE_DEBUG,
+		"orangefs_setattr: returning %d\n",
+		ret);
 	return ret;
 }
 
@@ -306,7 +308,7 @@ int orangefs_update_time(struct inode *inode, struct timespec *time, int flags)
 	return orangefs_inode_setattr(inode, &iattr);
 }
 
-/* ORANGEDS2 implementation of VFS inode operations for files */
+/* ORANGEFS2 implementation of VFS inode operations for files */
 const struct inode_operations orangefs_file_inode_operations = {
 	.get_acl = orangefs_get_acl,
 	.set_acl = orangefs_set_acl,
@@ -345,8 +347,8 @@ static int orangefs_init_iops(struct inode *inode)
 }
 
 /*
- * Given a ORANGEFS object identifier (fsid, handle), convert it into a ino_t type
- * that will be used as a hash-index from where the handle will
+ * Given a ORANGEFS object identifier (fsid, handle), convert it into an
+ * ino_t type that will be used as a hash-index from where the handle will
  * be searched for in the VFS hash table of inodes.
  */
 static inline ino_t orangefs_handle_hash(struct orangefs_object_kref *ref)
@@ -376,8 +378,9 @@ static int orangefs_test_inode(struct inode *inode, void *data)
 	struct orangefs_inode_s *orangefs_inode = NULL;
 
 	orangefs_inode = ORANGEFS_I(inode);
-	return (!ORANGEFS_khandle_cmp(&(orangefs_inode->refn.khandle), &(ref->khandle))
-		&& orangefs_inode->refn.fs_id == ref->fs_id);
+	return(!ORANGEFS_khandle_cmp(&(orangefs_inode->refn.khandle),
+				     &(ref->khandle)) &&
+		orangefs_inode->refn.fs_id == ref->fs_id);
 }
 
 /*
@@ -385,18 +388,34 @@ static int orangefs_test_inode(struct inode *inode, void *data)
  * file handle.
  *
  * @sb: the file system super block instance.
- * @ref: The ORANGEFS object for which we are trying to locate an inode structure.
+ * @ref: The ORANGEFS object for which we are trying to locate an inode.
  */
-struct inode *orangefs_iget(struct super_block *sb, struct orangefs_object_kref *ref)
+struct inode *orangefs_iget(struct super_block *sb,
+			struct orangefs_object_kref *ref,
+			__u64 trailer_size,
+			char *trailer_buf)
 {
 	struct inode *inode = NULL;
 	unsigned long hash;
 	int error;
 
 	hash = orangefs_handle_hash(ref);
-	inode = iget5_locked(sb, hash, orangefs_test_inode, orangefs_set_inode, ref);
+	inode = iget5_locked(sb,
+			hash,
+			orangefs_test_inode,
+			orangefs_set_inode,
+			ref);
 	if (!inode || !(inode->i_state & I_NEW))
 		return inode;
+
+	if (trailer_size != 0) {
+		ORANGEFS_I(inode)->trailer_size = trailer_size;
+		ORANGEFS_I(inode)->trailer_buf =
+			kmalloc(trailer_size, GFP_KERNEL);
+		memcpy(ORANGEFS_I(inode)->trailer_buf,
+			trailer_buf,
+			trailer_size);
+	}
 
 	error = orangefs_inode_getattr(inode, 1, 1, STATX_ALL);
 	if (error) {

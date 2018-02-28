@@ -192,7 +192,11 @@ static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
 
 	orangefs_set_timeout(dentry);
 
-	inode = orangefs_iget(dir->i_sb, &new_op->downcall.resp.lookup.refn);
+	inode = orangefs_iget(dir->i_sb,
+			&new_op->downcall.resp.lookup.refn,
+			0,
+			NULL);
+
 	if (IS_ERR(inode)) {
 		gossip_debug(GOSSIP_NAME_DEBUG,
 			"error %ld from iget\n", PTR_ERR(inode));

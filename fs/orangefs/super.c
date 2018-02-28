@@ -198,7 +198,9 @@ static int orangefs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 out_op_release:
 	op_release(new_op);
-	gossip_debug(GOSSIP_SUPER_DEBUG, "orangefs_statfs: returning %d\n", ret);
+	gossip_debug(GOSSIP_SUPER_DEBUG,
+		"orangefs_statfs: returning %d\n",
+		ret);
 	return ret;
 }
 
@@ -322,7 +324,7 @@ static struct dentry *orangefs_fh_to_dentry(struct super_block *sb,
 		     &refn.khandle,
 		     refn.fs_id);
 
-	return d_obtain_alias(orangefs_iget(sb, &refn));
+	return d_obtain_alias(orangefs_iget(sb, &refn, 0, NULL));
 }
 
 static int orangefs_encode_fh(struct inode *inode,
@@ -394,7 +396,10 @@ static int orangefs_unmount(int id, __s32 fs_id, const char *devname)
 
 static int orangefs_fill_sb(struct super_block *sb,
 		struct orangefs_fs_mount_response *fs_mount,
-		void *data, int silent)
+		void *data,
+		int silent,
+		__u64 trailer_size,
+		char *trailer_buf)
 {
 	int ret = -EINVAL;
 	struct inode *root = NULL;
@@ -434,7 +439,7 @@ static int orangefs_fill_sb(struct super_block *sb,
 		     &root_object.khandle,
 		     root_object.fs_id);
 
-	root = orangefs_iget(sb, &root_object);
+	root = orangefs_iget(sb, &root_object, trailer_size, trailer_buf);
 	if (IS_ERR(root))
 		return PTR_ERR(root);
 
@@ -506,8 +511,11 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 	}
 
 	ret = orangefs_fill_sb(sb,
-	      &new_op->downcall.resp.fs_mount, data,
-	      flags & SB_SILENT ? 1 : 0);
+		&new_op->downcall.resp.fs_mount,
+		data,
+		flags & SB_SILENT ? 1 : 0,
+		new_op->downcall.trailer_size,
+		new_op->downcall.trailer_buf);
 
 	if (ret) {
 		d = ERR_PTR(ret);
