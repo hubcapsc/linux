@@ -408,8 +408,9 @@ struct inode *orangefs_iget(struct super_block *sb,
 	if (!inode || !(inode->i_state & I_NEW))
 		return inode;
 
+gossip_err("%s: trailer_size:%llu:\n", __func__, trailer_size);
+	ORANGEFS_I(inode)->trailer_size = trailer_size;
 	if (trailer_size != 0) {
-		ORANGEFS_I(inode)->trailer_size = trailer_size;
 		ORANGEFS_I(inode)->trailer_buf =
 			kmalloc(trailer_size, GFP_KERNEL);
 		memcpy(ORANGEFS_I(inode)->trailer_buf,

@@ -183,6 +183,8 @@ static ssize_t orangefs_devreq_read(struct file *file,
 	}
 */
 
+gossip_err("%s: count:%lu:\n", __func__, count);
+
 	/* Check for an empty list before locking. */
 	if (list_empty(&orangefs_request_list))
 		return -EAGAIN;
@@ -331,6 +333,7 @@ restart:
 		goto out;
 
 push_trailer:
+gossip_err("%s: pushing upcall trailer asdf \n", __func__);
 	ret = copy_to_user(buf,
 		cur_op->upcall.trailer_buf, 
 		cur_op->upcall.trailer_size);

@@ -116,6 +116,7 @@ static struct inode *orangefs_alloc_inode(struct super_block *sb)
 	memset(&orangefs_inode->refn.khandle, 0, 16);
 	orangefs_inode->refn.fs_id = ORANGEFS_FS_ID_NULL;
 	orangefs_inode->last_failed_block_index_read = 0;
+	orangefs_inode->trailer_size = 0;
 	memset(orangefs_inode->link_target, 0, sizeof(orangefs_inode->link_target));
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
@@ -478,6 +479,7 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 	}
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_FS_MOUNT);
+
 	if (!new_op)
 		return ERR_PTR(-ENOMEM);
 
@@ -509,6 +511,13 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 		    new_op->downcall.resp.fs_mount.fs_id, devname);
 		goto free_op;
 	}
+
+printk("%s: downcall.trailer_size:%llu:\n",
+__func__, new_op->downcall.trailer_size);
+if (new_op->downcall.trailer_buf == NULL)
+ printk("%s: downcall.trailer_buf is NULL.\n", __func__);
+else
+ printk("%s: downcall.trailer_buf is not NULL.\n", __func__);
 
 	ret = orangefs_fill_sb(sb,
 		&new_op->downcall.resp.fs_mount,

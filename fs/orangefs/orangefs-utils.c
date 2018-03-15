@@ -297,17 +297,24 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 		return -ENOMEM;
 	new_op->upcall.req.getattr.refn = orangefs_inode->refn;
 
-	/* add SIDs to the trailer... */
-	new_op->upcall.trailer_size = orangefs_inode->trailer_size;
-	new_op->upcall.trailer_buf =
-		kmalloc(orangefs_inode->trailer_size, GFP_KERNEL);
-	if (!new_op->upcall.trailer_buf) {
-		gossip_err("%s: vmalloc failed.\n", __func__);
-		return -ENOMEM;
-	}
-	memcpy(new_op->upcall.trailer_buf,
-		orangefs_inode->trailer_buf,
+	/* add baggage to the trailer... */
+	printk("%s: trailer_size:%llu:\n",
+		__func__,
 		orangefs_inode->trailer_size);
+	new_op->upcall.trailer_size = orangefs_inode->trailer_size;
+	if (orangefs_inode->trailer_size) {
+		new_op->upcall.trailer_buf =
+			kmalloc(orangefs_inode->trailer_size, GFP_KERNEL);
+		if (!new_op->upcall.trailer_buf) {
+			gossip_err("%s: vmalloc failed.\n", __func__);
+			return -ENOMEM;
+		}
+		memcpy(new_op->upcall.trailer_buf,
+			orangefs_inode->trailer_buf,
+			orangefs_inode->trailer_size);
+	} else {
+		new_op->upcall.trailer_buf = NULL;
+	}
 
 	/*
 	 * Size is the hardest attribute to get.  The incremental cost of any
@@ -322,8 +329,11 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 	ret = service_operation(new_op, __func__,
 	    get_interruptible_flag(inode));
 
-	kfree(new_op->upcall.trailer_buf);
-	new_op->upcall.trailer_size = 0;
+	if (new_op->upcall.trailer_size) {
+gossip_err("%s: asdf free_trailer_buf\n", __func__);
+		kfree(new_op->upcall.trailer_buf);
+		new_op->upcall.trailer_size = 0;
+	}
 
 	if (ret != 0)
 		goto out;
