@@ -37,8 +37,26 @@ static int orangefs_create(struct inode *dir,
 
 	new_op->upcall.req.create.parent_refn = parent->refn;
 
+	/* add baggage to the trailer... */
+	printk("%s: trailer_size:%llu:\n", __func__, parent->trailer_size);
+        new_op->upcall.trailer_size = parent->trailer_size;
+        if (parent->trailer_size) {
+                new_op->upcall.trailer_buf =
+                        kmalloc(parent->trailer_size, GFP_KERNEL);
+                if (!new_op->upcall.trailer_buf) {
+                        gossip_err("%s: trailer vmalloc failed.\n", __func__);
+                        return -ENOMEM;
+                }
+                memcpy(new_op->upcall.trailer_buf,
+                        parent->trailer_buf,
+                        parent->trailer_size);
+        } else {
+                new_op->upcall.trailer_buf = NULL;
+        }
+
 	fill_default_sys_attrs(new_op->upcall.req.create.attributes,
 			       ORANGEFS_TYPE_METAFILE, mode);
+printk("%s: ALL_SETABLE:%d:\n", __func__, new_op->upcall.req.sym.attributes.mask);
 
 	strncpy(new_op->upcall.req.create.d_name,
 		dentry->d_name.name, ORANGEFS_NAME_MAX - 1);
@@ -140,6 +158,23 @@ static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
 		     __LINE__,
 		     &parent->refn.khandle);
 	new_op->upcall.req.lookup.parent_refn = parent->refn;
+
+	/* add baggage to the trailer... */
+	printk("%s: trailer_size:%llu:\n", __func__, parent->trailer_size);
+        new_op->upcall.trailer_size = parent->trailer_size;
+        if (parent->trailer_size) {
+                new_op->upcall.trailer_buf =
+                        kmalloc(parent->trailer_size, GFP_KERNEL);
+                if (!new_op->upcall.trailer_buf) {
+                        gossip_err("%s: trailer vmalloc failed.\n", __func__);
+                        return ERR_PTR(-ENOMEM);
+                }
+                memcpy(new_op->upcall.trailer_buf,
+                        parent->trailer_buf,
+                        parent->trailer_size);
+        } else {
+                new_op->upcall.trailer_buf = NULL;
+        }
 
 	strncpy(new_op->upcall.req.lookup.d_name, dentry->d_name.name,
 		ORANGEFS_NAME_MAX - 1);

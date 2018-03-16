@@ -183,8 +183,6 @@ static ssize_t orangefs_devreq_read(struct file *file,
 	}
 */
 
-gossip_err("%s: count:%lu:\n", __func__, count);
-
 	/* Check for an empty list before locking. */
 	if (list_empty(&orangefs_request_list))
 		return -EAGAIN;
