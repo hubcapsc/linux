@@ -137,6 +137,8 @@ struct orangefs_kernel_op_s {
 	int attempts;
 
 	struct list_head list;
+
+	int upcall_processed;
 };
 
 #define set_op_state_waiting(op)     ((op)->op_state = OP_VFS_STATE_WAITING)
