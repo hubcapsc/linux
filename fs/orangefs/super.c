@@ -116,6 +116,7 @@ static struct inode *orangefs_alloc_inode(struct super_block *sb)
 	memset(&orangefs_inode->refn.khandle, 0, 16);
 	orangefs_inode->refn.fs_id = ORANGEFS_FS_ID_NULL;
 	orangefs_inode->last_failed_block_index_read = 0;
+	orangefs_inode->trailer_size = 0;
 	memset(orangefs_inode->link_target, 0, sizeof(orangefs_inode->link_target));
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
@@ -128,6 +129,8 @@ static void orangefs_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	if (orangefs_inode->trailer_size)
+		kfree(orangefs_inode->trailer_buf);
 	kmem_cache_free(orangefs_inode_cache, orangefs_inode);
 }
 
