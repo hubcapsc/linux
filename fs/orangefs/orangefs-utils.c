@@ -298,6 +298,22 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 	if (!new_op)
 		return -ENOMEM;
 	new_op->upcall.req.getattr.refn = orangefs_inode->refn;
+
+	/* add SIDs to the trailer... */
+	if (orangefs_inode->trailer_size) {
+		new_op->upcall.trailer_size = orangefs_inode->trailer_size;
+		new_op->upcall.trailer_buf =
+			kmalloc(orangefs_inode->trailer_size, GFP_KERNEL);
+		if (!new_op->upcall.trailer_buf) {
+			gossip_err("%s: vmalloc failed.\n", __func__);
+			ret = -ENOMEM;
+			goto out;
+		}
+		memcpy(new_op->upcall.trailer_buf,
+			orangefs_inode->trailer_buf,
+			orangefs_inode->trailer_size);
+	}
+
 	/*
 	 * Size is the hardest attribute to get.  The incremental cost of any
 	 * other attribute is essentially zero.
@@ -310,6 +326,11 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 
 	ret = service_operation(new_op, __func__,
 	    get_interruptible_flag(inode));
+
+	if (orangefs_inode->trailer_size)
+		kfree(new_op->upcall.trailer_buf);
+	new_op->upcall.trailer_size = 0;
+
 	if (ret != 0)
 		goto out;
 
