@@ -37,6 +37,22 @@ static int orangefs_create(struct inode *dir,
 
 	new_op->upcall.req.create.parent_refn = parent->refn;
 
+	/* add baggage to the trailer... (this should be a function?) */
+	new_op->upcall.trailer_size = parent->trailer_size;
+	if (parent->trailer_size) {
+		new_op->upcall.trailer_buf =
+			kmalloc(parent->trailer_size, GFP_KERNEL);
+		if (!new_op->upcall.trailer_buf) {
+			gossip_err("%s: trailer vmalloc failed.\n", __func__);
+			return -ENOMEM;
+		}
+		memcpy(new_op->upcall.trailer_buf,
+			parent->trailer_buf,
+			parent->trailer_size);
+	} else {
+		new_op->upcall.trailer_buf = NULL;
+	}
+
 	fill_default_sys_attrs(new_op->upcall.req.create.attributes,
 			       ORANGEFS_TYPE_METAFILE, mode);
 
@@ -44,6 +60,10 @@ static int orangefs_create(struct inode *dir,
 		dentry->d_name.name, ORANGEFS_NAME_MAX - 1);
 
 	ret = service_operation(new_op, __func__, get_interruptible_flag(dir));
+
+	if (new_op->upcall.trailer_size)
+		kfree(new_op->upcall.trailer_buf);
+	new_op->upcall.trailer_size = 0;
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "%s: %pd: handle:%pU: fsid:%d: new_op:%p: ret:%d:\n",
@@ -139,6 +159,22 @@ static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
 		     &parent->refn.khandle);
 	new_op->upcall.req.lookup.parent_refn = parent->refn;
 
+	/* add baggage to the trailer... (this should be a function?) */
+	new_op->upcall.trailer_size = parent->trailer_size;
+	if (parent->trailer_size) {
+		new_op->upcall.trailer_buf =
+			kmalloc(parent->trailer_size, GFP_KERNEL);
+		if (!new_op->upcall.trailer_buf) {
+			gossip_err("%s: trailer vmalloc failed.\n", __func__);
+			return ERR_PTR(-ENOMEM);
+		}
+		memcpy(new_op->upcall.trailer_buf,
+			parent->trailer_buf,
+			parent->trailer_size);
+	} else {
+		new_op->upcall.trailer_buf = NULL;
+	}
+
 	strncpy(new_op->upcall.req.lookup.d_name, dentry->d_name.name,
 		ORANGEFS_NAME_MAX - 1);
 
@@ -150,6 +186,10 @@ static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
 		     new_op->upcall.req.lookup.parent_refn.fs_id);
 
 	ret = service_operation(new_op, __func__, get_interruptible_flag(dir));
+
+	if (new_op->upcall.trailer_size)
+		kfree(new_op->upcall.trailer_buf);
+	new_op->upcall.trailer_size = 0;
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "Lookup Got %pU, fsid %d (ret=%d)\n",
