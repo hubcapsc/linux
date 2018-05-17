@@ -272,10 +272,25 @@ restart:
 		return -EAGAIN;
 	}
 
-	list_del_init(&cur_op->list);
+	/*
+	 * Upcall ops that have trailers need to be read twice by userspace,
+	 * once to get the upcall and once to get the opaque blob in the
+	 * trailer. The out-of-tree module used this strategy for
+	 * readx/writex code, and the op flag there was called op_linger,
+	 * so if we do it right here userspace is already set up to
+	 * deal with the two reads.
+	 */
+	if (cur_op->upcall.trailer_size && cur_op->upcall_processed)
+		list_del_init(&cur_op->list);
+	if (cur_op->upcall.trailer_size == 0)
+		list_del_init(&cur_op->list);
+
 	spin_unlock(&orangefs_request_list_lock);
 
 	spin_unlock(&cur_op->lock);
+
+	if (cur_op->upcall_processed)
+		goto push_trailer;
 
 	/* Push the upcall out. */
 	ret = copy_to_user(buf, &proto_ver, sizeof(__s32));
@@ -295,6 +310,27 @@ restart:
 	if (ret != 0)
 		goto error;
 
+	spin_lock(&cur_op->lock);
+	cur_op->upcall_processed = 1;
+	spin_unlock(&cur_op->lock);
+
+	ret = MAX_DEV_REQ_UPSIZE;
+
+	if (!cur_op->upcall.trailer_size)
+		goto no_trailer;
+	else
+		goto out;
+
+push_trailer:
+	ret = copy_to_user(buf,
+		cur_op->upcall.trailer_buf,
+		cur_op->upcall.trailer_size);
+	if (ret != 0)
+		goto error;
+
+	ret = cur_op->upcall.trailer_size;
+
+no_trailer:
 	spin_lock(&orangefs_htable_ops_in_progress_lock);
 	spin_lock(&cur_op->lock);
 	if (unlikely(op_state_given_up(cur_op))) {
@@ -319,8 +355,8 @@ restart:
 	spin_unlock(&cur_op->lock);
 	spin_unlock(&orangefs_htable_ops_in_progress_lock);
 
-	/* The client only asks to read one size buffer. */
-	return MAX_DEV_REQ_UPSIZE;
+out:
+	return ret;
 error:
 	/*
 	 * We were unable to copy the op data to the client. Put the op back in
@@ -356,7 +392,7 @@ error:
  *  - __u32 magic
  *  - __u64 tag
  *  - struct orangefs_downcall_s
- *  - trailer buffer (in the case of READDIR operations)
+ *  - perhaps a trailer buffer
  */
 static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 				      struct iov_iter *iter)
@@ -445,25 +481,7 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 		goto Efault;
 	}
 
-	/* Only READDIR operations should have trailers. */
-	if ((op->downcall.type != ORANGEFS_VFS_OP_READDIR) &&
-	    (op->downcall.trailer_size != 0)) {
-		gossip_err("%s: %x operation with trailer.",
-			   __func__,
-			   op->downcall.type);
-		goto Efault;
-	}
-
-	/* READDIR operations should always have trailers. */
-	if ((op->downcall.type == ORANGEFS_VFS_OP_READDIR) &&
-	    (op->downcall.trailer_size == 0)) {
-		gossip_err("%s: %x operation with no trailer.",
-			   __func__,
-			   op->downcall.type);
-		goto Efault;
-	}
-
-	if (op->downcall.type != ORANGEFS_VFS_OP_READDIR)
+	if (op->downcall.trailer_size == 0)
 		goto wakeup;
 
 	op->downcall.trailer_buf = vzalloc(op->downcall.trailer_size);
