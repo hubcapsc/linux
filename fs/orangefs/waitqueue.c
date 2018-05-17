@@ -77,13 +77,13 @@ int service_operation(struct orangefs_kernel_op_s *op,
 retry_servicing:
 	op->downcall.status = 0;
 	gossip_debug(GOSSIP_WAIT_DEBUG,
-		     "%s: %s op:%p: process:%s: pid:%d:\n",
-		     __func__,
-		     op_name,
-		     op,
-		     current->comm,
-		     current->pid);
-
+		"%s: %s op:%p: process:%s: pid:%d: upcall.trailer_size:%lld:\n",
+		__func__,
+		op_name,
+		op,
+		current->comm,
+		current->pid,
+		op->upcall.trailer_size);
 	/*
 	 * If ORANGEFS_OP_NO_MUTEX was set in flags, we need to avoid
 	 * acquiring the request_mutex because we're servicing a
@@ -197,11 +197,12 @@ retry_servicing:
 
 out:
 	gossip_debug(GOSSIP_WAIT_DEBUG,
-		     "%s: %s returning: %d for %p.\n",
-		     __func__,
-		     op_name,
-		     ret,
-		     op);
+		"%s: %s returning:%d: for %p, downcall.trailer_size:%llu:.\n",
+		__func__,
+		op_name,
+		ret,
+		op,
+		op->downcall.trailer_size);
 	return ret;
 }
 

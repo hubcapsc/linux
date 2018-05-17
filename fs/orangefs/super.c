@@ -323,6 +323,11 @@ static struct dentry *orangefs_fh_to_dentry(struct super_block *sb,
 		     &refn.khandle,
 		     refn.fs_id);
 
+	/*
+	 * I think maybe we expect to find an inode here, so it is
+	 * OK that orangefs_iget can't get back to the Orangefs server,
+	 * some kind of test case with NFS?
+	 */
 	return d_obtain_alias(orangefs_iget(sb, &refn, 0, NULL));
 }
 
