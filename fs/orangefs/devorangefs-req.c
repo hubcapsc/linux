@@ -173,11 +173,19 @@ static ssize_t orangefs_devreq_read(struct file *file,
 	}
 
 	/*
-	 * The client will do an ioctl to find MAX_DEV_REQ_UPSIZE, then
-	 * always read with that size buffer.
+	 * When an upcall has only one part, it will be MAX_DEV_REQ_UPSIZE
+	 * bytes long. When an upcall also includes a trailer containing
+	 * opaque data, the trailer will be 4 plus some multiple of 16
+	 * bytes long.
+	 *
+	 * The kernel module code doesn't know what is in the opaque
+	 * data, but it is OK if you know <g> ... a four byte SID count
+	 * and one or more sixteen byte SIDs.
 	 */
-	if (count != MAX_DEV_REQ_UPSIZE) {
-		gossip_err("orangefs: client-core tried to read wrong size\n");
+	if ((count != MAX_DEV_REQ_UPSIZE) && ((count - 4) % 16)) {
+		gossip_err("%s: client-core tried to read %lu bytes.\n",
+			__func__,
+			count);
 		return -EINVAL;
 	}
 
