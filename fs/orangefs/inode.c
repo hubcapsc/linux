@@ -396,7 +396,9 @@ static int orangefs_test_inode(struct inode *inode, void *data)
  * @ref: The ORANGEFS object for which we are trying to locate an inode.
  */
 struct inode *orangefs_iget(struct super_block *sb,
-		struct orangefs_object_kref *ref)
+		struct orangefs_object_kref *ref,
+		__u64 trailer_size,
+		char *trailer_buf)
 {
 	struct inode *inode = NULL;
 	unsigned long hash;
@@ -410,6 +412,15 @@ struct inode *orangefs_iget(struct super_block *sb,
 			ref);
 	if (!inode || !(inode->i_state & I_NEW))
 		return inode;
+
+	if (trailer_size != 0) {
+		ORANGEFS_I(inode)->trailer_size = trailer_size;
+		ORANGEFS_I(inode)->trailer_buf =
+			kmalloc(trailer_size, GFP_KERNEL);
+		memcpy(ORANGEFS_I(inode)->trailer_buf,
+			trailer_buf,
+			trailer_size);
+	}
 
 	error = orangefs_inode_getattr(inode, 1, 1, STATX_ALL);
 	if (error) {

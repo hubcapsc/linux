@@ -159,7 +159,10 @@ static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
 
 	if (ret >= 0) {
 		orangefs_set_timeout(dentry);
-		inode = orangefs_iget(dir->i_sb, &new_op->downcall.resp.lookup.refn);
+		inode = orangefs_iget(dir->i_sb,
+				&new_op->downcall.resp.lookup.refn,
+				0,
+				NULL);
 	} else if (ret == -ENOENT) {
 		inode = NULL;
 	} else {
