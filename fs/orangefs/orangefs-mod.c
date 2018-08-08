@@ -87,13 +87,13 @@ static int __init orangefs_init(void)
 		slot_timeout_secs = 0;
 
 	/* initialize global book keeping data structures */
-	ret = op_cache_initialize();
+	ret = orangefs_caches_initialize();
 	if (ret < 0)
 		goto out;
 
 	ret = orangefs_inode_cache_initialize();
 	if (ret < 0)
-		goto cleanup_op;
+		goto cleanup_caches;
 
 	orangefs_htable_ops_in_progress =
 	    kcalloc(hash_table_size, sizeof(struct list_head), GFP_KERNEL);
@@ -172,8 +172,8 @@ cleanup_progress_table:
 cleanup_inode:
 	orangefs_inode_cache_finalize();
 
-cleanup_op:
-	op_cache_finalize();
+cleanup_caches:
+	orangefs_caches_finalize();
 
 out:
 	return ret;
@@ -194,7 +194,7 @@ static void __exit orangefs_exit(void)
 		BUG_ON(!list_empty(&orangefs_htable_ops_in_progress[i]));
 
 	orangefs_inode_cache_finalize();
-	op_cache_finalize();
+	orangefs_caches_finalize();
 
 	kfree(orangefs_htable_ops_in_progress);
 

@@ -66,7 +66,7 @@ static int orangefs_writepage_locked(struct page *page,
 		ret = 0;
 		if (wr) {
 			ClearPagePrivate(page);
-			kfree(wr);
+			wr_release(wr);
 		}
 	}
 	end_page_writeback(page);
@@ -126,7 +126,7 @@ static int update_wr(struct page *page, loff_t pos, unsigned len, int mwrite)
 		else
 			wr->len = wr->pos + wr->len - wr->pos;
 	} else {
-		wr = kmalloc(sizeof *wr, GFP_KERNEL);
+		wr = wr_alloc();
 		if (wr) {
 			wr->pos = pos;
 			wr->len = len;
@@ -272,7 +272,7 @@ static void orangefs_invalidatepage(struct page *page,
 /* XXX prove */
 		if (offset == 0 && length == PAGE_SIZE) {
 			ClearPagePrivate(page);
-			kfree(wr);
+			wr_release(wr);
 		} else if (wr->pos - page_offset(page) < offset &&
 		    wr->pos - page_offset(page) + wr->len > offset + length) {
 			wbc.range_start = page_file_offset(page);
@@ -284,7 +284,7 @@ static void orangefs_invalidatepage(struct page *page,
 					return;
 			} else {
 				ClearPagePrivate(page);
-				kfree(wr);
+				wr_release(wr);
 			}
 		} else if (wr->pos - page_offset(page) < offset &&
 		    wr->pos - page_offset(page) + wr->len <= offset + length) {
@@ -299,7 +299,7 @@ static void orangefs_invalidatepage(struct page *page,
 			 * entire write range is to be invalidated.
 			 */
 			ClearPagePrivate(page);
-			kfree(wr);
+			wr_release(wr);
 		}
 	}
 	return;

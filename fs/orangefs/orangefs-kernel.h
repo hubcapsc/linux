@@ -311,11 +311,13 @@ static inline int match_handle(struct orangefs_khandle resp_handle,
 /*
  * defined in orangefs-cache.c
  */
-int op_cache_initialize(void);
-int op_cache_finalize(void);
+int orangefs_caches_initialize(void);
+int orangefs_caches_finalize(void);
 struct orangefs_kernel_op_s *op_alloc(__s32 type);
 void orangefs_new_tag(struct orangefs_kernel_op_s *op);
 char *get_opname_string(struct orangefs_kernel_op_s *new_op);
+struct orangefs_write_request *wr_alloc(void);
+void wr_release(struct orangefs_write_request *);
 
 int orangefs_inode_cache_initialize(void);
 int orangefs_inode_cache_finalize(void);

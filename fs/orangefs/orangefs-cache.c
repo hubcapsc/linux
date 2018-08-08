@@ -16,8 +16,9 @@ static DEFINE_SPINLOCK(next_tag_value_lock);
 
 /* a cache for orangefs upcall/downcall operations */
 static struct kmem_cache *op_cache;
+static struct kmem_cache *wr_cache;
 
-int op_cache_initialize(void)
+int orangefs_caches_initialize(void)
 {
 	op_cache = kmem_cache_create("orangefs_op_cache",
 				     sizeof(struct orangefs_kernel_op_s),
@@ -34,12 +35,21 @@ int op_cache_initialize(void)
 	spin_lock(&next_tag_value_lock);
 	next_tag_value = 100;
 	spin_unlock(&next_tag_value_lock);
+
+	wr_cache = kmem_cache_create("orangefs_wr_cache",
+	    sizeof(struct orangefs_write_request), 0, ORANGEFS_CACHE_CREATE_FLAGS, NULL);
+	if (!wr_cache) {
+		gossip_err("Cannot create orangefs_wr_cache\n");
+		return -ENOMEM;
+	}
+
 	return 0;
 }
 
-int op_cache_finalize(void)
+int orangefs_caches_finalize(void)
 {
 	kmem_cache_destroy(op_cache);
+	kmem_cache_destroy(wr_cache);
 	return 0;
 }
 
@@ -161,4 +171,14 @@ void op_release(struct orangefs_kernel_op_s *orangefs_op)
 	} else {
 		gossip_err("NULL pointer in op_release\n");
 	}
+}
+
+struct orangefs_write_request *wr_alloc(void)
+{
+	return kmem_cache_zalloc(wr_cache, GFP_KERNEL);
+}
+
+void wr_release(struct orangefs_write_request *wr)
+{
+	kmem_cache_free(wr_cache, wr);
 }
