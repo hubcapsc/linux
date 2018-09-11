@@ -15,6 +15,8 @@
 #include "orangefs-kernel.h"
 #include "orangefs-bufmap.h"
 
+#define ORANGEFS_WRITEPAGES_COUNT 128
+
 static int orangefs_writepage_locked(struct page *page,
     struct writeback_control *wbc)
 {
@@ -44,10 +46,10 @@ static int orangefs_writepage_locked(struct page *page,
 			len = i_size_read(inode);
 		}
 	} else {
-/*		BUG();*/
+		end_page_writeback(page);
 		/* It's not private so there's nothing to write, right? */
 		printk("writepage not private!\n");
-		end_page_writeback(page);
+		BUG();
 		return 0;
 
 	}
@@ -230,6 +232,143 @@ static int orangefs_readpage(struct file *file, struct page *page)
 	return ret;
 }
 
+struct orangefs_writepages {
+	loff_t off;
+	size_t len;
+	kuid_t uid;
+	kgid_t gid;
+	struct page *pages[ORANGEFS_WRITEPAGES_COUNT];
+	int npages;
+	struct bio_vec bv[ORANGEFS_WRITEPAGES_COUNT];
+};
+
+static int orangefs_writepages_work(struct orangefs_writepages *ow,
+    struct writeback_control *wbc)
+{
+	struct inode *inode = ow->pages[0]->mapping->host;
+	struct orangefs_write_request *wrp, wr;
+	struct iov_iter iter;
+	ssize_t ret;
+	loff_t off;
+	int i;
+
+	for (i = 0; i < ow->npages; i++) {
+		set_page_writeback(ow->pages[i]);
+		ow->bv[i].bv_page = ow->pages[i];
+		/* uh except the last one maybe... */
+		if (i == ow->npages - 1 && ow->len % PAGE_SIZE)
+			ow->bv[i].bv_len = ow->len % PAGE_SIZE;
+		else
+			ow->bv[i].bv_len = PAGE_SIZE;
+		ow->bv[i].bv_offset = 0;
+	}
+	iov_iter_bvec(&iter, ITER_BVEC | WRITE, ow->bv, ow->npages, ow->len);
+
+	off = ow->off;
+	wr.uid = ow->uid;
+	wr.gid = ow->gid;
+	ret = wait_for_direct_io(ORANGEFS_IO_WRITE, inode, &off, &iter, ow->len,
+	    0, &wr);
+	if (ret < 0) {
+		for (i = 0; i < ow->npages; i++) {
+			SetPageError(ow->pages[i]);
+			mapping_set_error(ow->pages[i]->mapping, ret);
+			end_page_writeback(ow->pages[i]);
+			unlock_page(ow->pages[i]);
+		}
+	} else {
+		for (i = 0; i < ow->npages; i++) {
+			if (PagePrivate(ow->pages[i])) {
+				wrp = (struct orangefs_write_request *)
+				    page_private(ow->pages[i]);
+				ClearPagePrivate(ow->pages[i]);
+				wr_release(wrp);
+			}
+			end_page_writeback(ow->pages[i]);
+			unlock_page(ow->pages[i]);
+		}
+	}
+	return ret;
+}
+
+static int orangefs_writepages_callback(struct page *page,
+    struct writeback_control *wbc, void *data)
+{
+	struct orangefs_writepages *ow = data;
+	struct orangefs_write_request *wr;
+	int ret;
+
+	if (!PagePrivate(page)) {
+		unlock_page(page);
+		/* It's not private so there's nothing to write, right? */
+		printk("writepages_callback not private!\n");
+		BUG();
+		return 0;
+	}
+	wr = (struct orangefs_write_request *)page_private(page);
+
+	if (wr->len != PAGE_SIZE) {
+		ret = orangefs_writepage_locked(page, wbc);
+		mapping_set_error(page->mapping, ret);
+		unlock_page(page);
+	} else {
+		ret = -1;
+		if (ow->npages == 0) {
+			ow->off = wr->pos;
+			ow->len = wr->len;
+			ow->uid = wr->uid;
+			ow->gid = wr->gid;
+			ow->pages[ow->npages++] = page;
+			ret = 0;
+			goto done;
+		}
+		if (!uid_eq(ow->uid, wr->uid) || !gid_eq(ow->gid, wr->gid)) {
+			orangefs_writepages_work(ow, wbc);
+			memset(ow, 0, sizeof *ow);
+			ret = -1;
+			goto done;
+		}
+		if (ow->off + ow->len == wr->pos) {
+			ow->len += wr->len;
+			ow->pages[ow->npages++] = page;
+			ret = 0;
+			goto done;
+		}
+done:
+		if (ret == -1) {
+			ret = orangefs_writepage_locked(page, wbc);
+			mapping_set_error(page->mapping, ret);
+			unlock_page(page);
+		} else {
+			if (ow->npages == ORANGEFS_WRITEPAGES_COUNT) {
+				orangefs_writepages_work(ow, wbc);
+				memset(ow, 0, sizeof *ow);
+			}
+		}
+	}
+	return ret;
+}
+
+static int orangefs_writepages(struct address_space *mapping,
+    struct writeback_control *wbc)
+{
+	struct orangefs_writepages *ow;
+	struct blk_plug plug;
+	int ret;
+	ow = kzalloc(sizeof(struct orangefs_writepages), GFP_KERNEL);
+	if (!ow)
+		return -ENOMEM;
+	mutex_lock(&ORANGEFS_SB(mapping->host->i_sb)->writepages_mutex);
+	blk_start_plug(&plug);
+	ret = write_cache_pages(mapping, wbc, orangefs_writepages_callback, ow);
+	if (ow->npages)
+		ret = orangefs_writepages_work(ow, wbc);
+	blk_finish_plug(&plug);
+	mutex_unlock(&ORANGEFS_SB(mapping->host->i_sb)->writepages_mutex);
+	kfree(ow);
+	return ret;
+}
+
 static int orangefs_write_begin(struct file *file,
     struct address_space *mapping, loff_t pos, unsigned len, unsigned flags,
     struct page **pagep, void **fsdata)
@@ -325,6 +464,7 @@ static ssize_t orangefs_direct_IO(struct kiocb *iocb,
 static const struct address_space_operations orangefs_address_operations = {
 	.writepage = orangefs_writepage,
 	.readpage = orangefs_readpage,
+	.writepages = orangefs_writepages,
 	.set_page_dirty = __set_page_dirty_nobuffers,
 	.write_begin = orangefs_write_begin,
 	.write_end = orangefs_write_end,

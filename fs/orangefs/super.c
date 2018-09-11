@@ -467,6 +467,7 @@ static int orangefs_fill_sb(struct super_block *sb,
 
 	sb->s_export_op = &orangefs_export_ops;
 	sb->s_root = root_dentry;
+	mutex_init(&ORANGEFS_SB(sb)->writepages_mutex);
 	return 0;
 }
 

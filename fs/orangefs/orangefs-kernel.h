@@ -220,6 +220,7 @@ struct orangefs_sb_info_s {
 	int mount_pending;
 	int no_list;
 	struct list_head list;
+	struct mutex writepages_mutex;
 };
 
 struct orangefs_stats {
