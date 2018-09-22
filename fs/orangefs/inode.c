@@ -15,8 +15,6 @@
 #include "orangefs-kernel.h"
 #include "orangefs-bufmap.h"
 
-#define ORANGEFS_WRITEPAGES_COUNT 128
-
 static int orangefs_writepage_locked(struct page *page,
     struct writeback_control *wbc)
 {
@@ -237,9 +235,10 @@ struct orangefs_writepages {
 	size_t len;
 	kuid_t uid;
 	kgid_t gid;
-	struct page *pages[ORANGEFS_WRITEPAGES_COUNT];
+	int maxpages;
 	int npages;
-	struct bio_vec bv[ORANGEFS_WRITEPAGES_COUNT];
+	struct page **pages;
+	struct bio_vec *bv;
 };
 
 static int orangefs_writepages_work(struct orangefs_writepages *ow,
@@ -324,7 +323,7 @@ static int orangefs_writepages_callback(struct page *page,
 		}
 		if (!uid_eq(ow->uid, wr->uid) || !gid_eq(ow->gid, wr->gid)) {
 			orangefs_writepages_work(ow, wbc);
-			memset(ow, 0, sizeof *ow);
+			ow->npages = 0;
 			ret = -1;
 			goto done;
 		}
@@ -340,9 +339,9 @@ done:
 			mapping_set_error(page->mapping, ret);
 			unlock_page(page);
 		} else {
-			if (ow->npages == ORANGEFS_WRITEPAGES_COUNT) {
+			if (ow->npages == ow->maxpages) {
 				orangefs_writepages_work(ow, wbc);
-				memset(ow, 0, sizeof *ow);
+				ow->npages = 0;
 			}
 		}
 	}
@@ -358,6 +357,18 @@ static int orangefs_writepages(struct address_space *mapping,
 	ow = kzalloc(sizeof(struct orangefs_writepages), GFP_KERNEL);
 	if (!ow)
 		return -ENOMEM;
+	ow->maxpages = orangefs_bufmap_size_query()/PAGE_SIZE;
+	ow->pages = kcalloc(ow->maxpages, sizeof(struct page *), GFP_KERNEL);
+	if (!ow->pages) {
+		kfree(ow);
+		return -ENOMEM;
+	}
+	ow->bv = kcalloc(ow->maxpages, sizeof(struct bio_vec), GFP_KERNEL);
+	if (!ow->bv) {
+		kfree(ow->pages);
+		kfree(ow);
+		return -ENOMEM;
+	}
 	mutex_lock(&ORANGEFS_SB(mapping->host->i_sb)->writepages_mutex);
 	blk_start_plug(&plug);
 	ret = write_cache_pages(mapping, wbc, orangefs_writepages_callback, ow);
@@ -365,6 +376,8 @@ static int orangefs_writepages(struct address_space *mapping,
 		ret = orangefs_writepages_work(ow, wbc);
 	blk_finish_plug(&plug);
 	mutex_unlock(&ORANGEFS_SB(mapping->host->i_sb)->writepages_mutex);
+	kfree(ow->pages);
+	kfree(ow->bv);
 	kfree(ow);
 	return ret;
 }
