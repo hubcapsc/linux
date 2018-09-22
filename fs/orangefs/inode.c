@@ -307,6 +307,10 @@ static int orangefs_writepages_callback(struct page *page,
 	wr = (struct orangefs_write_request *)page_private(page);
 
 	if (wr->len != PAGE_SIZE) {
+		if (ow->npages) {
+			orangefs_writepages_work(ow, wbc);
+			ow->npages = 0;
+		}
 		ret = orangefs_writepage_locked(page, wbc);
 		mapping_set_error(page->mapping, ret);
 		unlock_page(page);
@@ -335,6 +339,10 @@ static int orangefs_writepages_callback(struct page *page,
 		}
 done:
 		if (ret == -1) {
+			if (ow->npages) {
+				orangefs_writepages_work(ow, wbc);
+				ow->npages = 0;
+			}
 			ret = orangefs_writepage_locked(page, wbc);
 			mapping_set_error(page->mapping, ret);
 			unlock_page(page);
