@@ -65,6 +65,7 @@ static int orangefs_writepage_locked(struct page *page,
 	} else {
 		ret = 0;
 		if (wr) {
+			/*printk("%s: ... clear:%p:\n", __func__, page);*/
 			ClearPagePrivate(page);
 			wr_release(wr);
 		}
@@ -135,6 +136,7 @@ static int update_wr(struct page *page, loff_t pos, unsigned len, int mwrite)
 			wr->mwrite = mwrite;
 			SetPagePrivate(page);
 			set_page_private(page, (unsigned long)wr);
+			/*printk("%s: set page:%p:\n", __func__, page); */
 		} else {
 			return -ENOMEM;
 		}
@@ -280,6 +282,7 @@ static int orangefs_writepages_work(struct orangefs_writepages *ow,
 			if (PagePrivate(ow->pages[i])) {
 				wrp = (struct orangefs_write_request *)
 				    page_private(ow->pages[i]);
+			/*printk("%s: clear:%p:\n", __func__, ow->pages[i]);*/
 				ClearPagePrivate(ow->pages[i]);
 				wr_release(wrp);
 			}
@@ -396,6 +399,9 @@ static int orangefs_write_begin(struct file *file,
 {
 	int r;
 	r = simple_write_begin(file, mapping, pos, len, flags, pagep, fsdata);
+
+	/* stack trace leads through here. */
+	/* printk("%s: .... pagep:%p:\n", __func__, *pagep); */
 	if (r)
 		return r;
 	r = do_writepage_if_necessary(*pagep, pos, len);
@@ -431,6 +437,7 @@ static void orangefs_invalidatepage(struct page *page,
 		BUG_ON(!wr);
 /* XXX prove */
 		if (offset == 0 && length == PAGE_SIZE) {
+			/*printk("%s: one clear:%p:\n", __func__, page);*/
 			ClearPagePrivate(page);
 			wr_release(wr);
 		} else if (wr->pos - page_offset(page) < offset &&
@@ -443,6 +450,7 @@ static void orangefs_invalidatepage(struct page *page,
 				if (r)
 					return;
 			} else {
+			/*printk("%s: two clear:%p:\n", __func__, page);*/
 				ClearPagePrivate(page);
 				wr_release(wr);
 			}
@@ -455,11 +463,13 @@ static void orangefs_invalidatepage(struct page *page,
 			wr->len -= length - wr->pos + page_offset(page);
 		} else {
 			/*
-			 * Invalidate range is bigger than write range but
-			 * entire write range is to be invalidated.
+			 * Don't clear the private page bit or release 
+			 * the write request structure here.
+			 *
+			 * The page and wr struct will get released soon
+			 * in the (offset == 0 && length == PAGE_SIZE)
+			 * condition anyhow. Apparently, now is too soon.
 			 */
-			ClearPagePrivate(page);
-			wr_release(wr);
 		}
 	}
 	return;
@@ -468,8 +478,10 @@ static void orangefs_invalidatepage(struct page *page,
 
 static int orangefs_releasepage(struct page *page, gfp_t foo)
 {
-	BUG();
-	return !PagePrivate(page);
+	if (!PagePrivate(page))
+		printk("%s: --- NOT A PRIVATE PAGE\n", __func__);
+
+	return(!PagePrivate(page));
 }
 
 static ssize_t orangefs_direct_IO(struct kiocb *iocb,
