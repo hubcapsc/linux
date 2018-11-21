@@ -133,6 +133,11 @@ static int get(struct slot_map *m)
 		__set_bit(res, m->map);
 	}
 	spin_unlock(&m->q.lock);
+	/* find_first_zero_bit returns something weird on failure and
+	 * we don't check for it.
+	 */
+	if (res < 0 || res > 9)
+		printk("%s: res:%d:\n", __func__, res);
 	return res;
 }
 
@@ -502,6 +507,8 @@ int orangefs_bufmap_copy_from_iovec(struct iov_iter *iter,
 		size_t n = size;
 		if (n > PAGE_SIZE)
 			n = PAGE_SIZE;
+		/* oops soon... */
+		/*printk("%s: .... page:%p: buffer_index:%d: i:%d: size:%ld:\n", __func__, page, buffer_index, i, size); */
 		if (copy_page_from_iter(page, 0, n, iter) != n)
 			return -EFAULT;
 		size -= n;
