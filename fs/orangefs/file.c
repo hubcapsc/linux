@@ -509,9 +509,14 @@ static int orangefs_fsync(struct file *file,
 		ORANGEFS_I(file_inode(file));
 	struct orangefs_kernel_op_s *new_op = NULL;
 
+	gossip_debug(GOSSIP_FILE_DEBUG, "%s: called on %pD\n", __func__, file);
+
 	ret = filemap_write_and_wait_range(file_inode(file)->i_mapping,
 	    start, end);
-	if (ret)
+	gossip_debug(GOSSIP_FILE_DEBUG,
+				"%s: fwawr ret:%d: start:%lld: end:%lld:\n",
+				__func__, ret, start, end);
+	if (ret < 0)
 		return ret;
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_FSYNC);
@@ -606,6 +611,7 @@ int orangefs_flush(struct file *file, fl_owner_t id)
 	 * behavior.
 	 */
 	struct inode *inode = file->f_mapping->host;
+	int ret;
 
 	if (inode->i_state & I_DIRTY_TIME) {
 		spin_lock(&inode->i_lock);
@@ -614,7 +620,15 @@ int orangefs_flush(struct file *file, fl_owner_t id)
 		mark_inode_dirty_sync(inode);
 	}
 
-	return filemap_write_and_wait_range(file->f_mapping, 0, LLONG_MAX);
+	ret = filemap_write_and_wait_range(file->f_mapping, 0, LLONG_MAX);
+	gossip_debug(GOSSIP_FILE_DEBUG,
+				"%s: fwawr ret:%d: start:0: end:%lld:\n",
+				__func__, ret, LLONG_MAX);
+
+	if (ret < 0)
+		return ret;
+	else
+		return 0;
 }
 
 /** ORANGEFS implementation of VFS file operations */
