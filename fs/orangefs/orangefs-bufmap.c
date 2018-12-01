@@ -131,6 +131,8 @@ static int get(struct slot_map *m)
 		m->c--;
 		res = find_first_zero_bit(m->map, m->count);
 		__set_bit(res, m->map);
+	} else {
+		printk("%s: res:%d:\n", __func__, res);
 	}
 	spin_unlock(&m->q.lock);
 	/* find_first_zero_bit returns something weird on failure and
