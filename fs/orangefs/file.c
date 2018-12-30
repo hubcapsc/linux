@@ -56,6 +56,11 @@ ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
 	int buffer_index = -1;
 	ssize_t ret;
 
+	if (rr) {
+		printk("%s: rr:%p: pid:%d: tag:%d:\n",
+			__func__, rr, rr->pid, (rr->tag)++);
+	}
+
 	new_op = op_alloc(ORANGEFS_VFS_OP_FILE_IO);
 	if (!new_op)
 		return -ENOMEM;
