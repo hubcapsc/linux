@@ -516,6 +516,9 @@ int orangefs_flush(struct file *file, fl_owner_t id)
 	struct inode *inode = file->f_mapping->host;
 	int r;
 
+	if (file->private_data)
+		kfree(file->private_data);
+
 	if (inode->i_state & I_DIRTY_TIME) {
 		spin_lock(&inode->i_lock);
 		inode->i_state &= ~I_DIRTY_TIME;
