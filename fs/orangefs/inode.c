@@ -265,6 +265,19 @@ static int orangefs_readpage(struct file *file, struct page *page)
 	bv.bv_offset = 0;
 	iov_iter_bvec(&iter, ITER_BVEC | READ, &bv, 1, PAGE_SIZE);
 
+	if (file->private_data) {
+		rr = file->private_data;
+	} else {
+		file->private_data = kmalloc(sizeof *rr, GFP_KERNEL);
+		if (!file->private_data)
+			return -ENOMEM;
+		rr = file->private_data;
+
+		rr->pid = current->pid;
+		rr->tag = 0;
+	}
+	printk("%s: file:%p:\n", __func__, file);
+
 	ret = wait_for_direct_io(ORANGEFS_IO_READ, inode, &off, &iter,
 	    PAGE_SIZE, inode->i_size, NULL, rr);
 	/* this will only zero remaining unread portions of the page data */
