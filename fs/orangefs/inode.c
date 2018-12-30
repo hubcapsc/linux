@@ -276,7 +276,7 @@ static int orangefs_readpage(struct file *file, struct page *page)
 		rr->pid = current->pid;
 		rr->tag = 0;
 	}
-	printk("%s: file:%p: rr:%p:\n", __func__, file, rr);
+	printk("%s: file:%p: rr:%p: pid:%d:\n", __func__, file, rr, rr->pid);
 
 	ret = wait_for_direct_io(ORANGEFS_IO_READ, inode, &off, &iter,
 	    PAGE_SIZE, inode->i_size, NULL, rr);

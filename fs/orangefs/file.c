@@ -57,8 +57,8 @@ ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
 	ssize_t ret;
 
 	if (rr) {
-		printk("%s: rr:%p: pid:%d: tag:%d:\n",
-			__func__, rr, rr->pid, (rr->tag)++);
+		printk("%s: rr:%p: tag:%d: pid:%d:\n",
+			__func__, rr, (rr->tag)++, rr->pid);
 	}
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_FILE_IO);
@@ -499,7 +499,7 @@ static int orangefs_lock(struct file *filp, int cmd, struct file_lock *fl)
 int orangefs_file_open(struct inode * inode, struct file *file)
 {
 	file->private_data = NULL;
-	printk("%s: file:%p:\n", __func__, file);
+	printk("%s: file:%p: pid:%d:\n", __func__, file, current->pid);
 	return generic_file_open(inode, file);
 }
 
@@ -516,8 +516,12 @@ int orangefs_flush(struct file *file, fl_owner_t id)
 	struct inode *inode = file->f_mapping->host;
 	int r;
 
-	if (file->private_data)
+	if (file->private_data) {
+		printk("%s: file:%p: f->p_d:%p: pid:%d:\n",
+			__func__, file, file->private_data,
+			((struct orangefs_read_range *)(file->private_data))->pid);
 		kfree(file->private_data);
+	}
 
 	if (inode->i_state & I_DIRTY_TIME) {
 		spin_lock(&inode->i_lock);
