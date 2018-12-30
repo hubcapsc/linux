@@ -236,6 +236,11 @@ struct orangefs_write_range {
 	kgid_t gid;
 };
 
+struct orangefs_read_range {
+	int pid;
+	int tag;
+};
+
 extern struct orangefs_stats orangefs_stats;
 
 /*
@@ -389,8 +394,14 @@ bool __is_daemon_in_service(void);
 /*
  * defined in file.c
  */
-ssize_t wait_for_direct_io(enum ORANGEFS_io_type, struct inode *, loff_t *,
-    struct iov_iter *, size_t, loff_t, struct orangefs_write_range *);
+ssize_t wait_for_direct_io(enum ORANGEFS_io_type,
+			struct inode *,
+			loff_t *,
+			struct iov_iter *,
+			size_t,
+			loff_t,
+			struct orangefs_write_range *,
+			struct orangefs_read_range *);
 ssize_t do_readv_writev(enum ORANGEFS_io_type, struct file *, loff_t *,
     struct iov_iter *);
 

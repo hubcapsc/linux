@@ -54,7 +54,7 @@ static int orangefs_writepage_locked(struct page *page,
 	iov_iter_bvec(&iter, ITER_BVEC | WRITE, &bv, 1, wlen);
 
 	ret = wait_for_direct_io(ORANGEFS_IO_WRITE, inode, &off, &iter, wlen,
-	    len, wr);
+	    len, wr, NULL);
 	if (ret < 0) {
 		SetPageError(page);
 		mapping_set_error(page->mapping, ret);
@@ -119,7 +119,7 @@ static int orangefs_writepages_work(struct orangefs_writepages *ow,
 	wr.uid = ow->uid;
 	wr.gid = ow->gid;
 	ret = wait_for_direct_io(ORANGEFS_IO_WRITE, inode, &off, &iter, ow->len,
-	    0, &wr);
+	    0, &wr, NULL);
 	if (ret < 0) {
 		for (i = 0; i < ow->npages; i++) {
 			SetPageError(ow->pages[i]);
@@ -257,6 +257,7 @@ static int orangefs_readpage(struct file *file, struct page *page)
 	struct bio_vec bv;
 	ssize_t ret;
 	loff_t off;
+	struct orangefs_read_range *rr;
 
 	off = page_offset(page);
 	bv.bv_page = page;
@@ -265,7 +266,7 @@ static int orangefs_readpage(struct file *file, struct page *page)
 	iov_iter_bvec(&iter, ITER_BVEC | READ, &bv, 1, PAGE_SIZE);
 
 	ret = wait_for_direct_io(ORANGEFS_IO_READ, inode, &off, &iter,
-	    PAGE_SIZE, inode->i_size, NULL);
+	    PAGE_SIZE, inode->i_size, NULL, rr);
 	/* this will only zero remaining unread portions of the page data */
 	iov_iter_zero(~0U, &iter);
 	/* takes care of potential aliasing */
@@ -444,6 +445,9 @@ static int orangefs_launder_page(struct page *page)
 	if (clear_page_dirty_for_io(page)) {
 		r = orangefs_writepage_locked(page, &wbc);
 		end_page_writeback(page);
+	} else {
+		printk("%s: returning uninitialized int, should return 0\n",
+			__func__);
 	}
 	return r;
 }
@@ -514,7 +518,7 @@ static ssize_t orangefs_direct_IO(struct kiocb *iocb,
 			     (int)*offset);
 
 		ret = wait_for_direct_io(type, inode, offset, iter,
-				each_count, 0, NULL);
+				each_count, 0, NULL, NULL);
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s(%pU): return from wait_for_io:%d\n",
 			     __func__,
