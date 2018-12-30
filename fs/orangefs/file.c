@@ -491,6 +491,13 @@ static int orangefs_lock(struct file *filp, int cmd, struct file_lock *fl)
 	return rc;
 }
 
+int orangefs_file_open(struct inode * inode, struct file *file)
+{
+	file->private_data = NULL;
+	printk("%s: file:%p:\n", __func__, file);
+	return generic_file_open(inode, file);
+}
+
 int orangefs_flush(struct file *file, fl_owner_t id)
 {
 	/*
@@ -526,7 +533,7 @@ const struct file_operations orangefs_file_operations = {
 	.lock		= orangefs_lock,
 	.unlocked_ioctl	= orangefs_ioctl,
 	.mmap		= orangefs_file_mmap,
-	.open		= generic_file_open,
+	.open		= orangefs_file_open,
 	.flush		= orangefs_flush,
 	.release	= orangefs_file_release,
 	.fsync		= orangefs_fsync,
