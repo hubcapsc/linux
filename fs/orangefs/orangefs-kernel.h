@@ -237,8 +237,7 @@ struct orangefs_write_range {
 };
 
 struct orangefs_read_range {
-	int pid;
-	int tag;
+	int buffer_index;
 };
 
 extern struct orangefs_stats orangefs_stats;

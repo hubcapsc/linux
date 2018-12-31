@@ -56,10 +56,14 @@ ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
 	int buffer_index = -1;
 	ssize_t ret;
 
-	if (rr) {
-		printk("%s: rr:%p: tag:%d: pid:%d:\n",
-			__func__, rr, (rr->tag)++, rr->pid);
+	if (rr && *offset) {
+		if (rr->buffer_index >= 0)
+			goto no_io;
+		else
+			return 0;
 	}
+
+printk("%s: io\n", __func__);
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_FILE_IO);
 	if (!new_op)
@@ -89,7 +93,10 @@ populate_shared_memory:
 
 	new_op->uses_shared_memory = 1;
 	new_op->upcall.req.io.buf_index = buffer_index;
-	new_op->upcall.req.io.count = total_size;
+	if (rr)
+		new_op->upcall.req.io.count = readahead_size;
+	else
+		new_op->upcall.req.io.count = total_size;
 	new_op->upcall.req.io.offset = *offset;
 	if (type == ORANGEFS_IO_WRITE && wr) {
 		new_op->upcall.uid = from_kuid(&init_user_ns, wr->uid);
@@ -209,23 +216,6 @@ populate_shared_memory:
 		goto out;
 	}
 
-	/*
-	 * Stage 3: Post copy buffers from client-core's address space
-	 */
-	if (type == ORANGEFS_IO_READ && new_op->downcall.resp.io.amt_complete) {
-		/*
-		 * NOTE: the iovector can either contain addresses which
-		 *       can futher be kernel-space or user-space addresses.
-		 *       or it can pointers to struct page's
-		 */
-		ret = orangefs_bufmap_copy_to_iovec(iter, buffer_index,
-		    new_op->downcall.resp.io.amt_complete);
-		if (ret < 0) {
-			gossip_err("%s: Failed to copy-out buffers. Please make sure that the pvfs2-client is running (%ld)\n",
-			    __func__, (long)ret);
-			goto out;
-		}
-	}
 	gossip_debug(GOSSIP_FILE_DEBUG,
 	    "%s(%pU): Amount %s, returned by the sys-io call:%d\n",
 	    __func__,
@@ -234,16 +224,52 @@ populate_shared_memory:
 	    (int)new_op->downcall.resp.io.amt_complete);
 
 	ret = new_op->downcall.resp.io.amt_complete;
+printk("%s: one\n", __func__);
+
+	op_release(new_op);
+printk("%s: two\n", __func__);
+
+	if (rr)
+		rr->buffer_index = buffer_index;
+printk("%s: three\n", __func__);
+
+	if (type == ORANGEFS_IO_WRITE)
+		goto out;
+no_io:
+printk("%s: no_io: buffer_index:%d: page_index:%lld:\n", __func__, rr->buffer_index, *offset/PAGE_SIZE); 
+	
+	/*
+	 * Stage 3: Post copy buffers from client-core's address space
+	 */
+	/*
+	 * NOTE: the iovector can either contain addresses which
+	 *       can futher be kernel-space or user-space addresses.
+	 *       or it can pointers to struct page's
+	 */
+	ret = orangefs_bufmap_copy_to_iovec(iter, rr->buffer_index,
+		*offset/PAGE_SIZE);
+	if (ret < 0) {
+		gossip_err("%s: Failed to copy-out buffers. Please make sure that the pvfs2-client is running (%ld)\n",
+		    __func__, (long)ret);
+		buffer_index = rr->buffer_index;
+		goto out;
+	}
+	if ((*offset + PAGE_SIZE) >= readahead_size) {
+		buffer_index = rr->buffer_index;
+	} else {
+		buffer_index = -1;
+	}
 
 out:
 	if (buffer_index >= 0) {
+printk("%s: four\n", __func__);
 		orangefs_bufmap_put(buffer_index);
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s(%pU): PUT buffer_index %d\n",
 			     __func__, handle, buffer_index);
 		buffer_index = -1;
 	}
-	op_release(new_op);
+printk("%s: five\n", __func__);
 	return ret;
 }
 
@@ -499,7 +525,6 @@ static int orangefs_lock(struct file *filp, int cmd, struct file_lock *fl)
 int orangefs_file_open(struct inode * inode, struct file *file)
 {
 	file->private_data = NULL;
-	printk("%s: file:%p: pid:%d:\n", __func__, file, current->pid);
 	return generic_file_open(inode, file);
 }
 
@@ -516,12 +541,8 @@ int orangefs_flush(struct file *file, fl_owner_t id)
 	struct inode *inode = file->f_mapping->host;
 	int r;
 
-	if (file->private_data) {
-		printk("%s: file:%p: f->p_d:%p: pid:%d:\n",
-			__func__, file, file->private_data,
-			((struct orangefs_read_range *)(file->private_data))->pid);
+	if (file->private_data)
 		kfree(file->private_data);
-	}
 
 	if (inode->i_state & I_DIRTY_TIME) {
 		spin_lock(&inode->i_lock);

@@ -515,26 +515,20 @@ int orangefs_bufmap_copy_from_iovec(struct iov_iter *iter,
  */
 int orangefs_bufmap_copy_to_iovec(struct iov_iter *iter,
 				    int buffer_index,
-				    size_t size)
+				    int page_index)
 {
 	struct orangefs_bufmap_desc *from;
-	int i;
+	struct page *page;
+	size_t n;
 
 	from = &__orangefs_bufmap->desc_array[buffer_index];
 	gossip_debug(GOSSIP_BUFMAP_DEBUG,
-		     "%s: buffer_index:%d: size:%zu:\n",
-		     __func__, buffer_index, size);
+		     "%s: buffer_index:%d: page_index:%d:\n",
+		     __func__, buffer_index, page_index);
 
-
-	for (i = 0; size; i++) {
-		struct page *page = from->page_array[i];
-		size_t n = size;
-		if (n > PAGE_SIZE)
-			n = PAGE_SIZE;
-		n = copy_page_to_iter(page, 0, n, iter);
-		if (!n)
-			return -EFAULT;
-		size -= n;
-	}
+	page = from->page_array[page_index];
+	n = copy_page_to_iter(page, 0, PAGE_SIZE, iter);
+	if (!n)
+		return -EFAULT;
 	return 0;
 }

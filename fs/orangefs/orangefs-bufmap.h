@@ -32,6 +32,6 @@ int orangefs_bufmap_copy_from_iovec(struct iov_iter *iter,
 
 int orangefs_bufmap_copy_to_iovec(struct iov_iter *iter,
 			      int buffer_index,
-			      size_t size);
+			      int page_index);
 
 #endif /* __ORANGEFS_BUFMAP_H */
