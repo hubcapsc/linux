@@ -599,8 +599,17 @@ int orangefs_page_mkwrite(struct vm_fault *vmf)
 {
 	struct page *page = vmf->page;
 	struct inode *inode = file_inode(vmf->vma->vm_file);
-	vm_fault_t ret = VM_FAULT_LOCKED;
+	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	unsigned long *bitlock = &orangefs_inode->bitlock;
+	vm_fault_t ret;
 	struct orangefs_write_range *wr;
+
+	sb_start_pagefault(inode->i_sb);
+
+	if (wait_on_bit(bitlock, 1, TASK_KILLABLE)) {
+		ret = VM_FAULT_RETRY;
+		goto out;
+	}
 
 	lock_page(page);
 	if (PageDirty(page) && !PagePrivate(page)) {
@@ -610,7 +619,7 @@ int orangefs_page_mkwrite(struct vm_fault *vmf)
 		 * orangefs_writepage_locked.
 		 */
 		if (orangefs_launder_page(page)) {
-			ret = VM_FAULT_RETRY;
+			ret = VM_FAULT_LOCKED|VM_FAULT_RETRY;
 			goto out;
 		}
 	}
@@ -623,14 +632,14 @@ int orangefs_page_mkwrite(struct vm_fault *vmf)
 			goto okay;
 		} else {
 			if (orangefs_launder_page(page)) {
-				ret = VM_FAULT_RETRY;
+				ret = VM_FAULT_LOCKED|VM_FAULT_RETRY;
 				goto out;
 			}
 		}
 	}
 	wr = kmalloc(sizeof *wr, GFP_KERNEL);
 	if (!wr) {
-		ret = VM_FAULT_RETRY;
+		ret = VM_FAULT_LOCKED|VM_FAULT_RETRY;
 		goto out;
 	}
 	wr->pos = page_offset(page);
@@ -642,11 +651,10 @@ int orangefs_page_mkwrite(struct vm_fault *vmf)
 	get_page(page);
 okay:
 
-	sb_start_pagefault(inode->i_sb);
 	file_update_time(vmf->vma->vm_file);
 	if (page->mapping != inode->i_mapping) {
 		unlock_page(page);
-		ret = VM_FAULT_NOPAGE;
+		ret = VM_FAULT_LOCKED|VM_FAULT_NOPAGE;
 		goto out;
 	}
 
@@ -657,6 +665,7 @@ okay:
 	 */
 	set_page_dirty(page);
 	wait_for_stable_page(page);
+	ret = VM_FAULT_LOCKED;
 out:
 	sb_end_pagefault(inode->i_sb);
 	return ret;
@@ -925,6 +934,8 @@ static int orangefs_set_inode(struct inode *inode, void *data)
 	ORANGEFS_I(inode)->refn.khandle = ref->khandle;
 	ORANGEFS_I(inode)->attr_valid = 0;
 	hash_init(ORANGEFS_I(inode)->xattr_cache);
+	ORANGEFS_I(inode)->mapping_time = jiffies - 1;
+	ORANGEFS_I(inode)->bitlock = 0;
 	return 0;
 }
 
