@@ -263,9 +263,16 @@ static int orangefs_readpage(struct file *file, struct page *page)
 	struct iov_iter iter;
 	struct bio_vec bv;
 	ssize_t ret;
-	loff_t off;
+	loff_t off; /* offset into this page */
+	pgoff_t index; /* which page */
+	struct page *next_page;
+	char *kaddr;
 
 	off = page_offset(page);
+
+	index = off >> PAGE_SHIFT;
+printk("%s: off:%llu: index:%lu: i_size:%lld: blkbits:%d: blocks:%ld:\n", __func__, off, index, inode->i_size, inode->i_blkbits, inode->i_blocks);
+
 	bv.bv_page = page;
 	bv.bv_len = PAGE_SIZE;
 	bv.bv_offset = 0;
@@ -274,10 +281,12 @@ static int orangefs_readpage(struct file *file, struct page *page)
 	if (PageDirty(page))
 		orangefs_launder_page(page);
 
+/* inode->i_size = the total amount to be read */
 	ret = wait_for_direct_io(ORANGEFS_IO_READ, inode, &off, &iter,
 	    PAGE_SIZE, inode->i_size, NULL);
 	/* this will only zero remaining unread portions of the page data */
-	iov_iter_zero(~0U, &iter);
+printk("%s: iter.count:%ld:\n", __func__, iter.count);
+/*	iov_iter_zero(~0U, &iter); */
 	/* takes care of potential aliasing */
 	flush_dcache_page(page);
 	if (ret < 0) {
@@ -290,6 +299,28 @@ static int orangefs_readpage(struct file *file, struct page *page)
 	}
 	/* unlock the page after the ->readpage() routine completes */
 	unlock_page(page);
+
+	/* hubcap */
+	if (inode->i_size > PAGE_SIZE) {
+		printk("%s: inode->i_size - off:%lld:\n",
+		__func__, inode->i_size - off);
+	}
+/*	if (inode->i_size == 4098) { */
+	if (0) {
+		next_page =
+			find_or_create_page(inode->i_mapping, 1, GFP_KERNEL);
+		if (!next_page)
+			return ret;
+
+		kaddr = kmap_atomic(next_page);
+		memcpy(kaddr, "A\n", 2);
+		kunmap_atomic(kaddr);
+		SetPageUptodate(next_page);
+		unlock_page(next_page);
+		put_page(next_page);
+	}
+	/* hubcap end */
+
 	return ret;
 }
 
@@ -307,6 +338,8 @@ int orangefs_write_begin(struct file *file, struct address_space *mapping,
 		return -ENOMEM;
 
 	index = pos >> PAGE_SHIFT;
+
+printk("index:%lu: pos:%lld: PAGE_SHIFT:%u:\n", index, pos, PAGE_SHIFT);
 
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page) {

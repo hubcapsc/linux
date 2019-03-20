@@ -54,6 +54,7 @@ ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
 	struct orangefs_kernel_op_s *new_op = NULL;
 	int buffer_index = -1;
 	ssize_t ret;
+	size_t read_amount;
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_FILE_IO);
 	if (!new_op)
@@ -83,7 +84,18 @@ populate_shared_memory:
 
 	new_op->uses_shared_memory = 1;
 	new_op->upcall.req.io.buf_index = buffer_index;
-	new_op->upcall.req.io.count = total_size;
+	/*
+	 * When users can control blocksize (reflected here in readahead_size)
+	 * they can use it as a knob to maximize read size. Later, when vfs
+	 * calls readpage, we'll fill not only that page, but as many
+	 * other pages as we can. 
+	 */
+/*
+	if (type == ORANGEFS_IO_READ && readahead_size)
+		new_op->upcall.req.io.count = readahead_size;
+	else
+*/
+		new_op->upcall.req.io.count = total_size;
 	new_op->upcall.req.io.offset = *offset;
 	if (type == ORANGEFS_IO_WRITE && wr) {
 		new_op->upcall.uid = from_kuid(&init_user_ns, wr->uid);
@@ -212,8 +224,22 @@ populate_shared_memory:
 		 *       can futher be kernel-space or user-space addresses.
 		 *       or it can pointers to struct page's
 		 */
+		/*
+		 * When reading, readahead_size will only be zero when
+		 * we're doing direct io.
+		 *
+		 * If we're reading and not doing direct io, then we'll be
+		 * getting here from orangefs_readpage.
+		 */
+		if (readahead_size)
+			read_amount =
+				min(new_op->downcall.resp.io.amt_complete,
+				    (__s64)PAGE_SIZE);
+		else
+			read_amount = new_op->downcall.resp.io.amt_complete;
+			
 		ret = orangefs_bufmap_copy_to_iovec(iter, buffer_index,
-		    new_op->downcall.resp.io.amt_complete);
+			read_amount);
 		if (ret < 0) {
 			gossip_err("%s: Failed to copy-out buffers. Please make sure that the pvfs2-client is running (%ld)\n",
 			    __func__, (long)ret);
