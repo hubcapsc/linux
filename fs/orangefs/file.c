@@ -47,7 +47,7 @@ static int flush_racache(struct inode *inode)
  */
 ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
     loff_t *offset, struct iov_iter *iter, size_t total_size,
-    loff_t readahead_size, struct orangefs_write_range *wr)
+    loff_t readahead_size, struct orangefs_write_range *wr, int *index_return)
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_khandle *handle = &orangefs_inode->refn.khandle;
@@ -68,6 +68,7 @@ ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
 populate_shared_memory:
 	/* get a shared buffer index */
 	buffer_index = orangefs_bufmap_get();
+printk("%s: got:%d:\n", __func__, buffer_index);
 	if (buffer_index < 0) {
 		ret = buffer_index;
 		gossip_debug(GOSSIP_FILE_DEBUG,
@@ -88,13 +89,12 @@ populate_shared_memory:
 	 * When users can control blocksize (reflected here in readahead_size)
 	 * they can use it as a knob to maximize read size. Later, when vfs
 	 * calls readpage, we'll fill not only that page, but as many
-	 * other pages as we can. 
+	 * other pages as we can. Readahead_size is 0 when we're
+	 * not using the pagecache (O_DIRECT).
 	 */
-/*
 	if (type == ORANGEFS_IO_READ && readahead_size)
 		new_op->upcall.req.io.count = readahead_size;
 	else
-*/
 		new_op->upcall.req.io.count = total_size;
 	new_op->upcall.req.io.offset = *offset;
 	if (type == ORANGEFS_IO_WRITE && wr) {
@@ -145,6 +145,7 @@ populate_shared_memory:
 	 */
 	if (ret == -EAGAIN && op_state_purged(new_op)) {
 		orangefs_bufmap_put(buffer_index);
+printk("%s: 1 put:%d:\n", __func__, buffer_index);
 		buffer_index = -1;
 		if (type == ORANGEFS_IO_WRITE)
 			iov_iter_revert(iter, total_size);
@@ -257,10 +258,19 @@ populate_shared_memory:
 
 out:
 	if (buffer_index >= 0) {
-		orangefs_bufmap_put(buffer_index);
-		gossip_debug(GOSSIP_FILE_DEBUG,
-			     "%s(%pU): PUT buffer_index %d\n",
-			     __func__, handle, buffer_index);
+		if ((readahead_size) && (type == ORANGEFS_IO_READ)) {
+			/* readpage */
+			*index_return = buffer_index;
+			gossip_debug(GOSSIP_FILE_DEBUG,
+				"%s: no put buffer\n", __func__);
+		} else {
+			/* O_DIRECT */
+			orangefs_bufmap_put(buffer_index);
+printk("%s: 2 put:%d:\n", __func__, buffer_index);
+			gossip_debug(GOSSIP_FILE_DEBUG,
+		     			"%s(%pU): PUT buffer_index %d\n",
+					__func__, handle, buffer_index);
+		}
 		buffer_index = -1;
 	}
 	op_release(new_op);
@@ -312,7 +322,36 @@ static ssize_t orangefs_file_read_iter(struct kiocb *iocb,
     struct iov_iter *iter)
 {
 	int ret;
+	struct orangefs_read_options *ro;
+struct orangefs_read_options *ro2;
+
 	orangefs_stats.reads++;
+
+	/*
+	 * Remember how they set "count" in read(2) so that later we can try
+	 * to help them fill as many pages as possible in readpage.
+	 */
+	if (!iocb->ki_filp->private_data) {
+		/*
+		 * Don't bail if kmalloc fails even though it probably
+		 * means the world is coming to an end...
+		 */
+		iocb->ki_filp->private_data = kmalloc(sizeof *ro, GFP_KERNEL);
+		if (!iocb->ki_filp->private_data) {
+			WARN_ON(iocb->ki_filp->private_data == NULL);
+		} else {
+			ro = iocb->ki_filp->private_data;
+			ro->blksiz = iter->count;
+		}
+	}
+		
+/*
+printk("%s: iter->count:%ld:\n",__func__, iter->count);
+if (iocb->ki_filp->private_data) {
+ro2 = iocb->ki_filp->private_data;
+printk("%s: private:%ld:\n", __func__, ro2->blksiz);
+}
+*/
 
 	down_read(&file_inode(iocb->ki_filp)->i_rwsem);
 	ret = orangefs_revalidate_mapping(file_inode(iocb->ki_filp));
@@ -582,6 +621,12 @@ static int orangefs_lock(struct file *filp, int cmd, struct file_lock *fl)
 	return rc;
 }
 
+int orangefs_file_open(struct inode * inode, struct file *file)
+{
+	file->private_data = NULL;
+	return generic_file_open(inode, file);
+}
+
 int orangefs_flush(struct file *file, fl_owner_t id)
 {
 	/*
@@ -617,7 +662,7 @@ const struct file_operations orangefs_file_operations = {
 	.lock		= orangefs_lock,
 	.unlocked_ioctl	= orangefs_ioctl,
 	.mmap		= orangefs_file_mmap,
-	.open		= generic_file_open,
+	.open		= orangefs_file_open,
 	.flush		= orangefs_flush,
 	.release	= orangefs_file_release,
 	.fsync		= orangefs_fsync,

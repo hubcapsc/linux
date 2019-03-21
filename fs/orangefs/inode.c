@@ -55,7 +55,7 @@ static int orangefs_writepage_locked(struct page *page,
 	iov_iter_bvec(&iter, WRITE, &bv, 1, wlen);
 
 	ret = wait_for_direct_io(ORANGEFS_IO_WRITE, inode, &off, &iter, wlen,
-	    len, wr);
+	    len, wr, NULL);
 	if (ret < 0) {
 		SetPageError(page);
 		mapping_set_error(page->mapping, ret);
@@ -123,7 +123,7 @@ static int orangefs_writepages_work(struct orangefs_writepages *ow,
 	wr.uid = ow->uid;
 	wr.gid = ow->gid;
 	ret = wait_for_direct_io(ORANGEFS_IO_WRITE, inode, &off, &iter, ow->len,
-	    0, &wr);
+	    0, &wr, NULL);
 	if (ret < 0) {
 		for (i = 0; i < ow->npages; i++) {
 			SetPageError(ow->pages[i]);
@@ -267,11 +267,19 @@ static int orangefs_readpage(struct file *file, struct page *page)
 	pgoff_t index; /* which page */
 	struct page *next_page;
 	char *kaddr;
+	struct orangefs_read_options *ro = file->private_data;
+	loff_t readahead_size = ro ? ro->blksiz : inode->i_size;
+	int buffer_index;
 
 	off = page_offset(page);
 
 	index = off >> PAGE_SHIFT;
-printk("%s: off:%llu: index:%lu: i_size:%lld: blkbits:%d: blocks:%ld:\n", __func__, off, index, inode->i_size, inode->i_blkbits, inode->i_blocks);
+/*
+printk("%s: off:%llu: index:%lu: i_size:%lld:\n", __func__, off, index, inode->i_size);
+if (ro) {
+printk("%s: blksiz:%ld:\n", __func__, ro->blksiz);
+}
+*/
 
 	bv.bv_page = page;
 	bv.bv_len = PAGE_SIZE;
@@ -281,12 +289,12 @@ printk("%s: off:%llu: index:%lu: i_size:%lld: blkbits:%d: blocks:%ld:\n", __func
 	if (PageDirty(page))
 		orangefs_launder_page(page);
 
-/* inode->i_size = the total amount to be read */
+/* inode->i_size = file size */
 	ret = wait_for_direct_io(ORANGEFS_IO_READ, inode, &off, &iter,
-	    PAGE_SIZE, inode->i_size, NULL);
+	    PAGE_SIZE, readahead_size, NULL, &buffer_index);
 	/* this will only zero remaining unread portions of the page data */
-printk("%s: iter.count:%ld:\n", __func__, iter.count);
-/*	iov_iter_zero(~0U, &iter); */
+/*printk("%s: iter.count:%ld:\n", __func__, iter.count); */
+	iov_iter_zero(~0U, &iter);
 	/* takes care of potential aliasing */
 	flush_dcache_page(page);
 	if (ret < 0) {
@@ -302,9 +310,15 @@ printk("%s: iter.count:%ld:\n", __func__, iter.count);
 
 	/* hubcap */
 	if (inode->i_size > PAGE_SIZE) {
+/*
 		printk("%s: inode->i_size - off:%lld:\n",
 		__func__, inode->i_size - off);
+*/
+		printk("%s: ret:%ld: buffer_index:%d:\n",
+		__func__, ret, buffer_index);
 	}
+orangefs_bufmap_put(buffer_index);
+printk("%s: put:%d:\n", __func__, buffer_index);
 /*	if (inode->i_size == 4098) { */
 	if (0) {
 		next_page =
@@ -338,8 +352,6 @@ int orangefs_write_begin(struct file *file, struct address_space *mapping,
 		return -ENOMEM;
 
 	index = pos >> PAGE_SHIFT;
-
-printk("index:%lu: pos:%lld: PAGE_SHIFT:%u:\n", index, pos, PAGE_SHIFT);
 
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page) {
@@ -591,7 +603,7 @@ static ssize_t orangefs_direct_IO(struct kiocb *iocb,
 			     (int)*offset);
 
 		ret = wait_for_direct_io(type, inode, offset, iter,
-				each_count, 0, NULL);
+				each_count, 0, NULL, NULL);
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s(%pU): return from wait_for_io:%d\n",
 			     __func__,

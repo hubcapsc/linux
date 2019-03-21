@@ -238,6 +238,10 @@ struct orangefs_write_range {
 	kgid_t gid;
 };
 
+struct orangefs_read_options {
+	ssize_t blksiz;
+};
+
 extern struct orangefs_stats orangefs_stats;
 
 /*
@@ -393,7 +397,7 @@ bool __is_daemon_in_service(void);
  */
 int orangefs_revalidate_mapping(struct inode *);
 ssize_t wait_for_direct_io(enum ORANGEFS_io_type, struct inode *, loff_t *,
-    struct iov_iter *, size_t, loff_t, struct orangefs_write_range *);
+    struct iov_iter *, size_t, loff_t, struct orangefs_write_range *, int *);
 ssize_t do_readv_writev(enum ORANGEFS_io_type, struct file *, loff_t *,
     struct iov_iter *);
 
