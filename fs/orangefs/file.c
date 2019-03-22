@@ -54,7 +54,7 @@ ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
 	struct orangefs_kernel_op_s *new_op = NULL;
 	int buffer_index = -1;
 	ssize_t ret;
-	size_t read_amount;
+	size_t copy_amount;
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_FILE_IO);
 	if (!new_op)
@@ -68,7 +68,6 @@ ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
 populate_shared_memory:
 	/* get a shared buffer index */
 	buffer_index = orangefs_bufmap_get();
-printk("%s: got:%d:\n", __func__, buffer_index);
 	if (buffer_index < 0) {
 		ret = buffer_index;
 		gossip_debug(GOSSIP_FILE_DEBUG,
@@ -85,17 +84,7 @@ printk("%s: got:%d:\n", __func__, buffer_index);
 
 	new_op->uses_shared_memory = 1;
 	new_op->upcall.req.io.buf_index = buffer_index;
-	/*
-	 * When users can control blocksize (reflected here in readahead_size)
-	 * they can use it as a knob to maximize read size. Later, when vfs
-	 * calls readpage, we'll fill not only that page, but as many
-	 * other pages as we can. Readahead_size is 0 when we're
-	 * not using the pagecache (O_DIRECT).
-	 */
-	if (type == ORANGEFS_IO_READ && readahead_size)
-		new_op->upcall.req.io.count = readahead_size;
-	else
-		new_op->upcall.req.io.count = total_size;
+	new_op->upcall.req.io.count = total_size;
 	new_op->upcall.req.io.offset = *offset;
 	if (type == ORANGEFS_IO_WRITE && wr) {
 		new_op->upcall.uid = from_kuid(&init_user_ns, wr->uid);
@@ -145,7 +134,6 @@ printk("%s: got:%d:\n", __func__, buffer_index);
 	 */
 	if (ret == -EAGAIN && op_state_purged(new_op)) {
 		orangefs_bufmap_put(buffer_index);
-printk("%s: 1 put:%d:\n", __func__, buffer_index);
 		buffer_index = -1;
 		if (type == ORANGEFS_IO_WRITE)
 			iov_iter_revert(iter, total_size);
@@ -227,20 +215,22 @@ printk("%s: 1 put:%d:\n", __func__, buffer_index);
 		 */
 		/*
 		 * When reading, readahead_size will only be zero when
-		 * we're doing direct io.
+		 * we're doing O_DIRECT, otherwise we got here from 
+		 * orangefs_readpage.
 		 *
-		 * If we're reading and not doing direct io, then we'll be
-		 * getting here from orangefs_readpage.
+		 * If we got here from orangefs_readpage we want to either
+		 * copy either a page or the whole file into the io
+		 * vector, whichever is smaller.
 		 */
 		if (readahead_size)
-			read_amount =
+			copy_amount =
 				min(new_op->downcall.resp.io.amt_complete,
 				    (__s64)PAGE_SIZE);
 		else
-			read_amount = new_op->downcall.resp.io.amt_complete;
+			copy_amount = new_op->downcall.resp.io.amt_complete;
 			
 		ret = orangefs_bufmap_copy_to_iovec(iter, buffer_index,
-			read_amount);
+			copy_amount);
 		if (ret < 0) {
 			gossip_err("%s: Failed to copy-out buffers. Please make sure that the pvfs2-client is running (%ld)\n",
 			    __func__, (long)ret);
@@ -262,11 +252,11 @@ out:
 			/* readpage */
 			*index_return = buffer_index;
 			gossip_debug(GOSSIP_FILE_DEBUG,
-				"%s: no put buffer\n", __func__);
+				"%s: hold on to buffer_index :%d:\n",
+				__func__, buffer_index);
 		} else {
 			/* O_DIRECT */
 			orangefs_bufmap_put(buffer_index);
-printk("%s: 2 put:%d:\n", __func__, buffer_index);
 			gossip_debug(GOSSIP_FILE_DEBUG,
 		     			"%s(%pU): PUT buffer_index %d\n",
 					__func__, handle, buffer_index);
@@ -323,7 +313,6 @@ static ssize_t orangefs_file_read_iter(struct kiocb *iocb,
 {
 	int ret;
 	struct orangefs_read_options *ro;
-struct orangefs_read_options *ro2;
 
 	orangefs_stats.reads++;
 
@@ -345,14 +334,6 @@ struct orangefs_read_options *ro2;
 		}
 	}
 		
-/*
-printk("%s: iter->count:%ld:\n",__func__, iter->count);
-if (iocb->ki_filp->private_data) {
-ro2 = iocb->ki_filp->private_data;
-printk("%s: private:%ld:\n", __func__, ro2->blksiz);
-}
-*/
-
 	down_read(&file_inode(iocb->ki_filp)->i_rwsem);
 	ret = orangefs_revalidate_mapping(file_inode(iocb->ki_filp));
 	if (ret)

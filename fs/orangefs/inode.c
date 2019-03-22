@@ -268,32 +268,55 @@ static int orangefs_readpage(struct file *file, struct page *page)
 	struct page *next_page;
 	char *kaddr;
 	struct orangefs_read_options *ro = file->private_data;
-	loff_t readahead_size = ro ? ro->blksiz : inode->i_size;
+	loff_t read_size;
+	loff_t roundedup;
 	int buffer_index;
 
+	/*
+	 * If they set some miniscule size for "count" in read(2)
+	 * (for example) then let's try to read a page, or the whole file
+	 * if it is smaller than a page. Once "count" goes over a page
+	 * then lets round up to the next highest page size and try to
+	 * fill that many pages.
+	 *
+	 * "count" should be represented in ro->blksiz.
+	 *
+	 * inode->i_size = file size.
+	 */
+	if (ro) {
+		if (ro->blksiz < PAGE_SIZE) {
+			if (inode->i_size < PAGE_SIZE)
+				read_size = inode->i_size;
+			else
+				read_size = PAGE_SIZE;
+		} else {
+			roundedup = ((PAGE_SIZE - 1) & ro->blksiz) ?
+				((ro->blksiz + PAGE_SIZE) & ~(PAGE_SIZE -1)) :
+				ro->blksiz;
+			if (roundedup > inode->i_size)
+				read_size = inode->i_size;
+			else
+				read_size = roundedup;
+			
+		}
+	} else {
+		read_size = PAGE_SIZE;
+	}
+printk("%s: read_size:%lld:\n", __func__, read_size);
+
+	if (PageDirty(page))
+		orangefs_launder_page(page);
+
 	off = page_offset(page);
-
 	index = off >> PAGE_SHIFT;
-/*
-printk("%s: off:%llu: index:%lu: i_size:%lld:\n", __func__, off, index, inode->i_size);
-if (ro) {
-printk("%s: blksiz:%ld:\n", __func__, ro->blksiz);
-}
-*/
-
 	bv.bv_page = page;
 	bv.bv_len = PAGE_SIZE;
 	bv.bv_offset = 0;
 	iov_iter_bvec(&iter, READ, &bv, 1, PAGE_SIZE);
 
-	if (PageDirty(page))
-		orangefs_launder_page(page);
-
-/* inode->i_size = file size */
 	ret = wait_for_direct_io(ORANGEFS_IO_READ, inode, &off, &iter,
-	    PAGE_SIZE, readahead_size, NULL, &buffer_index);
+	    read_size, inode->i_size, NULL, &buffer_index);
 	/* this will only zero remaining unread portions of the page data */
-/*printk("%s: iter.count:%ld:\n", __func__, iter.count); */
 	iov_iter_zero(~0U, &iter);
 	/* takes care of potential aliasing */
 	flush_dcache_page(page);
@@ -313,12 +336,11 @@ printk("%s: blksiz:%ld:\n", __func__, ro->blksiz);
 /*
 		printk("%s: inode->i_size - off:%lld:\n",
 		__func__, inode->i_size - off);
-*/
 		printk("%s: ret:%ld: buffer_index:%d:\n",
 		__func__, ret, buffer_index);
+*/
 	}
-orangefs_bufmap_put(buffer_index);
-printk("%s: put:%d:\n", __func__, buffer_index);
+	orangefs_bufmap_put(buffer_index);
 /*	if (inode->i_size == 4098) { */
 	if (0) {
 		next_page =
