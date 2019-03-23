@@ -538,3 +538,23 @@ int orangefs_bufmap_copy_to_iovec(struct iov_iter *iter,
 	}
 	return 0;
 }
+
+void orangefs_bufmap_page_fill(void *page_to,
+				int buffer_index,
+				pgoff_t index)
+{
+	struct orangefs_bufmap_desc *from;
+	void *page_from;
+	
+	from = &__orangefs_bufmap->desc_array[buffer_index];
+	page_from = kmap_atomic(from->page_array[index]);
+	memcpy(page_to, page_from, PAGE_SIZE);
+	kunmap_atomic(page_from);
+}
+
+
+
+
+
+
+

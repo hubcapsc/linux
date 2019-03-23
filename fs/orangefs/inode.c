@@ -271,13 +271,15 @@ static int orangefs_readpage(struct file *file, struct page *page)
 	loff_t read_size;
 	loff_t roundedup;
 	int buffer_index;
+	int remaining;
 
 	/*
 	 * If they set some miniscule size for "count" in read(2)
 	 * (for example) then let's try to read a page, or the whole file
 	 * if it is smaller than a page. Once "count" goes over a page
-	 * then lets round up to the next highest page size and try to
-	 * fill that many pages.
+	 * then lets round up to the highest page size that less than
+	 * or equal to "count" and try to fill that many pages when we
+	 * do our orangefs hard-io.
 	 *
 	 * "count" should be represented in ro->blksiz.
 	 *
@@ -302,7 +304,6 @@ static int orangefs_readpage(struct file *file, struct page *page)
 	} else {
 		read_size = PAGE_SIZE;
 	}
-printk("%s: read_size:%lld:\n", __func__, read_size);
 
 	if (PageDirty(page))
 		orangefs_launder_page(page);
@@ -316,6 +317,7 @@ printk("%s: read_size:%lld:\n", __func__, read_size);
 
 	ret = wait_for_direct_io(ORANGEFS_IO_READ, inode, &off, &iter,
 	    read_size, inode->i_size, NULL, &buffer_index);
+	remaining = ret;
 	/* this will only zero remaining unread portions of the page data */
 	iov_iter_zero(~0U, &iter);
 	/* takes care of potential aliasing */
@@ -332,14 +334,34 @@ printk("%s: read_size:%lld:\n", __func__, read_size);
 	unlock_page(page);
 
 	/* hubcap */
-	if (inode->i_size > PAGE_SIZE) {
-/*
-		printk("%s: inode->i_size - off:%lld:\n",
-		__func__, inode->i_size - off);
-		printk("%s: ret:%ld: buffer_index:%d:\n",
-		__func__, ret, buffer_index);
-*/
+printk("%s: 1 remaining:%d: index:%ld:\n", __func__, remaining, index);
+	if (remaining > PAGE_SIZE) {
+		while ((remaining - PAGE_SIZE) >= PAGE_SIZE) {
+			remaining -= PAGE_SIZE;
+printk("%s: 2 remaining:%d:\n", __func__, remaining);
+			next_page = find_or_create_page(inode->i_mapping,
+							++index,
+							GFP_KERNEL);
+			/*
+ 			 * It is an optimization to fill more than one
+ 			 * page... by now we've already gotten the single
+ 			 * page we were after, if stuff doesn't seem to
+ 			 * be going our way at this point just return without
+ 			 * pitching too much of a fit and hope for the best.
+ 			 */
+			if (!next_page) {
+				WARN_ON(!next_page);
+				return ret;
+			}
+			kaddr = kmap_atomic(next_page);
+			orangefs_bufmap_page_fill(kaddr, buffer_index, index);
+			kunmap_atomic(kaddr);
+			SetPageUptodate(next_page);
+			unlock_page(next_page);
+			put_page(next_page);
+		}
 	}
+
 	orangefs_bufmap_put(buffer_index);
 /*	if (inode->i_size == 4098) { */
 	if (0) {
