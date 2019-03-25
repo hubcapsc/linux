@@ -112,7 +112,7 @@ retry_servicing:
 	spin_lock(&orangefs_request_list_lock);
 	spin_lock(&op->lock);
 	set_op_state_waiting(op);
-	gossip_debug(GOSSIP_DEV_DEBUG,
+	gossip_debug(GOSSIP_WAIT_DEBUG,
 		     "%s: op:%s: op_state:%d: process:%s:\n",
 		     __func__,
 		     get_opname_string(op),

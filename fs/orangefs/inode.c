@@ -270,16 +270,17 @@ static int orangefs_readpage(struct file *file, struct page *page)
 	struct orangefs_read_options *ro = file->private_data;
 	loff_t read_size;
 	loff_t roundedup;
-	int buffer_index;
+	int buffer_index; /* orangefs shared memory slot */
+	int slot_index;   /* index into slot */
 	int remaining;
 
 	/*
 	 * If they set some miniscule size for "count" in read(2)
 	 * (for example) then let's try to read a page, or the whole file
 	 * if it is smaller than a page. Once "count" goes over a page
-	 * then lets round up to the highest page size that less than
-	 * or equal to "count" and try to fill that many pages when we
-	 * do our orangefs hard-io.
+	 * then lets round up to the highest page size that is less than
+	 * or equal to "count" and do that much orangefs IO and try
+	 * to fill as many pages as we can from it.
 	 *
 	 * "count" should be represented in ro->blksiz.
 	 *
@@ -304,6 +305,8 @@ static int orangefs_readpage(struct file *file, struct page *page)
 	} else {
 		read_size = PAGE_SIZE;
 	}
+	if (!read_size)
+		read_size = PAGE_SIZE;
 
 	if (PageDirty(page))
 		orangefs_launder_page(page);
@@ -324,6 +327,8 @@ static int orangefs_readpage(struct file *file, struct page *page)
 	flush_dcache_page(page);
 	if (ret < 0) {
 		SetPageError(page);
+		unlock_page(page);
+		goto out;
 	} else {
 		SetPageUptodate(page);
 		if (PageError(page))
@@ -333,28 +338,43 @@ static int orangefs_readpage(struct file *file, struct page *page)
 	/* unlock the page after the ->readpage() routine completes */
 	unlock_page(page);
 
-	/* hubcap */
-printk("%s: 1 remaining:%d: index:%ld:\n", __func__, remaining, index);
 	if (remaining > PAGE_SIZE) {
+		slot_index = 0;
 		while ((remaining - PAGE_SIZE) >= PAGE_SIZE) {
 			remaining -= PAGE_SIZE;
-printk("%s: 2 remaining:%d:\n", __func__, remaining);
-			next_page = find_or_create_page(inode->i_mapping,
-							++index,
-							GFP_KERNEL);
 			/*
- 			 * It is an optimization to fill more than one
+ 			 * It is an optimization to try and fill more than one
  			 * page... by now we've already gotten the single
  			 * page we were after, if stuff doesn't seem to
  			 * be going our way at this point just return without
  			 * pitching too much of a fit and hope for the best.
+ 			 *
+ 			 * If we look for pages and they're already there is
+ 			 * one reason to give up, and if they're not there
+ 			 * and we can't create them is another reason.
  			 */
+
+			index++;
+			slot_index++;
+			next_page = find_get_page(inode->i_mapping, index);
+			if (next_page) {
+				printk("%s: found next page, quitting\n",
+					__func__);
+				put_page(next_page);
+				goto out;
+			}
+			next_page = find_or_create_page(inode->i_mapping,
+							index,
+							GFP_KERNEL);
 			if (!next_page) {
-				WARN_ON(!next_page);
-				return ret;
+				printk("%s: can't create next page, quitting\n",
+					__func__);
+				goto out;
 			}
 			kaddr = kmap_atomic(next_page);
-			orangefs_bufmap_page_fill(kaddr, buffer_index, index);
+			orangefs_bufmap_page_fill(kaddr,
+						buffer_index,
+						slot_index);
 			kunmap_atomic(kaddr);
 			SetPageUptodate(next_page);
 			unlock_page(next_page);
@@ -362,23 +382,10 @@ printk("%s: 2 remaining:%d:\n", __func__, remaining);
 		}
 	}
 
+out:
+if ((buffer_index < 0) || (buffer_index > 10))
+printk("%s: PUT buffer_index:%d:\n", __func__, buffer_index);
 	orangefs_bufmap_put(buffer_index);
-/*	if (inode->i_size == 4098) { */
-	if (0) {
-		next_page =
-			find_or_create_page(inode->i_mapping, 1, GFP_KERNEL);
-		if (!next_page)
-			return ret;
-
-		kaddr = kmap_atomic(next_page);
-		memcpy(kaddr, "A\n", 2);
-		kunmap_atomic(kaddr);
-		SetPageUptodate(next_page);
-		unlock_page(next_page);
-		put_page(next_page);
-	}
-	/* hubcap end */
-
 	return ret;
 }
 

@@ -218,7 +218,7 @@ populate_shared_memory:
 		 * we're doing O_DIRECT, otherwise we got here from 
 		 * orangefs_readpage.
 		 *
-		 * If we got here from orangefs_readpage we want to either
+		 * If we got here from orangefs_readpage we want to
 		 * copy either a page or the whole file into the io
 		 * vector, whichever is smaller.
 		 */
@@ -317,21 +317,16 @@ static ssize_t orangefs_file_read_iter(struct kiocb *iocb,
 	orangefs_stats.reads++;
 
 	/*
-	 * Remember how they set "count" in read(2) so that later we can try
+	 * Remember how they set "count" in read(2) - they can use it as a
+	 * knob to control orangefs io size and later we can try
 	 * to help them fill as many pages as possible in readpage.
 	 */
 	if (!iocb->ki_filp->private_data) {
-		/*
-		 * Don't bail if kmalloc fails even though it probably
-		 * means the world is coming to an end...
-		 */
 		iocb->ki_filp->private_data = kmalloc(sizeof *ro, GFP_KERNEL);
-		if (!iocb->ki_filp->private_data) {
-			WARN_ON(iocb->ki_filp->private_data == NULL);
-		} else {
-			ro = iocb->ki_filp->private_data;
-			ro->blksiz = iter->count;
-		}
+		if (!iocb->ki_filp->private_data)
+			return(ENOMEM);
+		ro = iocb->ki_filp->private_data;
+		ro->blksiz = iter->count;
 	}
 		
 	down_read(&file_inode(iocb->ki_filp)->i_rwsem);
@@ -620,6 +615,15 @@ int orangefs_flush(struct file *file, fl_owner_t id)
 	 */
 	struct inode *inode = file->f_mapping->host;
 	int r;
+
+	/*
+	 * RIP: 0010:set_freepointer...
+	 * Fixing recursive fault but reboot is needed!
+	 */
+	if (file->private_data) {
+		kfree(file->private_data);
+		file->private_data = NULL;
+	}
 
 	if (inode->i_state & I_DIRTY_TIME) {
 		spin_lock(&inode->i_lock);
