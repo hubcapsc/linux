@@ -37,15 +37,6 @@
 
 #include "qib.h"
 
-static void __qib_release_user_pages(struct page **p, size_t num_pages,
-				     int dirty)
-{
-	if (dirty)
-		put_user_pages_dirty_lock(p, num_pages);
-	else
-		put_user_pages(p, num_pages);
-}
-
 /**
  * qib_map_page - a safety wrapper around pci_map_page()
  *
@@ -124,7 +115,7 @@ int qib_get_user_pages(unsigned long start_page, size_t num_pages,
 
 	return 0;
 bail_release:
-	__qib_release_user_pages(p, got, 0);
+	put_user_pages_dirty_lock(p, got, false);
 bail:
 	atomic64_sub(num_pages, &current->mm->pinned_vm);
 	return ret;
@@ -132,7 +123,7 @@ bail:
 
 void qib_release_user_pages(struct page **p, size_t num_pages)
 {
-	__qib_release_user_pages(p, num_pages, 1);
+	put_user_pages_dirty_lock(p, num_pages, true);
 
 	/* during close after signal, mm can be NULL */
 	if (current->mm)

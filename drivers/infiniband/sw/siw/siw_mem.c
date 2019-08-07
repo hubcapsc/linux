@@ -60,20 +60,6 @@ struct siw_mem *siw_mem_id2obj(struct siw_device *sdev, int stag_index)
 	return NULL;
 }
 
-static void siw_free_plist(struct siw_page_chunk *chunk, int num_pages,
-			   bool dirty)
-{
-	struct page **p = chunk->plist;
-
-	while (num_pages--) {
-		if (!PageDirty(*p) && dirty)
-			put_user_pages_dirty_lock(p, 1);
-		else
-			put_user_page(*p);
-		p++;
-	}
-}
-
 void siw_umem_release(struct siw_umem *umem, bool dirty)
 {
 	struct mm_struct *mm_s = umem->owning_mm;
@@ -82,8 +68,9 @@ void siw_umem_release(struct siw_umem *umem, bool dirty)
 	for (i = 0; num_pages; i++) {
 		int to_free = min_t(int, PAGES_PER_CHUNK, num_pages);
 
-		siw_free_plist(&umem->page_chunk[i], to_free,
-			       umem->writable && dirty);
+		put_user_pages_dirty_lock(umem->page_chunk[i].plist,
+					  to_free,
+					  umem->writable && dirty);
 		kfree(umem->page_chunk[i].plist);
 		num_pages -= to_free;
 	}
