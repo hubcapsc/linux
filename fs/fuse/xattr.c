@@ -175,21 +175,19 @@ int fuse_removexattr(struct inode *inode, const char *name)
 }
 
 static int fuse_xattr_get(const struct xattr_handler *handler,
-			 struct dentry *dentry, struct inode *inode,
-			 const char *name, void *value, size_t size)
+			  struct xattr_gs_args *args)
 {
-	return fuse_getxattr(inode, name, value, size);
+	return fuse_getxattr(args->inode, args->name, args->buffer, args->size);
 }
 
 static int fuse_xattr_set(const struct xattr_handler *handler,
-			  struct dentry *dentry, struct inode *inode,
-			  const char *name, const void *value, size_t size,
-			  int flags)
+			  struct xattr_gs_args *args)
 {
-	if (!value)
-		return fuse_removexattr(inode, name);
+	if (!args->value)
+		return fuse_removexattr(args->inode, args->name);
 
-	return fuse_setxattr(inode, name, value, size, flags);
+	return fuse_setxattr(args->inode, args->name,
+			     args->value, args->size, args->flags);
 }
 
 static bool no_xattr_list(struct dentry *dentry)
@@ -198,16 +196,13 @@ static bool no_xattr_list(struct dentry *dentry)
 }
 
 static int no_xattr_get(const struct xattr_handler *handler,
-			struct dentry *dentry, struct inode *inode,
-			const char *name, void *value, size_t size)
+			struct xattr_gs_args *args)
 {
 	return -EOPNOTSUPP;
 }
 
 static int no_xattr_set(const struct xattr_handler *handler,
-			struct dentry *dentry, struct inode *nodee,
-			const char *name, const void *value,
-			size_t size, int flags)
+			struct xattr_gs_args *args)
 {
 	return -EOPNOTSUPP;
 }

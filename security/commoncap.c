@@ -294,11 +294,15 @@ int cap_capset(struct cred *new,
  */
 int cap_inode_need_killpriv(struct dentry *dentry)
 {
-	struct inode *inode = d_backing_inode(dentry);
-	int error;
+	struct xattr_gs_args args;
 
-	error = __vfs_getxattr(dentry, inode, XATTR_NAME_CAPS, NULL, 0);
-	return error > 0;
+	memset(&args, 0, sizeof(args));
+	args.dentry = dentry;
+	args.inode = d_backing_inode(dentry);
+	args.name = XATTR_NAME_CAPS;
+	args.flags = XATTR_NOSECURITY;
+
+	return __vfs_getxattr(&args) > 0;
 }
 
 /**
@@ -570,7 +574,7 @@ static inline int bprm_caps_from_vfs_caps(struct cpu_vfs_cap_data *caps,
  */
 int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_cap_data *cpu_caps)
 {
-	struct inode *inode = d_backing_inode(dentry);
+	struct xattr_gs_args args;
 	__u32 magic_etc;
 	unsigned tocopy, i;
 	int size;
@@ -580,13 +584,20 @@ int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_cap_data 
 	struct user_namespace *fs_ns;
 
 	memset(cpu_caps, 0, sizeof(struct cpu_vfs_cap_data));
+	memset(&args, 0, sizeof(args));
 
-	if (!inode)
+	args.dentry = (struct dentry *)dentry;
+	args.inode = d_backing_inode(args.dentry);
+	if (!args.inode)
 		return -ENODATA;
 
-	fs_ns = inode->i_sb->s_user_ns;
-	size = __vfs_getxattr((struct dentry *)dentry, inode,
-			      XATTR_NAME_CAPS, &data, XATTR_CAPS_SZ);
+	fs_ns = args.inode->i_sb->s_user_ns;
+
+	args.name = XATTR_NAME_CAPS;
+	args.buffer = &data;
+	args.size = XATTR_CAPS_SZ;
+	args.flags = XATTR_NOSECURITY;
+	size = __vfs_getxattr(&args);
 	if (size == -ENODATA || size == -EOPNOTSUPP)
 		/* no data, that's ok */
 		return -ENODATA;

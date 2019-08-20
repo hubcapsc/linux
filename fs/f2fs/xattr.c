@@ -23,10 +23,9 @@
 #include "xattr.h"
 
 static int f2fs_xattr_generic_get(const struct xattr_handler *handler,
-		struct dentry *unused, struct inode *inode,
-		const char *name, void *buffer, size_t size)
+				  struct xattr_gs_args *args)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_SB(args->inode->i_sb);
 
 	switch (handler->flags) {
 	case F2FS_XATTR_INDEX_USER:
@@ -39,16 +38,14 @@ static int f2fs_xattr_generic_get(const struct xattr_handler *handler,
 	default:
 		return -EINVAL;
 	}
-	return f2fs_getxattr(inode, handler->flags, name,
-			     buffer, size, NULL);
+	return f2fs_getxattr(args->inode, handler->flags, args->name,
+			     args->buffer, args->size, NULL);
 }
 
 static int f2fs_xattr_generic_set(const struct xattr_handler *handler,
-		struct dentry *unused, struct inode *inode,
-		const char *name, const void *value,
-		size_t size, int flags)
+				  struct xattr_gs_args *args)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_SB(args->inode->i_sb);
 
 	switch (handler->flags) {
 	case F2FS_XATTR_INDEX_USER:
@@ -61,8 +58,8 @@ static int f2fs_xattr_generic_set(const struct xattr_handler *handler,
 	default:
 		return -EINVAL;
 	}
-	return f2fs_setxattr(inode, handler->flags, name,
-					value, size, NULL, flags);
+	return f2fs_setxattr(args->inode, handler->flags, args->name,
+			     args->value, args->size, NULL, args->flags);
 }
 
 static bool f2fs_xattr_user_list(struct dentry *dentry)
@@ -78,36 +75,33 @@ static bool f2fs_xattr_trusted_list(struct dentry *dentry)
 }
 
 static int f2fs_xattr_advise_get(const struct xattr_handler *handler,
-		struct dentry *unused, struct inode *inode,
-		const char *name, void *buffer, size_t size)
+				 struct xattr_gs_args *args)
 {
-	if (buffer)
-		*((char *)buffer) = F2FS_I(inode)->i_advise;
+	if (args->buffer)
+		*((char *)args->buffer) = F2FS_I(args->inode)->i_advise;
 	return sizeof(char);
 }
 
 static int f2fs_xattr_advise_set(const struct xattr_handler *handler,
-		struct dentry *unused, struct inode *inode,
-		const char *name, const void *value,
-		size_t size, int flags)
+				 struct xattr_gs_args *args)
 {
-	unsigned char old_advise = F2FS_I(inode)->i_advise;
+	unsigned char old_advise = F2FS_I(args->inode)->i_advise;
 	unsigned char new_advise;
 
-	if (!inode_owner_or_capable(inode))
+	if (!inode_owner_or_capable(args->inode))
 		return -EPERM;
-	if (value == NULL)
+	if (args->value == NULL)
 		return -EINVAL;
 
-	new_advise = *(char *)value;
+	new_advise = *(char *)args->value;
 	if (new_advise & ~FADVISE_MODIFIABLE_BITS)
 		return -EINVAL;
 
 	new_advise = new_advise & FADVISE_MODIFIABLE_BITS;
 	new_advise |= old_advise & ~FADVISE_MODIFIABLE_BITS;
 
-	F2FS_I(inode)->i_advise = new_advise;
-	f2fs_mark_inode_dirty_sync(inode, true);
+	F2FS_I(args->inode)->i_advise = new_advise;
+	f2fs_mark_inode_dirty_sync(args->inode, true);
 	return 0;
 }
 

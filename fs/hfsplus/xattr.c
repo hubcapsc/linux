@@ -838,14 +838,13 @@ end_removexattr:
 }
 
 static int hfsplus_osx_getxattr(const struct xattr_handler *handler,
-				struct dentry *unused, struct inode *inode,
-				const char *name, void *buffer, size_t size)
+				struct xattr_gs_args *args)
 {
 	/*
 	 * Don't allow retrieving properly prefixed attributes
 	 * by prepending them with "osx."
 	 */
-	if (is_known_namespace(name))
+	if (is_known_namespace(args->name))
 		return -EOPNOTSUPP;
 
 	/*
@@ -854,19 +853,18 @@ static int hfsplus_osx_getxattr(const struct xattr_handler *handler,
 	 * creates), so we pass the name through unmodified (after
 	 * ensuring it doesn't conflict with another namespace).
 	 */
-	return __hfsplus_getxattr(inode, name, buffer, size);
+	return __hfsplus_getxattr(args->inode, args->name,
+				  args->buffer, args->size);
 }
 
 static int hfsplus_osx_setxattr(const struct xattr_handler *handler,
-				struct dentry *unused, struct inode *inode,
-				const char *name, const void *buffer,
-				size_t size, int flags)
+				struct xattr_gs_args *args)
 {
 	/*
 	 * Don't allow setting properly prefixed attributes
 	 * by prepending them with "osx."
 	 */
-	if (is_known_namespace(name))
+	if (is_known_namespace(args->name))
 		return -EOPNOTSUPP;
 
 	/*
@@ -875,7 +873,8 @@ static int hfsplus_osx_setxattr(const struct xattr_handler *handler,
 	 * creates), so we pass the name through unmodified (after
 	 * ensuring it doesn't conflict with another namespace).
 	 */
-	return __hfsplus_setxattr(inode, name, buffer, size, flags);
+	return __hfsplus_setxattr(args->inode, args->name,
+				  args->value, args->size, args->flags);
 }
 
 const struct xattr_handler hfsplus_xattr_osx_handler = {

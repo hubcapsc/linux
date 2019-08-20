@@ -7241,20 +7241,18 @@ leave:
  * 'security' attributes support
  */
 static int ocfs2_xattr_security_get(const struct xattr_handler *handler,
-				    struct dentry *unused, struct inode *inode,
-				    const char *name, void *buffer, size_t size)
+				    struct xattr_gs_args *args)
 {
-	return ocfs2_xattr_get(inode, OCFS2_XATTR_INDEX_SECURITY,
-			       name, buffer, size);
+	return ocfs2_xattr_get(args->inode, OCFS2_XATTR_INDEX_SECURITY,
+			       args->name, args->buffer, args->size);
 }
 
 static int ocfs2_xattr_security_set(const struct xattr_handler *handler,
-				    struct dentry *unused, struct inode *inode,
-				    const char *name, const void *value,
-				    size_t size, int flags)
+				    struct xattr_gs_args *args)
 {
-	return ocfs2_xattr_set(inode, OCFS2_XATTR_INDEX_SECURITY,
-			       name, value, size, flags);
+	return ocfs2_xattr_set(args->inode, OCFS2_XATTR_INDEX_SECURITY,
+			       args->name, args->value, args->size,
+			       args->flags);
 }
 
 static int ocfs2_initxattrs(struct inode *inode, const struct xattr *xattr_array,
@@ -7313,20 +7311,18 @@ const struct xattr_handler ocfs2_xattr_security_handler = {
  * 'trusted' attributes support
  */
 static int ocfs2_xattr_trusted_get(const struct xattr_handler *handler,
-				   struct dentry *unused, struct inode *inode,
-				   const char *name, void *buffer, size_t size)
+				   struct xattr_gs_args *args)
 {
-	return ocfs2_xattr_get(inode, OCFS2_XATTR_INDEX_TRUSTED,
-			       name, buffer, size);
+	return ocfs2_xattr_get(args->inode, OCFS2_XATTR_INDEX_TRUSTED,
+			       args->name, args->buffer, args->size);
 }
 
 static int ocfs2_xattr_trusted_set(const struct xattr_handler *handler,
-				   struct dentry *unused, struct inode *inode,
-				   const char *name, const void *value,
-				   size_t size, int flags)
+				   struct xattr_gs_args *args)
 {
-	return ocfs2_xattr_set(inode, OCFS2_XATTR_INDEX_TRUSTED,
-			       name, value, size, flags);
+	return ocfs2_xattr_set(args->inode, OCFS2_XATTR_INDEX_TRUSTED,
+			       args->name, args->value, args->size,
+			       args->flags);
 }
 
 const struct xattr_handler ocfs2_xattr_trusted_handler = {
@@ -7339,29 +7335,27 @@ const struct xattr_handler ocfs2_xattr_trusted_handler = {
  * 'user' attributes support
  */
 static int ocfs2_xattr_user_get(const struct xattr_handler *handler,
-				struct dentry *unused, struct inode *inode,
-				const char *name, void *buffer, size_t size)
+				struct xattr_gs_args *args)
 {
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_super *osb = OCFS2_SB(args->inode->i_sb);
 
 	if (osb->s_mount_opt & OCFS2_MOUNT_NOUSERXATTR)
 		return -EOPNOTSUPP;
-	return ocfs2_xattr_get(inode, OCFS2_XATTR_INDEX_USER, name,
-			       buffer, size);
+	return ocfs2_xattr_get(args->inode, OCFS2_XATTR_INDEX_USER, args->name,
+			       args->buffer, args->size);
 }
 
 static int ocfs2_xattr_user_set(const struct xattr_handler *handler,
-				struct dentry *unused, struct inode *inode,
-				const char *name, const void *value,
-				size_t size, int flags)
+				struct xattr_gs_args *args)
 {
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_super *osb = OCFS2_SB(args->inode->i_sb);
 
 	if (osb->s_mount_opt & OCFS2_MOUNT_NOUSERXATTR)
 		return -EOPNOTSUPP;
 
-	return ocfs2_xattr_set(inode, OCFS2_XATTR_INDEX_USER,
-			       name, value, size, flags);
+	return ocfs2_xattr_set(args->inode, OCFS2_XATTR_INDEX_USER,
+			       args->name, args->value, args->size,
+			       args->flags);
 }
 
 const struct xattr_handler ocfs2_xattr_user_handler = {

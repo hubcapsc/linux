@@ -3205,24 +3205,23 @@ static int shmem_initxattrs(struct inode *inode,
 }
 
 static int shmem_xattr_handler_get(const struct xattr_handler *handler,
-				   struct dentry *unused, struct inode *inode,
-				   const char *name, void *buffer, size_t size)
+				   struct xattr_gs_args *args)
 {
-	struct shmem_inode_info *info = SHMEM_I(inode);
+	struct shmem_inode_info *info = SHMEM_I(args->inode);
 
-	name = xattr_full_name(handler, name);
-	return simple_xattr_get(&info->xattrs, name, buffer, size);
+	return simple_xattr_get(&info->xattrs,
+				xattr_full_name(handler, args->name),
+				args->buffer, args->size);
 }
 
 static int shmem_xattr_handler_set(const struct xattr_handler *handler,
-				   struct dentry *unused, struct inode *inode,
-				   const char *name, const void *value,
-				   size_t size, int flags)
+				   struct xattr_gs_args *args)
 {
-	struct shmem_inode_info *info = SHMEM_I(inode);
+	struct shmem_inode_info *info = SHMEM_I(args->inode);
 
-	name = xattr_full_name(handler, name);
-	return simple_xattr_set(&info->xattrs, name, value, size, flags);
+	return simple_xattr_set(&info->xattrs,
+				xattr_full_name(handler, args->name),
+				args->value, args->size, args->flags);
 }
 
 static const struct xattr_handler shmem_security_xattr_handler = {

@@ -305,7 +305,7 @@ int
 xfs_attr_set(
 	struct xfs_inode	*dp,
 	const unsigned char	*name,
-	unsigned char		*value,
+	const unsigned char	*value,
 	int			valuelen,
 	int			flags)
 {
@@ -324,7 +324,7 @@ xfs_attr_set(
 	if (error)
 		return error;
 
-	args.value = value;
+	args.value = (unsigned char *)value;
 	args.valuelen = valuelen;
 	args.op_flags = XFS_DA_OP_ADDNAME | XFS_DA_OP_OKNOENT;
 	args.total = xfs_attr_calc_size(&args, &local);

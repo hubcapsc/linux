@@ -526,24 +526,17 @@ out_unlock:
 }
 
 static int orangefs_xattr_set_default(const struct xattr_handler *handler,
-				      struct dentry *unused,
-				      struct inode *inode,
-				      const char *name,
-				      const void *buffer,
-				      size_t size,
-				      int flags)
+				      struct xattr_gs_args *args)
 {
-	return orangefs_inode_setxattr(inode, name, buffer, size, flags);
+	return orangefs_inode_setxattr(args->inode, args->name,
+				       args->value, args->size, args->flags);
 }
 
 static int orangefs_xattr_get_default(const struct xattr_handler *handler,
-				      struct dentry *unused,
-				      struct inode *inode,
-				      const char *name,
-				      void *buffer,
-				      size_t size)
+				      struct xattr_gs_args *args)
 {
-	return orangefs_inode_getxattr(inode, name, buffer, size);
+	return orangefs_inode_getxattr(args->inode, args->name,
+				       args->buffer, args->size);
 
 }
 

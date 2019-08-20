@@ -135,19 +135,18 @@ xattr_permission(struct inode *inode, const char *name, int mask)
 }
 
 int
-__vfs_setxattr(struct dentry *dentry, struct inode *inode, const char *name,
-	       const void *value, size_t size, int flags)
+__vfs_setxattr(struct xattr_gs_args *args)
 {
 	const struct xattr_handler *handler;
 
-	handler = xattr_resolve_name(inode, &name);
+	handler = xattr_resolve_name(args->inode, &args->name);
 	if (IS_ERR(handler))
 		return PTR_ERR(handler);
 	if (!handler->set)
 		return -EOPNOTSUPP;
-	if (size == 0)
-		value = "";  /* empty EA, do not remove */
-	return handler->set(handler, dentry, inode, name, value, size, flags);
+	if (args->size == 0)
+		args->value = "";  /* empty EA, do not remove */
+	return handler->set(handler, args);
 }
 EXPORT_SYMBOL(__vfs_setxattr);
 
@@ -178,7 +177,16 @@ int __vfs_setxattr_noperm(struct dentry *dentry, const char *name,
 	if (issec)
 		inode->i_flags &= ~S_NOSEC;
 	if (inode->i_opflags & IOP_XATTR) {
-		error = __vfs_setxattr(dentry, inode, name, value, size, flags);
+		struct xattr_gs_args args = {
+			.dentry = dentry,
+			.inode = inode,
+			.name = name,
+			.value = value,
+			.size = size,
+			.flags = flags,
+		};
+
+		error = __vfs_setxattr(&args);
 		if (!error) {
 			fsnotify_xattr(dentry);
 			security_inode_post_setxattr(dentry, name, value,
@@ -268,68 +276,61 @@ vfs_getxattr_alloc(struct dentry *dentry, const char *name, char **xattr_value,
 		   size_t xattr_size, gfp_t flags)
 {
 	const struct xattr_handler *handler;
-	struct inode *inode = dentry->d_inode;
-	char *value = *xattr_value;
+	struct xattr_gs_args args;
 	int error;
 
-	error = xattr_permission(inode, name, MAY_READ);
+	error = xattr_permission(dentry->d_inode, name, MAY_READ);
 	if (error)
 		return error;
 
-	handler = xattr_resolve_name(inode, &name);
+	handler = xattr_resolve_name(dentry->d_inode, &name);
 	if (IS_ERR(handler))
 		return PTR_ERR(handler);
 	if (!handler->get)
 		return -EOPNOTSUPP;
-	error = handler->get(handler, dentry, inode, name, NULL, 0);
+	memset(&args, 0, sizeof(args));
+	args.inode = dentry->d_inode;
+	args.dentry = dentry;
+	args.name = name;
+	error = handler->get(handler, &args);
 	if (error < 0)
 		return error;
 
-	if (!value || (error > xattr_size)) {
-		value = krealloc(*xattr_value, error + 1, flags);
-		if (!value)
+	args.buffer = *xattr_value;
+	if (!*xattr_value || (error > xattr_size)) {
+		args.buffer = krealloc(*xattr_value, error + 1, flags);
+		if (!args.buffer)
 			return -ENOMEM;
-		memset(value, 0, error + 1);
+		memset(args.buffer, 0, error + 1);
 	}
 
-	error = handler->get(handler, dentry, inode, name, value, error);
-	*xattr_value = value;
+	args.size = error;
+	error = handler->get(handler, &args);
+	*xattr_value = args.buffer;
 	return error;
 }
 
 ssize_t
-__vfs_getxattr(struct dentry *dentry, struct inode *inode, const char *name,
-	       void *value, size_t size)
+__vfs_getxattr(struct xattr_gs_args *args)
 {
 	const struct xattr_handler *handler;
-
-	handler = xattr_resolve_name(inode, &name);
-	if (IS_ERR(handler))
-		return PTR_ERR(handler);
-	if (!handler->get)
-		return -EOPNOTSUPP;
-	return handler->get(handler, dentry, inode, name, value, size);
-}
-EXPORT_SYMBOL(__vfs_getxattr);
-
-ssize_t
-vfs_getxattr(struct dentry *dentry, const char *name, void *value, size_t size)
-{
-	struct inode *inode = dentry->d_inode;
 	int error;
 
-	error = xattr_permission(inode, name, MAY_READ);
+	if (args->flags & XATTR_NOSECURITY)
+		goto nolsm;
+	error = xattr_permission(args->inode, args->name, MAY_READ);
 	if (error)
 		return error;
 
-	error = security_inode_getxattr(dentry, name);
+	error = security_inode_getxattr(args->dentry, args->name);
 	if (error)
 		return error;
 
-	if (!strncmp(name, XATTR_SECURITY_PREFIX,
+	if (!strncmp(args->name, XATTR_SECURITY_PREFIX,
 				XATTR_SECURITY_PREFIX_LEN)) {
-		const char *suffix = name + XATTR_SECURITY_PREFIX_LEN;
-		int ret = xattr_getsecurity(inode, suffix, value, size);
+		const char *suffix = args->name + XATTR_SECURITY_PREFIX_LEN;
+		int ret = xattr_getsecurity(args->inode, suffix,
+					    args->buffer, args->size);
 		/*
 		 * Only overwrite the return value if a security module
 		 * is actually active.
@@ -339,7 +340,27 @@ vfs_getxattr(struct dentry *dentry, const char *name, void *value, size_t size)
 		return ret;
 	}
 nolsm:
-	return __vfs_getxattr(dentry, inode, name, value, size);
+	handler = xattr_resolve_name(args->inode, &args->name);
+	if (IS_ERR(handler))
+		return PTR_ERR(handler);
+	if (!handler->get)
+		return -EOPNOTSUPP;
+	return handler->get(handler, args);
+}
+EXPORT_SYMBOL(__vfs_getxattr);
+
+ssize_t
+vfs_getxattr(struct dentry *dentry, const char *name, void *buffer, size_t size)
+{
+	struct xattr_gs_args args = {
+		.dentry = dentry,
+		.inode = dentry->d_inode,
+		.name = name,
+		.buffer = buffer,
+		.size = size,
+	};
+
+	return __vfs_getxattr(&args);
 }
 EXPORT_SYMBOL_GPL(vfs_getxattr);
 
@@ -366,15 +387,20 @@ EXPORT_SYMBOL_GPL(vfs_listxattr);
 int
 __vfs_removexattr(struct dentry *dentry, const char *name)
 {
-	struct inode *inode = d_inode(dentry);
 	const struct xattr_handler *handler;
+	struct xattr_gs_args args;
 
-	handler = xattr_resolve_name(inode, &name);
+	handler = xattr_resolve_name(d_inode(dentry), &name);
 	if (IS_ERR(handler))
 		return PTR_ERR(handler);
 	if (!handler->set)
 		return -EOPNOTSUPP;
-	return handler->set(handler, dentry, inode, name, NULL, 0, XATTR_REPLACE);
+	memset(&args, 0, sizeof(args));
+	args.dentry = dentry;
+	args.inode = d_inode(dentry);
+	args.name = name;
+	args.flags = XATTR_REPLACE;
+	return handler->set(handler, &args);
 }
 EXPORT_SYMBOL(__vfs_removexattr);
 

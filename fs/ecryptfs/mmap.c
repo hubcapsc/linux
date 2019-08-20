@@ -402,37 +402,40 @@ struct kmem_cache *ecryptfs_xattr_cache;
 
 static int ecryptfs_write_inode_size_to_xattr(struct inode *ecryptfs_inode)
 {
-	ssize_t size;
-	void *xattr_virt;
-	struct dentry *lower_dentry =
-		ecryptfs_inode_to_private(ecryptfs_inode)->lower_file->f_path.dentry;
-	struct inode *lower_inode = d_inode(lower_dentry);
+	struct xattr_gs_args args;
 	int rc;
 
-	if (!(lower_inode->i_opflags & IOP_XATTR)) {
+	memset(&args, 0, sizeof(args));
+	args.dentry = ecryptfs_inode_to_private(ecryptfs_inode)->
+		lower_file->f_path.dentry;
+	args.inode = d_inode(args.dentry);
+	if (!(args.inode->i_opflags & IOP_XATTR)) {
 		printk(KERN_WARNING
 		       "No support for setting xattr in lower filesystem\n");
 		rc = -ENOSYS;
 		goto out;
 	}
-	xattr_virt = kmem_cache_alloc(ecryptfs_xattr_cache, GFP_KERNEL);
-	if (!xattr_virt) {
+	args.buffer = kmem_cache_alloc(ecryptfs_xattr_cache, GFP_KERNEL);
+	if (!args.buffer) {
 		rc = -ENOMEM;
 		goto out;
 	}
-	inode_lock(lower_inode);
-	size = __vfs_getxattr(lower_dentry, lower_inode, ECRYPTFS_XATTR_NAME,
-			      xattr_virt, PAGE_SIZE);
-	if (size < 0)
-		size = 8;
-	put_unaligned_be64(i_size_read(ecryptfs_inode), xattr_virt);
-	rc = __vfs_setxattr(lower_dentry, lower_inode, ECRYPTFS_XATTR_NAME,
-			    xattr_virt, size, 0);
-	inode_unlock(lower_inode);
+	args.name = ECRYPTFS_XATTR_NAME;
+	args.size = PAGE_SIZE;
+	args.flags = XATTR_NOSECURITY;
+	inode_lock(args.inode);
+	args.size = __vfs_getxattr(&args);
+	if (args.size < 0)
+		args.size = 8;
+	put_unaligned_be64(i_size_read(ecryptfs_inode), args.buffer);
+	args.flags = 0;
+	args.value = args.buffer;
+	rc = __vfs_setxattr(&args);
+	inode_unlock(args.inode);
 	if (rc)
 		printk(KERN_ERR "Error whilst attempting to write inode size "
 		       "to lower file xattr; rc = [%d]\n", rc);
-	kmem_cache_free(ecryptfs_xattr_cache, xattr_virt);
+	kmem_cache_free(ecryptfs_xattr_cache, args.buffer);
 out:
 	return rc;
 }

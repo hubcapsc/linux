@@ -924,39 +924,36 @@ static int __jfs_xattr_set(struct inode *inode, const char *name,
 }
 
 static int jfs_xattr_get(const struct xattr_handler *handler,
-			 struct dentry *unused, struct inode *inode,
-			 const char *name, void *value, size_t size)
+			 struct xattr_gs_args *args)
 {
-	name = xattr_full_name(handler, name);
-	return __jfs_getxattr(inode, name, value, size);
+	return __jfs_getxattr(args->inode, xattr_full_name(handler, args->name),
+			      args->buffer, args->size);
 }
 
 static int jfs_xattr_set(const struct xattr_handler *handler,
-			 struct dentry *unused, struct inode *inode,
-			 const char *name, const void *value,
-			 size_t size, int flags)
+			 struct xattr_gs_args *args)
 {
-	name = xattr_full_name(handler, name);
-	return __jfs_xattr_set(inode, name, value, size, flags);
+	return __jfs_xattr_set(args->inode,
+			       xattr_full_name(handler, args->name),
+			       args->value, args->size, args->flags);
 }
 
 static int jfs_xattr_get_os2(const struct xattr_handler *handler,
-			     struct dentry *unused, struct inode *inode,
-			     const char *name, void *value, size_t size)
+			     struct xattr_gs_args *args)
 {
-	if (is_known_namespace(name))
+	if (is_known_namespace(args->name))
 		return -EOPNOTSUPP;
-	return __jfs_getxattr(inode, name, value, size);
+	return __jfs_getxattr(args->inode, args->name,
+			      args->buffer, args->size);
 }
 
 static int jfs_xattr_set_os2(const struct xattr_handler *handler,
-			     struct dentry *unused, struct inode *inode,
-			     const char *name, const void *value,
-			     size_t size, int flags)
+			     struct xattr_gs_args *args)
 {
-	if (is_known_namespace(name))
+	if (is_known_namespace(args->name))
 		return -EOPNOTSUPP;
-	return __jfs_xattr_set(inode, name, value, size, flags);
+	return __jfs_xattr_set(args->inode, args->name,
+			       args->value, args->size, args->flags);
 }
 
 static const struct xattr_handler jfs_user_xattr_handler = {

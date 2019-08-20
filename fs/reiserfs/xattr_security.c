@@ -10,27 +10,25 @@
 #include <linux/uaccess.h>
 
 static int
-security_get(const struct xattr_handler *handler, struct dentry *unused,
-	     struct inode *inode, const char *name, void *buffer, size_t size)
+security_get(const struct xattr_handler *handler, struct xattr_gs_args *args)
 {
-	if (IS_PRIVATE(inode))
+	if (IS_PRIVATE(args->inode))
 		return -EPERM;
 
-	return reiserfs_xattr_get(inode, xattr_full_name(handler, name),
-				  buffer, size);
+	return reiserfs_xattr_get(args->inode,
+				  xattr_full_name(handler, args->name),
+				  args->buffer, args->size);
 }
 
 static int
-security_set(const struct xattr_handler *handler, struct dentry *unused,
-	     struct inode *inode, const char *name, const void *buffer,
-	     size_t size, int flags)
+security_set(const struct xattr_handler *handler, struct xattr_gs_args *args)
 {
-	if (IS_PRIVATE(inode))
+	if (IS_PRIVATE(args->inode))
 		return -EPERM;
 
-	return reiserfs_xattr_set(inode,
-				  xattr_full_name(handler, name),
-				  buffer, size, flags);
+	return reiserfs_xattr_set(args->inode,
+				  xattr_full_name(handler, args->name),
+				  args->value, args->size, args->flags);
 }
 
 static bool security_list(struct dentry *dentry)

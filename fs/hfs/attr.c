@@ -114,21 +114,20 @@ out:
 }
 
 static int hfs_xattr_get(const struct xattr_handler *handler,
-			 struct dentry *unused, struct inode *inode,
-			 const char *name, void *value, size_t size)
+			 struct xattr_gs_args *args)
 {
-	return __hfs_getxattr(inode, handler->flags, value, size);
+	return __hfs_getxattr(args->inode, handler->flags,
+			      args->buffer, args->size);
 }
 
 static int hfs_xattr_set(const struct xattr_handler *handler,
-			 struct dentry *unused, struct inode *inode,
-			 const char *name, const void *value, size_t size,
-			 int flags)
+			 struct xattr_gs_args *args)
 {
-	if (!value)
+	if (!args->value)
 		return -EOPNOTSUPP;
 
-	return __hfs_setxattr(inode, handler->flags, value, size, flags);
+	return __hfs_setxattr(args->inode, handler->flags,
+			      args->value, args->size, args->flags);
 }
 
 static const struct xattr_handler hfs_creator_handler = {

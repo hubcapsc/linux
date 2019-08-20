@@ -25,17 +25,27 @@ struct dentry;
  * name.  When @prefix is set instead, match attributes with that prefix and
  * with a non-empty suffix.
  */
+struct xattr_gs_args {
+	struct dentry *dentry;
+	struct inode *inode;
+	const char *name;
+	union {
+		void *buffer;
+		const void *value;
+	};
+	size_t size;
+	int flags;
+};
+
 struct xattr_handler {
 	const char *name;
 	const char *prefix;
 	int flags;      /* fs private flags */
 	bool (*list)(struct dentry *dentry);
-	int (*get)(const struct xattr_handler *, struct dentry *dentry,
-		   struct inode *inode, const char *name, void *buffer,
-		   size_t size);
-	int (*set)(const struct xattr_handler *, struct dentry *dentry,
-		   struct inode *inode, const char *name, const void *buffer,
-		   size_t size, int flags);
+	int (*get)(const struct xattr_handler *handler,
+		   struct xattr_gs_args *args);
+	int (*set)(const struct xattr_handler *handler,
+		   struct xattr_gs_args *args);
 };
 
 const char *xattr_full_name(const struct xattr_handler *, const char *);
@@ -46,10 +56,10 @@ struct xattr {
 	size_t value_len;
 };
 
-ssize_t __vfs_getxattr(struct dentry *, struct inode *, const char *, void *, size_t);
+ssize_t __vfs_getxattr(struct xattr_gs_args *args);
 ssize_t vfs_getxattr(struct dentry *, const char *, void *, size_t);
 ssize_t vfs_listxattr(struct dentry *d, char *list, size_t size);
-int __vfs_setxattr(struct dentry *, struct inode *, const char *, const void *, size_t, int);
+int __vfs_setxattr(struct xattr_gs_args *args);
 int __vfs_setxattr_noperm(struct dentry *, const char *, const void *, size_t, int);
 int vfs_setxattr(struct dentry *, const char *, const void *, size_t, int);
 int __vfs_removexattr(struct dentry *, const char *);

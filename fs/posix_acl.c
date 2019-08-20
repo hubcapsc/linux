@@ -831,24 +831,24 @@ EXPORT_SYMBOL (posix_acl_to_xattr);
 
 static int
 posix_acl_xattr_get(const struct xattr_handler *handler,
-		    struct dentry *unused, struct inode *inode,
-		    const char *name, void *value, size_t size)
+		    struct xattr_gs_args *args)
 {
 	struct posix_acl *acl;
 	int error;
 
-	if (!IS_POSIXACL(inode))
+	if (!IS_POSIXACL(args->inode))
 		return -EOPNOTSUPP;
-	if (S_ISLNK(inode->i_mode))
+	if (S_ISLNK(args->inode->i_mode))
 		return -EOPNOTSUPP;
 
-	acl = get_acl(inode, handler->flags);
+	acl = get_acl(args->inode, handler->flags);
 	if (IS_ERR(acl))
 		return PTR_ERR(acl);
 	if (acl == NULL)
 		return -ENODATA;
 
-	error = posix_acl_to_xattr(&init_user_ns, acl, value, size);
+	error = posix_acl_to_xattr(&init_user_ns, acl,
+				   args->buffer, args->size);
 	posix_acl_release(acl);
 
 	return error;
@@ -878,19 +878,18 @@ EXPORT_SYMBOL(set_posix_acl);
 
 static int
 posix_acl_xattr_set(const struct xattr_handler *handler,
-		    struct dentry *unused, struct inode *inode,
-		    const char *name, const void *value,
-		    size_t size, int flags)
+		    struct xattr_gs_args *args)
 {
 	struct posix_acl *acl = NULL;
 	int ret;
 
-	if (value) {
-		acl = posix_acl_from_xattr(&init_user_ns, value, size);
+	if (args->value) {
+		acl = posix_acl_from_xattr(&init_user_ns,
+					   args->value, args->size);
 		if (IS_ERR(acl))
 			return PTR_ERR(acl);
 	}
-	ret = set_posix_acl(inode, handler->flags, acl);
+	ret = set_posix_acl(args->inode, handler->flags, acl);
 	posix_acl_release(acl);
 	return ret;
 }

@@ -853,26 +853,24 @@ static unsigned int ovl_split_lowerdirs(char *str)
 
 static int __maybe_unused
 ovl_posix_acl_xattr_get(const struct xattr_handler *handler,
-			struct dentry *dentry, struct inode *inode,
-			const char *name, void *buffer, size_t size)
+			struct xattr_gs_args *args)
 {
-	return ovl_xattr_get(dentry, inode, handler->name, buffer, size);
+	return ovl_xattr_get(args);
 }
 
 static int __maybe_unused
 ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
-			struct dentry *dentry, struct inode *inode,
-			const char *name, const void *value,
-			size_t size, int flags)
+			struct xattr_gs_args *args)
 {
-	struct dentry *workdir = ovl_workdir(dentry);
-	struct inode *realinode = ovl_inode_real(inode);
+	struct dentry *workdir = ovl_workdir(args->dentry);
+	struct inode *realinode = ovl_inode_real(args->inode);
 	struct posix_acl *acl = NULL;
 	int err;
 
 	/* Check that everything is OK before copy-up */
-	if (value) {
-		acl = posix_acl_from_xattr(&init_user_ns, value, size);
+	if (args->value) {
+		acl = posix_acl_from_xattr(&init_user_ns,
+					   args->value, args->size);
 		if (IS_ERR(acl))
 			return PTR_ERR(acl);
 	}
@@ -881,12 +879,13 @@ ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
 		goto out_acl_release;
 	if (!realinode->i_op->set_acl)
 		goto out_acl_release;
-	if (handler->flags == ACL_TYPE_DEFAULT && !S_ISDIR(inode->i_mode)) {
+	if (handler->flags == ACL_TYPE_DEFAULT &&
+	    !S_ISDIR(args->inode->i_mode)) {
 		err = acl ? -EACCES : 0;
 		goto out_acl_release;
 	}
 	err = -EPERM;
-	if (!inode_owner_or_capable(inode))
+	if (!inode_owner_or_capable(args->inode))
 		goto out_acl_release;
 
 	posix_acl_release(acl);
@@ -895,20 +894,20 @@ ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
 	 * Check if sgid bit needs to be cleared (actual setacl operation will
 	 * be done with mounter's capabilities and so that won't do it for us).
 	 */
-	if (unlikely(inode->i_mode & S_ISGID) &&
+	if (unlikely(args->inode->i_mode & S_ISGID) &&
 	    handler->flags == ACL_TYPE_ACCESS &&
-	    !in_group_p(inode->i_gid) &&
-	    !capable_wrt_inode_uidgid(inode, CAP_FSETID)) {
+	    !in_group_p(args->inode->i_gid) &&
+	    !capable_wrt_inode_uidgid(args->inode, CAP_FSETID)) {
 		struct iattr iattr = { .ia_valid = ATTR_KILL_SGID };
 
-		err = ovl_setattr(dentry, &iattr);
+		err = ovl_setattr(args->dentry, &iattr);
 		if (err)
 			return err;
 	}
 
-	err = ovl_xattr_set(dentry, inode, handler->name, value, size, flags);
+	err = ovl_xattr_set(args);
 	if (!err)
-		ovl_copyattr(ovl_inode_real(inode), inode);
+		ovl_copyattr(ovl_inode_real(args->inode), args->inode);
 
 	return err;
 
@@ -918,33 +917,27 @@ out_acl_release:
 }
 
 static int ovl_own_xattr_get(const struct xattr_handler *handler,
-			     struct dentry *dentry, struct inode *inode,
-			     const char *name, void *buffer, size_t size)
+			     struct xattr_gs_args *args)
 {
 	return -EOPNOTSUPP;
 }
 
 static int ovl_own_xattr_set(const struct xattr_handler *handler,
-			     struct dentry *dentry, struct inode *inode,
-			     const char *name, const void *value,
-			     size_t size, int flags)
+			     struct xattr_gs_args *args)
 {
 	return -EOPNOTSUPP;
 }
 
 static int ovl_other_xattr_get(const struct xattr_handler *handler,
-			       struct dentry *dentry, struct inode *inode,
-			       const char *name, void *buffer, size_t size)
+			       struct xattr_gs_args *args)
 {
-	return ovl_xattr_get(dentry, inode, name, buffer, size);
+	return ovl_xattr_get(args);
 }
 
 static int ovl_other_xattr_set(const struct xattr_handler *handler,
-			       struct dentry *dentry, struct inode *inode,
-			       const char *name, const void *value,
-			       size_t size, int flags)
+			       struct xattr_gs_args *args)
 {
-	return ovl_xattr_set(dentry, inode, name, value, size, flags);
+	return ovl_xattr_set(args);
 }
 
 static const struct xattr_handler __maybe_unused

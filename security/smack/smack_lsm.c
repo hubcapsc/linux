@@ -282,25 +282,32 @@ static struct smack_known *smk_fetch(const char *name, struct inode *ip,
 					struct dentry *dp)
 {
 	int rc;
-	char *buffer;
 	struct smack_known *skp = NULL;
+	struct xattr_gs_args args;
 
 	if (!(ip->i_opflags & IOP_XATTR))
 		return ERR_PTR(-EOPNOTSUPP);
 
-	buffer = kzalloc(SMK_LONGLABEL, GFP_KERNEL);
-	if (buffer == NULL)
+	memset(&args, 0, sizeof(args));
+	args.dentry = dp;
+	args.inode = ip;
+	args.name = name;
+	args.buffer = kzalloc(SMK_LONGLABEL, GFP_KERNEL);
+	args.size = SMK_LONGLABEL;
+	args.flags = XATTR_NOSECURITY;
+
+	if (args.buffer == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	rc = __vfs_getxattr(dp, ip, name, buffer, SMK_LONGLABEL);
+	rc = __vfs_getxattr(&args);
 	if (rc < 0)
 		skp = ERR_PTR(rc);
 	else if (rc == 0)
 		skp = NULL;
 	else
-		skp = smk_import_entry(buffer, rc);
+		skp = smk_import_entry(args.buffer, rc);
 
-	kfree(buffer);
+	kfree(args.buffer);
 
 	return skp;
 }
@@ -3424,6 +3431,8 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 		 * Transmuting directory
 		 */
 		if (S_ISDIR(inode->i_mode)) {
+			struct xattr_gs_args args;
+
 			/*
 			 * If this is a new directory and the label was
 			 * transmuted when the inode was initialized
@@ -3433,16 +3442,19 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 			 * If there is a transmute attribute on the
 			 * directory mark the inode.
 			 */
+			memset(&args, 0, sizeof(args));
+			args.dentry = dp;
+			args.inode = inode;
+			args.name = XATTR_NAME_SMACKTRANSMUTE;
+			args.size = TRANS_TRUE_SIZE;
 			if (isp->smk_flags & SMK_INODE_CHANGED) {
 				isp->smk_flags &= ~SMK_INODE_CHANGED;
-				rc = __vfs_setxattr(dp, inode,
-					XATTR_NAME_SMACKTRANSMUTE,
-					TRANS_TRUE, TRANS_TRUE_SIZE,
-					0);
+				args.value = TRANS_TRUE;
+				rc = __vfs_setxattr(&args);
 			} else {
-				rc = __vfs_getxattr(dp, inode,
-					XATTR_NAME_SMACKTRANSMUTE, trattr,
-					TRANS_TRUE_SIZE);
+				args.buffer = trattr;
+				args.flags = XATTR_NOSECURITY;
+				rc = __vfs_getxattr(&args);
 				if (rc >= 0 && strncmp(trattr, TRANS_TRUE,
 						       TRANS_TRUE_SIZE) != 0)
 					rc = -EINVAL;

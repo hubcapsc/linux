@@ -20,25 +20,22 @@ ext4_xattr_user_list(struct dentry *dentry)
 
 static int
 ext4_xattr_user_get(const struct xattr_handler *handler,
-		    struct dentry *unused, struct inode *inode,
-		    const char *name, void *buffer, size_t size)
+		    struct xattr_gs_args *args)
 {
-	if (!test_opt(inode->i_sb, XATTR_USER))
+	if (!test_opt(args->inode->i_sb, XATTR_USER))
 		return -EOPNOTSUPP;
-	return ext4_xattr_get(inode, EXT4_XATTR_INDEX_USER,
-			      name, buffer, size);
+	return ext4_xattr_get(args->inode, EXT4_XATTR_INDEX_USER,
+			      args->name, args->buffer, args->size);
 }
 
 static int
 ext4_xattr_user_set(const struct xattr_handler *handler,
-		    struct dentry *unused, struct inode *inode,
-		    const char *name, const void *value,
-		    size_t size, int flags)
+		    struct xattr_gs_args *args)
 {
-	if (!test_opt(inode->i_sb, XATTR_USER))
+	if (!test_opt(args->inode->i_sb, XATTR_USER))
 		return -EOPNOTSUPP;
-	return ext4_xattr_set(inode, EXT4_XATTR_INDEX_USER,
-			      name, value, size, flags);
+	return ext4_xattr_set(args->inode, EXT4_XATTR_INDEX_USER,
+			      args->name, args->value, args->size, args->flags);
 }
 
 const struct xattr_handler ext4_xattr_user_handler = {

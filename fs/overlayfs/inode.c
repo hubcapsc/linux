@@ -318,60 +318,61 @@ bool ovl_is_private_xattr(const char *name)
 		       sizeof(OVL_XATTR_PREFIX) - 1) == 0;
 }
 
-int ovl_xattr_set(struct dentry *dentry, struct inode *inode, const char *name,
-		  const void *value, size_t size, int flags)
+int ovl_xattr_set(struct xattr_gs_args *args)
 {
 	int err;
-	struct dentry *upperdentry = ovl_i_dentry_upper(inode);
-	struct dentry *realdentry = upperdentry ?: ovl_dentry_lower(dentry);
+	struct dentry *upperdentry = ovl_i_dentry_upper(args->inode);
+	struct dentry *realdentry =
+		upperdentry ?: ovl_dentry_lower(args->dentry);
 	const struct cred *old_cred;
 
-	err = ovl_want_write(dentry);
+	err = ovl_want_write(args->dentry);
 	if (err)
 		goto out;
 
-	if (!value && !upperdentry) {
-		err = vfs_getxattr(realdentry, name, NULL, 0);
+	if (!args->value && !upperdentry) {
+		err = vfs_getxattr(realdentry, args->name, NULL, 0);
 		if (err < 0)
 			goto out_drop_write;
 	}
 
 	if (!upperdentry) {
-		err = ovl_copy_up(dentry);
+		err = ovl_copy_up(args->dentry);
 		if (err)
 			goto out_drop_write;
 
-		realdentry = ovl_dentry_upper(dentry);
+		realdentry = ovl_dentry_upper(args->dentry);
 	}
 
-	old_cred = ovl_override_creds(dentry->d_sb);
-	if (value)
-		err = vfs_setxattr(realdentry, name, value, size, flags);
+	old_cred = ovl_override_creds(args->dentry->d_sb);
+	if (args->value)
+		err = vfs_setxattr(realdentry, args->name,
+				   args->value, args->size, args->flags);
 	else {
-		WARN_ON(flags != XATTR_REPLACE);
-		err = vfs_removexattr(realdentry, name);
+		WARN_ON(args->flags != XATTR_REPLACE);
+		err = vfs_removexattr(realdentry, args->name);
 	}
 	revert_creds(old_cred);
 
 	/* copy c/mtime */
-	ovl_copyattr(d_inode(realdentry), inode);
+	ovl_copyattr(d_inode(realdentry), args->inode);
 
 out_drop_write:
-	ovl_drop_write(dentry);
+	ovl_drop_write(args->dentry);
 out:
 	return err;
 }
 
-int ovl_xattr_get(struct dentry *dentry, struct inode *inode, const char *name,
-		  void *value, size_t size)
+int ovl_xattr_get(struct xattr_gs_args *args)
 {
 	ssize_t res;
 	const struct cred *old_cred;
 	struct dentry *realdentry =
-		ovl_i_dentry_upper(inode) ?: ovl_dentry_lower(dentry);
+		ovl_i_dentry_upper(args->inode) ?:
+		ovl_dentry_lower(args->dentry);
 
-	old_cred = ovl_override_creds(dentry->d_sb);
-	res = vfs_getxattr(realdentry, name, value, size);
+	old_cred = ovl_override_creds(args->dentry->d_sb);
+	res = vfs_getxattr(realdentry, args->name, args->buffer, args->size);
 	revert_creds(old_cred);
 	return res;
 }

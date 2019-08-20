@@ -668,30 +668,29 @@ int ubifs_init_security(struct inode *dentry, struct inode *inode,
 #endif
 
 static int xattr_get(const struct xattr_handler *handler,
-			   struct dentry *dentry, struct inode *inode,
-			   const char *name, void *buffer, size_t size)
+		     struct xattr_gs_args *args)
 {
-	dbg_gen("xattr '%s', ino %lu ('%pd'), buf size %zd", name,
-		inode->i_ino, dentry, size);
+	dbg_gen("xattr '%s', ino %lu ('%pd'), buf size %zd", args->name,
+		args->inode->i_ino, args->dentry, args->size);
 
-	name = xattr_full_name(handler, name);
-	return ubifs_xattr_get(inode, name, buffer, size);
+	return ubifs_xattr_get(args->inode,
+			       xattr_full_name(handler, args->name),
+			       args->buffer, args->size);
 }
 
 static int xattr_set(const struct xattr_handler *handler,
-			   struct dentry *dentry, struct inode *inode,
-			   const char *name, const void *value,
-			   size_t size, int flags)
+		     struct xattr_gs_args *args)
 {
 	dbg_gen("xattr '%s', host ino %lu ('%pd'), size %zd",
-		name, inode->i_ino, dentry, size);
+		args->name, args->inode->i_ino, args->dentry, args->size);
 
-	name = xattr_full_name(handler, name);
-
-	if (value)
-		return ubifs_xattr_set(inode, name, value, size, flags, true);
-	else
-		return ubifs_xattr_remove(inode, name);
+	if (args->value)
+		return ubifs_xattr_set(args->inode,
+				       xattr_full_name(handler, args->name),
+				       args->value, args->size,
+				       args->flags, true);
+	return ubifs_xattr_remove(args->inode,
+				  xattr_full_name(handler, args->name));
 }
 
 static const struct xattr_handler ubifs_user_xattr_handler = {

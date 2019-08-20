@@ -38,13 +38,11 @@ ssize_t afs_listxattr(struct dentry *dentry, char *buffer, size_t size)
  * Get a file's ACL.
  */
 static int afs_xattr_get_acl(const struct xattr_handler *handler,
-			     struct dentry *dentry,
-			     struct inode *inode, const char *name,
-			     void *buffer, size_t size)
+			     struct xattr_gs_args *args)
 {
 	struct afs_fs_cursor fc;
 	struct afs_status_cb *scb;
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vnode *vnode = AFS_FS_I(args->inode);
 	struct afs_acl *acl = NULL;
 	struct key *key;
 	int ret = -ENOMEM;
@@ -76,9 +74,9 @@ static int afs_xattr_get_acl(const struct xattr_handler *handler,
 
 	if (ret == 0) {
 		ret = acl->size;
-		if (size > 0) {
-			if (acl->size <= size)
-				memcpy(buffer, acl->data, acl->size);
+		if (args->size > 0) {
+			if (acl->size <= args->size)
+				memcpy(args->buffer, acl->data, acl->size);
 			else
 				ret = -ERANGE;
 		}
@@ -96,25 +94,23 @@ error:
  * Set a file's AFS3 ACL.
  */
 static int afs_xattr_set_acl(const struct xattr_handler *handler,
-                             struct dentry *dentry,
-                             struct inode *inode, const char *name,
-                             const void *buffer, size_t size, int flags)
+			     struct xattr_gs_args *args)
 {
 	struct afs_fs_cursor fc;
 	struct afs_status_cb *scb;
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vnode *vnode = AFS_FS_I(args->inode);
 	struct afs_acl *acl = NULL;
 	struct key *key;
 	int ret = -ENOMEM;
 
-	if (flags == XATTR_CREATE)
+	if (args->flags == XATTR_CREATE)
 		return -EINVAL;
 
 	scb = kzalloc(sizeof(struct afs_status_cb), GFP_NOFS);
 	if (!scb)
 		goto error;
 
-	acl = kmalloc(sizeof(*acl) + size, GFP_KERNEL);
+	acl = kmalloc(sizeof(*acl) + args->size, GFP_KERNEL);
 	if (!acl)
 		goto error_scb;
 
@@ -124,8 +120,8 @@ static int afs_xattr_set_acl(const struct xattr_handler *handler,
 		goto error_acl;
 	}
 
-	acl->size = size;
-	memcpy(acl->data, buffer, size);
+	acl->size = args->size;
+	memcpy(acl->data, args->value, args->size);
 
 	ret = -ERESTARTSYS;
 	if (afs_begin_vnode_operation(&fc, vnode, key, true)) {
@@ -161,25 +157,23 @@ static const struct xattr_handler afs_xattr_afs_acl_handler = {
  * Get a file's YFS ACL.
  */
 static int afs_xattr_get_yfs(const struct xattr_handler *handler,
-			     struct dentry *dentry,
-			     struct inode *inode, const char *name,
-			     void *buffer, size_t size)
+			     struct xattr_gs_args *args)
 {
 	struct afs_fs_cursor fc;
 	struct afs_status_cb *scb;
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vnode *vnode = AFS_FS_I(args->inode);
 	struct yfs_acl *yacl = NULL;
 	struct key *key;
 	char buf[16], *data;
 	int which = 0, dsize, ret = -ENOMEM;
 
-	if (strcmp(name, "acl") == 0)
+	if (strcmp(args->name, "acl") == 0)
 		which = 0;
-	else if (strcmp(name, "acl_inherited") == 0)
+	else if (strcmp(args->name, "acl_inherited") == 0)
 		which = 1;
-	else if (strcmp(name, "acl_num_cleaned") == 0)
+	else if (strcmp(args->name, "acl_num_cleaned") == 0)
 		which = 2;
-	else if (strcmp(name, "vol_acl") == 0)
+	else if (strcmp(args->name, "vol_acl") == 0)
 		which = 3;
 	else
 		return -EOPNOTSUPP;
@@ -228,11 +222,11 @@ static int afs_xattr_get_yfs(const struct xattr_handler *handler,
 		break;
 	case 1:
 		data = buf;
-		dsize = snprintf(buf, sizeof(buf), "%u", yacl->inherit_flag);
+		dsize = scnprintf(buf, sizeof(buf), "%u", yacl->inherit_flag);
 		break;
 	case 2:
 		data = buf;
-		dsize = snprintf(buf, sizeof(buf), "%u", yacl->num_cleaned);
+		dsize = scnprintf(buf, sizeof(buf), "%u", yacl->num_cleaned);
 		break;
 	case 3:
 		data = yacl->vol_acl->data;
@@ -244,12 +238,12 @@ static int afs_xattr_get_yfs(const struct xattr_handler *handler,
 	}
 
 	ret = dsize;
-	if (size > 0) {
-		if (dsize > size) {
+	if (args->size > 0) {
+		if (dsize > args->size) {
 			ret = -ERANGE;
 			goto error_key;
 		}
-		memcpy(buffer, data, dsize);
+		memcpy(args->buffer, data, dsize);
 	}
 
 error_key:
@@ -266,31 +260,29 @@ error:
  * Set a file's YFS ACL.
  */
 static int afs_xattr_set_yfs(const struct xattr_handler *handler,
-                             struct dentry *dentry,
-                             struct inode *inode, const char *name,
-                             const void *buffer, size_t size, int flags)
+			     struct xattr_gs_args *args)
 {
 	struct afs_fs_cursor fc;
 	struct afs_status_cb *scb;
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vnode *vnode = AFS_FS_I(args->inode);
 	struct afs_acl *acl = NULL;
 	struct key *key;
 	int ret = -ENOMEM;
 
-	if (flags == XATTR_CREATE ||
-	    strcmp(name, "acl") != 0)
+	if (args->flags == XATTR_CREATE ||
+	    strcmp(args->name, "acl") != 0)
 		return -EINVAL;
 
 	scb = kzalloc(sizeof(struct afs_status_cb), GFP_NOFS);
 	if (!scb)
 		goto error;
 
-	acl = kmalloc(sizeof(*acl) + size, GFP_KERNEL);
+	acl = kmalloc(sizeof(*acl) + args->size, GFP_KERNEL);
 	if (!acl)
 		goto error_scb;
 
-	acl->size = size;
-	memcpy(acl->data, buffer, size);
+	acl->size = args->size;
+	memcpy(acl->data, args->value, args->size);
 
 	key = afs_request_key(vnode->volume->cell);
 	if (IS_ERR(key)) {
@@ -332,20 +324,18 @@ static const struct xattr_handler afs_xattr_yfs_handler = {
  * Get the name of the cell on which a file resides.
  */
 static int afs_xattr_get_cell(const struct xattr_handler *handler,
-			      struct dentry *dentry,
-			      struct inode *inode, const char *name,
-			      void *buffer, size_t size)
+			      struct xattr_gs_args *args)
 {
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vnode *vnode = AFS_FS_I(args->inode);
 	struct afs_cell *cell = vnode->volume->cell;
 	size_t namelen;
 
 	namelen = cell->name_len;
-	if (size == 0)
+	if (args->size == 0)
 		return namelen;
-	if (namelen > size)
+	if (namelen > args->size)
 		return -ERANGE;
-	memcpy(buffer, cell->name, namelen);
+	memcpy(args->buffer, cell->name, namelen);
 	return namelen;
 }
 
@@ -359,30 +349,30 @@ static const struct xattr_handler afs_xattr_afs_cell_handler = {
  * hex numbers separated by colons.
  */
 static int afs_xattr_get_fid(const struct xattr_handler *handler,
-			     struct dentry *dentry,
-			     struct inode *inode, const char *name,
-			     void *buffer, size_t size)
+			     struct xattr_gs_args *args)
 {
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vnode *vnode = AFS_FS_I(args->inode);
 	char text[16 + 1 + 24 + 1 + 8 + 1];
 	size_t len;
 
 	/* The volume ID is 64-bit, the vnode ID is 96-bit and the
 	 * uniquifier is 32-bit.
 	 */
-	len = sprintf(text, "%llx:", vnode->fid.vid);
+	len = scnprintf(text, sizeof(text), "%llx:", vnode->fid.vid);
 	if (vnode->fid.vnode_hi)
-		len += sprintf(text + len, "%x%016llx",
+		len += scnprintf(text + len, sizeof(text) - len, "%x%016llx",
 			       vnode->fid.vnode_hi, vnode->fid.vnode);
 	else
-		len += sprintf(text + len, "%llx", vnode->fid.vnode);
-	len += sprintf(text + len, ":%x", vnode->fid.unique);
+		len += scnprintf(text + len, sizeof(text) - len, "%llx",
+				 vnode->fid.vnode);
+	len += scnprintf(text + len, sizeof(text) - len, ":%x",
+			 vnode->fid.unique);
 
-	if (size == 0)
+	if (args->size == 0)
 		return len;
-	if (len > size)
+	if (len > args->size)
 		return -ERANGE;
-	memcpy(buffer, text, len);
+	memcpy(args->buffer, text, len);
 	return len;
 }
 
@@ -395,20 +385,18 @@ static const struct xattr_handler afs_xattr_afs_fid_handler = {
  * Get the name of the volume on which a file resides.
  */
 static int afs_xattr_get_volume(const struct xattr_handler *handler,
-			      struct dentry *dentry,
-			      struct inode *inode, const char *name,
-			      void *buffer, size_t size)
+			      struct xattr_gs_args *args)
 {
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vnode *vnode = AFS_FS_I(args->inode);
 	const char *volname = vnode->volume->name;
 	size_t namelen;
 
 	namelen = strlen(volname);
-	if (size == 0)
+	if (args->size == 0)
 		return namelen;
-	if (namelen > size)
+	if (namelen > args->size)
 		return -ERANGE;
-	memcpy(buffer, volname, namelen);
+	memcpy(args->buffer, volname, namelen);
 	return namelen;
 }
 

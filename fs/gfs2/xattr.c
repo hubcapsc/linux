@@ -587,10 +587,9 @@ static int __gfs2_xattr_get(struct inode *inode, const char *name,
 }
 
 static int gfs2_xattr_get(const struct xattr_handler *handler,
-			  struct dentry *unused, struct inode *inode,
-			  const char *name, void *buffer, size_t size)
+			  struct xattr_gs_args *args)
 {
-	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_inode *ip = GFS2_I(args->inode);
 	struct gfs2_holder gh;
 	int ret;
 
@@ -603,7 +602,8 @@ static int gfs2_xattr_get(const struct xattr_handler *handler,
 	} else {
 		gfs2_holder_mark_uninitialized(&gh);
 	}
-	ret = __gfs2_xattr_get(inode, name, buffer, size, handler->flags);
+	ret = __gfs2_xattr_get(args->inode, args->name,
+			       args->buffer, args->size, handler->flags);
 	if (gfs2_holder_initialized(&gh))
 		gfs2_glock_dq_uninit(&gh);
 	return ret;
@@ -1214,11 +1214,9 @@ int __gfs2_xattr_set(struct inode *inode, const char *name,
 }
 
 static int gfs2_xattr_set(const struct xattr_handler *handler,
-			  struct dentry *unused, struct inode *inode,
-			  const char *name, const void *value,
-			  size_t size, int flags)
+			  struct xattr_gs_args *args)
 {
-	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_inode *ip = GFS2_I(args->inode);
 	struct gfs2_holder gh;
 	int ret;
 
@@ -1237,7 +1235,9 @@ static int gfs2_xattr_set(const struct xattr_handler *handler,
 			return -EIO;
 		gfs2_holder_mark_uninitialized(&gh);
 	}
-	ret = __gfs2_xattr_set(inode, name, value, size, flags, handler->flags);
+	ret = __gfs2_xattr_set(args->inode, args->name,
+			       args->value, args->size,
+			       args->flags, handler->flags);
 	if (gfs2_holder_initialized(&gh))
 		gfs2_glock_dq_uninit(&gh);
 	return ret;

@@ -765,7 +765,7 @@ out:
 /* This is the implementation for the xattr plugin infrastructure */
 static inline const struct xattr_handler *
 find_xattr_handler_prefix(const struct xattr_handler **handlers,
-			   const char *name)
+			  const char *name)
 {
 	const struct xattr_handler *xah;
 

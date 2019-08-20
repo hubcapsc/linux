@@ -7209,18 +7209,15 @@ nfs4_release_lockowner(struct nfs_server *server, struct nfs4_lock_state *lsp)
 #define XATTR_NAME_NFSV4_ACL "system.nfs4_acl"
 
 static int nfs4_xattr_set_nfs4_acl(const struct xattr_handler *handler,
-				   struct dentry *unused, struct inode *inode,
-				   const char *key, const void *buf,
-				   size_t buflen, int flags)
+				   struct xattr_gs_args *args)
 {
-	return nfs4_proc_set_acl(inode, buf, buflen);
+	return nfs4_proc_set_acl(args->inode, args->value, args->size);
 }
 
 static int nfs4_xattr_get_nfs4_acl(const struct xattr_handler *handler,
-				   struct dentry *unused, struct inode *inode,
-				   const char *key, void *buf, size_t buflen)
+				   struct xattr_gs_args *args)
 {
-	return nfs4_proc_get_acl(inode, buf, buflen);
+	return nfs4_proc_get_acl(args->inode, args->buffer, args->size);
 }
 
 static bool nfs4_xattr_list_nfs4_acl(struct dentry *dentry)
@@ -7231,22 +7228,21 @@ static bool nfs4_xattr_list_nfs4_acl(struct dentry *dentry)
 #ifdef CONFIG_NFS_V4_SECURITY_LABEL
 
 static int nfs4_xattr_set_nfs4_label(const struct xattr_handler *handler,
-				     struct dentry *unused, struct inode *inode,
-				     const char *key, const void *buf,
-				     size_t buflen, int flags)
+				     struct xattr_gs_args *args)
 {
-	if (security_ismaclabel(key))
-		return nfs4_set_security_label(inode, buf, buflen);
+	if (security_ismaclabel(args->name))
+		return nfs4_set_security_label(args->inode,
+					       args->value, args->size);
 
 	return -EOPNOTSUPP;
 }
 
 static int nfs4_xattr_get_nfs4_label(const struct xattr_handler *handler,
-				     struct dentry *unused, struct inode *inode,
-				     const char *key, void *buf, size_t buflen)
+				     struct xattr_gs_args *args)
 {
-	if (security_ismaclabel(key))
-		return nfs4_get_security_label(inode, buf, buflen);
+	if (security_ismaclabel(args->name))
+		return nfs4_get_security_label(args->inode,
+					       args->buffer, args->size);
 	return -EOPNOTSUPP;
 }
 

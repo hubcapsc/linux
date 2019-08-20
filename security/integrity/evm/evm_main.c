@@ -91,16 +91,23 @@ static bool evm_key_loaded(void)
 
 static int evm_find_protected_xattrs(struct dentry *dentry)
 {
-	struct inode *inode = d_backing_inode(dentry);
+	struct xattr_gs_args args;
 	struct xattr_list *xattr;
 	int error;
 	int count = 0;
 
-	if (!(inode->i_opflags & IOP_XATTR))
+	memset(&args, 0, sizeof(args));
+	args.dentry = dentry;
+	args.inode = d_backing_inode(dentry);
+
+	if (!(args.inode->i_opflags & IOP_XATTR))
 		return -EOPNOTSUPP;
 
+	args.flags = XATTR_NOSECURITY;
+
 	list_for_each_entry_rcu(xattr, &evm_config_xattrnames, list) {
-		error = __vfs_getxattr(dentry, inode, xattr->name, NULL, 0);
+		args.name = xattr->name;
+		error = __vfs_getxattr(&args);
 		if (error < 0) {
 			if (error == -ENODATA)
 				continue;

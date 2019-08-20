@@ -14,20 +14,19 @@
 #include "xattr.h"
 
 static int hfsplus_security_getxattr(const struct xattr_handler *handler,
-				     struct dentry *unused, struct inode *inode,
-				     const char *name, void *buffer, size_t size)
+				     struct xattr_gs_args *args)
 {
-	return hfsplus_getxattr(inode, name, buffer, size,
+	return hfsplus_getxattr(args->inode, args->name,
+				args->buffer, args->size,
 				XATTR_SECURITY_PREFIX,
 				XATTR_SECURITY_PREFIX_LEN);
 }
 
 static int hfsplus_security_setxattr(const struct xattr_handler *handler,
-				     struct dentry *unused, struct inode *inode,
-				     const char *name, const void *buffer,
-				     size_t size, int flags)
+				     struct xattr_gs_args *args)
 {
-	return hfsplus_setxattr(inode, name, buffer, size, flags,
+	return hfsplus_setxattr(args->inode, args->name,
+				args->value, args->size, args->flags,
 				XATTR_SECURITY_PREFIX,
 				XATTR_SECURITY_PREFIX_LEN);
 }

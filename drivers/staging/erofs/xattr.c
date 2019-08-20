@@ -462,10 +462,9 @@ int erofs_getxattr(struct inode *inode, int index,
 }
 
 static int erofs_xattr_generic_get(const struct xattr_handler *handler,
-				   struct dentry *unused, struct inode *inode,
-				   const char *name, void *buffer, size_t size)
+				   struct xattr_gs_args *args)
 {
-	struct erofs_sb_info *const sbi = EROFS_I_SB(inode);
+	struct erofs_sb_info *const sbi = EROFS_I_SB(args->inode);
 
 	switch (handler->flags) {
 	case EROFS_XATTR_INDEX_USER:
@@ -482,7 +481,8 @@ static int erofs_xattr_generic_get(const struct xattr_handler *handler,
 		return -EINVAL;
 	}
 
-	return erofs_getxattr(inode, handler->flags, name, buffer, size);
+	return erofs_getxattr(args->inode, handler->flags, args->name,
+			      args->buffer, args->size);
 }
 
 const struct xattr_handler erofs_xattr_user_handler = {

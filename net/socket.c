@@ -299,15 +299,15 @@ static const struct dentry_operations sockfs_dentry_operations = {
 };
 
 static int sockfs_xattr_get(const struct xattr_handler *handler,
-			    struct dentry *dentry, struct inode *inode,
-			    const char *suffix, void *value, size_t size)
+			    struct xattr_gs_args *args)
 {
-	if (value) {
-		if (dentry->d_name.len + 1 > size)
+	if (args->buffer) {
+		if (args->dentry->d_name.len + 1 > args->size)
 			return -ERANGE;
-		memcpy(value, dentry->d_name.name, dentry->d_name.len + 1);
+		memcpy(args->buffer, args->dentry->d_name.name,
+		       args->dentry->d_name.len + 1);
 	}
-	return dentry->d_name.len + 1;
+	return args->dentry->d_name.len + 1;
 }
 
 #define XATTR_SOCKPROTONAME_SUFFIX "sockprotoname"
@@ -320,9 +320,7 @@ static const struct xattr_handler sockfs_xattr_handler = {
 };
 
 static int sockfs_security_xattr_set(const struct xattr_handler *handler,
-				     struct dentry *dentry, struct inode *inode,
-				     const char *suffix, const void *value,
-				     size_t size, int flags)
+				     struct xattr_gs_args *args)
 {
 	/* Handled by LSM. */
 	return -EAGAIN;

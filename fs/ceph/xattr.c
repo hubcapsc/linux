@@ -1179,22 +1179,21 @@ out:
 }
 
 static int ceph_get_xattr_handler(const struct xattr_handler *handler,
-				  struct dentry *dentry, struct inode *inode,
-				  const char *name, void *value, size_t size)
+				  struct xattr_gs_args *args)
 {
-	if (!ceph_is_valid_xattr(name))
+	if (!ceph_is_valid_xattr(args->name))
 		return -EOPNOTSUPP;
-	return __ceph_getxattr(inode, name, value, size);
+	return __ceph_getxattr(args->inode, args->name,
+			       args->buffer, args->size);
 }
 
 static int ceph_set_xattr_handler(const struct xattr_handler *handler,
-				  struct dentry *unused, struct inode *inode,
-				  const char *name, const void *value,
-				  size_t size, int flags)
+				  struct xattr_gs_args *args)
 {
-	if (!ceph_is_valid_xattr(name))
+	if (!ceph_is_valid_xattr(args->name))
 		return -EOPNOTSUPP;
-	return __ceph_setxattr(inode, name, value, size, flags);
+	return __ceph_setxattr(args->inode, args->name,
+			       args->value, args->size, args->flags);
 }
 
 static const struct xattr_handler ceph_other_xattr_handler = {
@@ -1300,25 +1299,22 @@ void ceph_security_invalidate_secctx(struct inode *inode)
 }
 
 static int ceph_xattr_set_security_label(const struct xattr_handler *handler,
-				    struct dentry *unused, struct inode *inode,
-				    const char *key, const void *buf,
-				    size_t buflen, int flags)
+					 struct xattr_gs_args *args)
 {
-	if (security_ismaclabel(key)) {
-		const char *name = xattr_full_name(handler, key);
-		return __ceph_setxattr(inode, name, buf, buflen, flags);
-	}
+	if (security_ismaclabel(args->name))
+		return __ceph_setxattr(args->inode,
+				       xattr_full_name(handler, args->name),
+				       args->value, args->size, args->flags);
 	return  -EOPNOTSUPP;
 }
 
 static int ceph_xattr_get_security_label(const struct xattr_handler *handler,
-				    struct dentry *unused, struct inode *inode,
-				    const char *key, void *buf, size_t buflen)
+					 struct xattr_gs_args *args)
 {
-	if (security_ismaclabel(key)) {
-		const char *name = xattr_full_name(handler, key);
-		return __ceph_getxattr(inode, name, buf, buflen);
-	}
+	if (security_ismaclabel(args->name))
+		return __ceph_getxattr(args->inode,
+				       xattr_full_name(handler, args->name),
+				       args->buffer, args->size);
 	return  -EOPNOTSUPP;
 }
 

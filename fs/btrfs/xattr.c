@@ -352,33 +352,30 @@ err:
 }
 
 static int btrfs_xattr_handler_get(const struct xattr_handler *handler,
-				   struct dentry *unused, struct inode *inode,
-				   const char *name, void *buffer, size_t size)
+				   struct xattr_gs_args *args)
 {
-	name = xattr_full_name(handler, name);
-	return btrfs_getxattr(inode, name, buffer, size);
+	return btrfs_getxattr(args->inode,
+			      xattr_full_name(handler, args->name),
+			      args->buffer, args->size);
 }
 
 static int btrfs_xattr_handler_set(const struct xattr_handler *handler,
-				   struct dentry *unused, struct inode *inode,
-				   const char *name, const void *buffer,
-				   size_t size, int flags)
+				   struct xattr_gs_args *args)
 {
-	name = xattr_full_name(handler, name);
-	return btrfs_setxattr_trans(inode, name, buffer, size, flags);
+	return btrfs_setxattr_trans(args->inode,
+				    xattr_full_name(handler, args->name),
+				    args->value, args->size, args->flags);
 }
 
 static int btrfs_xattr_handler_set_prop(const struct xattr_handler *handler,
-					struct dentry *unused, struct inode *inode,
-					const char *name, const void *value,
-					size_t size, int flags)
+					struct xattr_gs_args *args)
 {
 	int ret;
 	struct btrfs_trans_handle *trans;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_root *root = BTRFS_I(args->inode)->root;
 
-	name = xattr_full_name(handler, name);
-	ret = btrfs_validate_prop(name, value, size);
+	ret = btrfs_validate_prop(xattr_full_name(handler, args->name),
+				  args->value, args->size);
 	if (ret)
 		return ret;
 
@@ -386,11 +383,12 @@ static int btrfs_xattr_handler_set_prop(const struct xattr_handler *handler,
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 
-	ret = btrfs_set_prop(trans, inode, name, value, size, flags);
+	ret = btrfs_set_prop(trans, args->inode, args->name,
+			     args->value, args->size, args->flags);
 	if (!ret) {
-		inode_inc_iversion(inode);
-		inode->i_ctime = current_time(inode);
-		ret = btrfs_update_inode(trans, root, inode);
+		inode_inc_iversion(args->inode);
+		args->inode->i_ctime = current_time(args->inode);
+		ret = btrfs_update_inode(trans, root, args->inode);
 		BUG_ON(ret);
 	}
 

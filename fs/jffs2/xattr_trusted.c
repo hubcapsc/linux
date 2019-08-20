@@ -17,20 +17,18 @@
 #include "nodelist.h"
 
 static int jffs2_trusted_getxattr(const struct xattr_handler *handler,
-				  struct dentry *unused, struct inode *inode,
-				  const char *name, void *buffer, size_t size)
+				  struct xattr_gs_args *args)
 {
-	return do_jffs2_getxattr(inode, JFFS2_XPREFIX_TRUSTED,
-				 name, buffer, size);
+	return do_jffs2_getxattr(args->inode, JFFS2_XPREFIX_TRUSTED,
+				 args->name, args->buffer, args->size);
 }
 
 static int jffs2_trusted_setxattr(const struct xattr_handler *handler,
-				  struct dentry *unused, struct inode *inode,
-				  const char *name, const void *buffer,
-				  size_t size, int flags)
+				  struct xattr_gs_args *args)
 {
-	return do_jffs2_setxattr(inode, JFFS2_XPREFIX_TRUSTED,
-				 name, buffer, size, flags);
+	return do_jffs2_setxattr(args->inode, JFFS2_XPREFIX_TRUSTED,
+				 args->name, args->value, args->size,
+				 args->flags);
 }
 
 static bool jffs2_trusted_listxattr(struct dentry *dentry)
