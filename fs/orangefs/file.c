@@ -513,6 +513,24 @@ static int orangefs_file_release(struct inode *inode, struct file *file)
 		}
 
 	}
+	/*
+	 * Check to see if we're faking posixness by keeping a temporary
+	 * user rw ACL on this file while it is open, so that the process
+	 * that has it open can read and write it no matter what the mode is.
+	 * If there is a temporary ACL on the file, clean it and
+	 * its associated inode flags up. See the comments in
+	 * orangefs_create for more info.
+	 */
+	if (ORANGEFS_I(inode)->opened) {
+		ORANGEFS_I(inode)->opened = 0;
+		posix_acl_release(ORANGEFS_I(inode)->acl);
+		ORANGEFS_I(inode)->acl = NULL;
+		orangefs_inode_setxattr(inode,
+				XATTR_NAME_POSIX_ACL_ACCESS,
+				NULL,
+				0,
+				0);
+	}
 	return 0;
 }
 

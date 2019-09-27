@@ -1060,6 +1060,8 @@ static int orangefs_set_inode(struct inode *inode, void *data)
 	hash_init(ORANGEFS_I(inode)->xattr_cache);
 	ORANGEFS_I(inode)->mapping_time = jiffies - 1;
 	ORANGEFS_I(inode)->bitlock = 0;
+	ORANGEFS_I(inode)->opened = 0;
+	ORANGEFS_I(inode)->acl = NULL;
 	return 0;
 }
 

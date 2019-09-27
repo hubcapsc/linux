@@ -198,6 +198,8 @@ struct orangefs_inode_s {
 	kuid_t attr_uid;
 	kgid_t attr_gid;
 	unsigned long bitlock;
+	int opened;
+	struct posix_acl *acl;
 
 	DECLARE_HASHTABLE(xattr_cache, 4);
 };

@@ -25,6 +25,7 @@ static int orangefs_create(struct inode *dir,
 	struct orangefs_object_kref ref;
 	struct inode *inode;
 	struct iattr iattr;
+	struct posix_acl *acl;
 	int ret;
 
 	gossip_debug(GOSSIP_NAME_DEBUG, "%s: %pd\n",
@@ -75,6 +76,42 @@ static int orangefs_create(struct inode *dir,
 		     dentry);
 
 	d_instantiate_new(dentry, inode);
+
+	/*
+	 * Orangefs userspace does permissions differently than unix/linux.
+	 * Permissions are checked each time a service operation is made.
+	 * Orangefs userspace doesn't even have an open or close. Posix
+	 * says that if a process has a file open, it can read and write
+	 * the file. When using Orangefs through the kernel module,
+	 * we need posix adherence. A process might open a file with
+	 * O_CREAT and any arbitrary mode, and it still needs to be able
+	 * to read and write the file while it is open. We'll check here
+	 * to see if the mode of this new file allows the user to read
+	 * and write it, and if not, we'll stamp a temporary user wr ACL on
+	 * it. When userspace does its checks, it will see the ACL and things
+	 * here in the kernel will seem like they're working posixly. We'll
+	 * get rid of the temporary ACL during release.
+	 */
+	if (!(mode & S_IWUSR) || !(mode & S_IRUSR)) {
+		ORANGEFS_I(inode)->opened = 1;
+		acl = posix_acl_alloc(1, GFP_KERNEL);
+		if (!acl) {
+			op_release(new_op);
+			ORANGEFS_I(inode)->opened = 0;
+			return -ENOMEM;
+		}
+		acl->a_entries[0].e_tag  = ACL_USER_OBJ;
+		acl->a_entries[0].e_perm =  S_IRWXU >> 6;
+		ORANGEFS_I(inode)->acl = acl;
+		ret = orangefs_set_acl(inode, acl, ACL_TYPE_ACCESS);
+		if (ret < 0) {
+			op_release(new_op);
+			posix_acl_release(ORANGEFS_I(inode)->acl);
+			ORANGEFS_I(inode)->opened = 0;
+			ORANGEFS_I(inode)->acl = NULL;
+			return ret;
+		}
+	}
 	orangefs_set_timeout(dentry);
 
 	gossip_debug(GOSSIP_NAME_DEBUG,

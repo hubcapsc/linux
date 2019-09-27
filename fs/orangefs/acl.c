@@ -129,8 +129,15 @@ int orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		 * object's mode. If so, it sets "acl" to NULL
 		 * and "mode" to the new desired value. It is up to
 		 * us to propagate the new mode back to the server...
+		 * See the comments in orangefs_create for more info
+		 * about the opened flag...
 		 */
-		error = posix_acl_update_mode(inode, &iattr.ia_mode, &acl);
+		if (!ORANGEFS_I(inode)->opened)
+			error = posix_acl_update_mode(inode,
+					&iattr.ia_mode,
+					&acl);
+		else
+			error = 0;
 		if (error) {
 			gossip_err("%s: posix_acl_update_mode err: %d\n",
 				   __func__,
