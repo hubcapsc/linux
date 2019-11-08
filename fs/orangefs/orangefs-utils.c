@@ -453,6 +453,55 @@ int orangefs_inode_setattr(struct inode *inode)
 }
 
 /*
+ * Orangefs doesn't have an open function. Orangefs performs
+ * permission checks on files each time they are accessed.
+ * Users create files with arbitrary permissions. A user
+ * might create a file with a mode that doesn't include write,
+ * or change the mode of a file he has opened to one that doesn't
+ * include write. Posix says the user can write on the file
+ * anyway since he was able to open it.
+ *
+ * Orangefs through the kernel module needs to seem posixy, so
+ * when someone creates or chmods a file to a mode that disallows owner
+ * read and/or write, we'll call orangefs_posix_open to stamp a
+ * temporary S_IRWXU acl on it in userspace without telling the kernel
+ * about the acl, and remove the acl later when the kernel passes through
+ * file_operations->release.
+ *
+ * This fixes known real-world problems: git, for example,
+ * uses openat(AT_FDCWD, argv[1], O_RDWR|O_CREAT|O_EXCL, 0444)
+ * on some important files it later tries to write on during clone.
+ * We don't actually know use cases where people chmod their open files to
+ * un-writability and then try to write on them, but they
+ * should be able to if they want to :-).
+ */
+int orangefs_posix_open(struct inode *inode) {
+	struct posix_acl_xattr_header *posix_header;
+	struct posix_acl_xattr_entry *posix_entry;
+	void *buffer;
+	int size = sizeof(struct posix_acl_xattr_header) +
+			sizeof(struct posix_acl_xattr_entry);
+	const char *name = XATTR_NAME_POSIX_ACL_ACCESS;
+	int ret;
+
+	buffer = kmalloc(size, GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
+
+	ORANGEFS_I(inode)->opened = 1;
+	posix_header = buffer;
+	posix_header->a_version = POSIX_ACL_XATTR_VERSION;
+	posix_entry = (void *)(posix_header + 1);
+	posix_entry->e_tag = ACL_USER;
+	posix_entry->e_perm = S_IRWXU >> 6;
+	posix_entry->e_id = from_kuid(&init_user_ns, current_fsuid());
+
+	ret = orangefs_inode_setxattr(inode, name, buffer, size, 0);
+	kfree(buffer);
+	return ret;
+}
+
+/*
  * The following is a very dirty hack that is now a permanent part of the
  * ORANGEFS protocol. See protocol.h for more error definitions.
  */

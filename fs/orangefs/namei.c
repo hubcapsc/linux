@@ -86,7 +86,15 @@ static int orangefs_create(struct inode *dir,
 	iattr.ia_valid |= ATTR_MTIME | ATTR_CTIME;
 	iattr.ia_mtime = iattr.ia_ctime = current_time(dir);
 	__orangefs_setattr(dir, &iattr);
-	ret = 0;
+
+	/*
+	 * If you can open (or create) a file, Posix says you should
+	 * be able to read or write to the file without regard to
+	 * the file's mode until the fd is closed.
+	 */
+	if (!(mode & S_IRUSR) || (!(mode & S_IWUSR)))
+		ret = orangefs_posix_open(inode);
+
 out:
 	op_release(new_op);
 	gossip_debug(GOSSIP_NAME_DEBUG,

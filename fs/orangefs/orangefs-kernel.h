@@ -198,6 +198,7 @@ struct orangefs_inode_s {
 	kuid_t attr_uid;
 	kgid_t attr_gid;
 	unsigned long bitlock;
+	int opened;
 
 	DECLARE_HASHTABLE(xattr_cache, 4);
 };
@@ -405,6 +406,8 @@ ssize_t do_readv_writev(enum ORANGEFS_io_type, struct file *, loff_t *,
 /*
  * defined in orangefs-utils.c
  */
+int orangefs_posix_open(struct inode *inode);
+
 __s32 fsid_of_op(struct orangefs_kernel_op_s *op);
 
 ssize_t orangefs_inode_getxattr(struct inode *inode,

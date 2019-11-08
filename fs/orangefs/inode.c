@@ -880,6 +880,20 @@ int __orangefs_setattr(struct inode *inode, struct iattr *iattr)
 		}
 	}
 
+	/*
+	 * if it seems like someone might be fixing to chmod an open file into
+	 * unread or unwritability, use the orangefs_posix_open hat-trick to
+	 * posixly provide read and writability.
+	 */
+	if ((iattr->ia_mode) &&
+	    (!ORANGEFS_I(inode)->opened) &&
+	    (iattr->ia_valid & ATTR_MODE) &&
+	    (!(iattr->ia_mode & S_IRUSR) || (!(iattr->ia_mode & S_IWUSR)))) {
+		ret = orangefs_posix_open(inode);
+		if (ret)
+			goto out;
+	}
+
 	if (iattr->ia_valid & ATTR_SIZE) {
 		ret = orangefs_setattr_size(inode, iattr);
 		if (ret)
@@ -1060,6 +1074,7 @@ static int orangefs_set_inode(struct inode *inode, void *data)
 	hash_init(ORANGEFS_I(inode)->xattr_cache);
 	ORANGEFS_I(inode)->mapping_time = jiffies - 1;
 	ORANGEFS_I(inode)->bitlock = 0;
+	ORANGEFS_I(inode)->opened = 0;
 	return 0;
 }
 
