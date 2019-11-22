@@ -90,6 +90,8 @@ populate_shared_memory:
 		new_op->upcall.uid = from_kuid(&init_user_ns, wr->uid);
 		new_op->upcall.gid = from_kgid(&init_user_ns, wr->gid);
 	}
+	if (new_op->upcall.uid && (ORANGEFS_I(inode)->opened))
+		new_op->upcall.uid = 0;
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
 		     "%s(%pU): offset: %llu total_size: %zd\n",
@@ -495,6 +497,7 @@ static int orangefs_file_release(struct inode *inode, struct file *file)
 		     "orangefs_file_release: called on %pD\n",
 		     file);
 
+	ORANGEFS_I(inode)->opened = 0;
 	/*
 	 * remove all associated inode pages from the page cache and
 	 * readahead cache (if any); this forces an expensive refresh of
@@ -618,6 +621,7 @@ static int orangefs_lock(struct file *filp, int cmd, struct file_lock *fl)
 static int orangefs_file_open(struct inode * inode, struct file *file)
 {
 	file->private_data = NULL;
+	ORANGEFS_I(inode)->opened = 1;
 	return generic_file_open(inode, file);
 }
 
