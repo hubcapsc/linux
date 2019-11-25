@@ -16,6 +16,8 @@
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 
+static int orangefs_getflags(struct inode *inode, unsigned long *uval);
+
 static int flush_racache(struct inode *inode)
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
@@ -491,9 +493,20 @@ static int orangefs_file_mmap(struct file *file, struct vm_area_struct *vma)
  */
 static int orangefs_file_release(struct inode *inode, struct file *file)
 {
+	unsigned long val;
+	int rc;
+
 	gossip_debug(GOSSIP_FILE_DEBUG,
 		     "orangefs_file_release: called on %pD\n",
 		     file);
+
+	rc = orangefs_getflags(inode, &val);
+	val |= ORANGEFS_OPEN_FL;
+	rc = orangefs_inode_setxattr(inode,
+			"user.pvfs2.meta_hint",
+			&val,
+			sizeof(val),
+			0);
 
 	/*
 	 * remove all associated inode pages from the page cache and
@@ -617,6 +630,21 @@ static int orangefs_lock(struct file *filp, int cmd, struct file_lock *fl)
 
 static int orangefs_file_open(struct inode * inode, struct file *file)
 {
+	unsigned long val;
+	int rc;
+
+	/*
+	 * the server can see this hint in userspace and know
+	 * the file is open.
+	 */
+	rc = orangefs_getflags(inode, &val);
+	val |= ORANGEFS_OPEN_FL;
+	rc = orangefs_inode_setxattr(inode,
+			"user.pvfs2.meta_hint",
+			&val,
+			sizeof(val),
+			0);
+
 	file->private_data = NULL;
 	return generic_file_open(inode, file);
 }
