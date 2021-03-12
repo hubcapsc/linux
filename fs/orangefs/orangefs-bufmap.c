@@ -528,6 +528,7 @@ int orangefs_bufmap_copy_to_iovec(struct iov_iter *iter,
 		size_t n = size;
 		if (n > PAGE_SIZE)
 			n = PAGE_SIZE;
+printk("%s: i:%d: n:%zu:\n", __func__, i, n);
 		n = copy_page_to_iter(page, 0, n, iter);
 		if (!n)
 			return -EFAULT;
