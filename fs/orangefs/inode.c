@@ -249,7 +249,6 @@ static void orangefs_readahead(struct readahead_control *rac)
 	struct page **pages;
 	unsigned int npages = readahead_count(rac);
 	loff_t offset = readahead_pos(rac);
-	loff_t j;
 	struct bio_vec *bvs;
 	int i;
 	struct iov_iter iter;
@@ -263,16 +262,14 @@ static void orangefs_readahead(struct readahead_control *rac)
 	/* Get a batch of pages to read. */
 	npages = __readahead_batch(rac, pages, npages);
 
-printk("%s: offset:%lld: page_offset:%lld:\n", __func__, offset, page_offset(pages[0]));
 	/* allocate an array of bio_vec pointers. */
 	bvs = kzalloc(npages * (sizeof(struct bio_vec)), GFP_KERNEL);
 
 	/* allocate bio_vecs and hook them to the pages. */
-	j = offset;
 	for (i = 0; i < npages; i++) {
 		bvs[i].bv_page = pages[i];
 		bvs[i].bv_len = PAGE_SIZE;
-		bvs[i].bv_offset = j++;
+		bvs[i].bv_offset = 0;
 	}
 
 	iov_iter_bvec(&iter, READ, bvs, npages, npages * PAGE_SIZE);
