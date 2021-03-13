@@ -262,10 +262,10 @@ static void orangefs_readahead(struct readahead_control *rac)
 	/* Get a batch of pages to read. */
 	npages = __readahead_batch(rac, pages, npages);
 
-	/* allocate an array of bio_vec pointers. */
+	/* allocate an array of bio_vecs. */
 	bvs = kzalloc(npages * (sizeof(struct bio_vec)), GFP_KERNEL);
 
-	/* allocate bio_vecs and hook them to the pages. */
+	/* Hook the bio_vecs to the pages. */
 	for (i = 0; i < npages; i++) {
 		bvs[i].bv_page = pages[i];
 		bvs[i].bv_len = PAGE_SIZE;
