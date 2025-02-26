@@ -330,7 +330,7 @@ void purge_waiting_ops(void);
  * defined in super.c
  */
 extern uint64_t orangefs_features;
-extern const struct fs_parameter_spec orangefs_fs_param_spec;
+extern struct fs_parameter_spec orangefs_fs_param_spec[];
 
 int orangefs_init_fs_context(struct fs_context *fc);
 
