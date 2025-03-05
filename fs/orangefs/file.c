@@ -284,6 +284,7 @@ int orangefs_revalidate_mapping(struct inode *inode)
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct address_space *mapping = inode->i_mapping;
 	unsigned long *bitlock = &orangefs_inode->bitlock;
+	struct folio *folio;
 	int ret;
 
 	while (1) {
@@ -295,23 +296,30 @@ int orangefs_revalidate_mapping(struct inode *inode)
 			spin_unlock(&inode->i_lock);
 			continue;
 		}
-		if (!time_before(jiffies, orangefs_inode->mapping_time))
-			break;
-		spin_unlock(&inode->i_lock);
-		return 0;
+		break;
 	}
 
 	set_bit(1, bitlock);
 	smp_wmb();
 	spin_unlock(&inode->i_lock);
 
-	unmap_mapping_range(mapping, 0, 0, 0);
-	ret = filemap_write_and_wait(mapping);
-	if (!ret)
-		ret = invalidate_inode_pages2(mapping);
+	/* Check if folio is cached at offset 0 */
+	folio = filemap_get_folio(mapping, 0);
+	if (folio) {
+		time64_t old_mtime_sec = inode->i_mtime_sec;
+		__u32 old_mtime_nsec = inode->i_mtime_nsec;
 
-	orangefs_inode->mapping_time = jiffies +
-	    orangefs_cache_timeout_msecs*HZ/1000;
+		ret = orangefs_inode_getattr(inode, ORANGEFS_GETATTR_NEW);
+		if (ret == -ESTALE ||
+			(ret == 0 && (inode->i_mtime_sec != old_mtime_sec ||
+			inode->i_mtime_nsec != old_mtime_nsec))) {
+				unmap_mapping_range(mapping, 0, 0, 0);
+				ret = filemap_write_and_wait(mapping);
+				if (!ret)
+					ret = invalidate_inode_pages2(mapping);
+		}
+		folio_put(folio);
+	}
 
 	clear_bit(1, bitlock);
 	smp_mb__after_atomic();
