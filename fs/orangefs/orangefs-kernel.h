@@ -386,7 +386,7 @@ bool __is_daemon_in_service(void);
 /*
  * defined in file.c
  */
-int orangefs_revalidate_mapping(struct inode *);
+int orangefs_revalidate_mapping(struct inode *, loff_t pos);
 ssize_t wait_for_direct_io(enum ORANGEFS_io_type, struct inode *, loff_t *,
     struct iov_iter *, size_t, loff_t, struct orangefs_write_range *, int *,
     struct file *);

@@ -279,13 +279,14 @@ out:
 	return ret;
 }
 
-int orangefs_revalidate_mapping(struct inode *inode)
+int orangefs_revalidate_mapping(struct inode *inode, loff_t pos)
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct address_space *mapping = inode->i_mapping;
 	unsigned long *bitlock = &orangefs_inode->bitlock;
 	struct folio *folio;
 	int ret;
+
 
 	while (1) {
 		ret = wait_on_bit(bitlock, 1, TASK_KILLABLE);
@@ -303,8 +304,15 @@ int orangefs_revalidate_mapping(struct inode *inode)
 	smp_wmb();
 	spin_unlock(&inode->i_lock);
 
-	/* Check if folio is cached at offset 0 */
-	folio = filemap_get_folio(mapping, 0);
+	/* Use pos if valid, else check offset 0 (mmap case) */
+        folio = filemap_get_folio(mapping,
+				  (pos >= 0) ? (pos >> PAGE_SHIFT) : 0);
+
+	if (IS_ERR(folio)) {
+		ret = PTR_ERR(folio);
+		goto out;
+	}
+
 	if (folio) {
 		time64_t old_mtime_sec = inode->i_mtime_sec;
 		__u32 old_mtime_nsec = inode->i_mtime_nsec;
@@ -314,13 +322,16 @@ int orangefs_revalidate_mapping(struct inode *inode)
 			(ret == 0 && (inode->i_mtime_sec != old_mtime_sec ||
 			inode->i_mtime_nsec != old_mtime_nsec))) {
 				unmap_mapping_range(mapping, 0, 0, 0);
+				folio_put(folio);
 				ret = filemap_write_and_wait(mapping);
 				if (!ret)
 					ret = invalidate_inode_pages2(mapping);
-		}
-		folio_put(folio);
+		} else {
+			folio_put(folio);
+                }
 	}
 
+out:
 	clear_bit(1, bitlock);
 	smp_mb__after_atomic();
 	wake_up_bit(bitlock, 1);
@@ -335,7 +346,8 @@ static ssize_t orangefs_file_read_iter(struct kiocb *iocb,
 	orangefs_stats.reads++;
 
 	down_read(&file_inode(iocb->ki_filp)->i_rwsem);
-	ret = orangefs_revalidate_mapping(file_inode(iocb->ki_filp));
+	ret = orangefs_revalidate_mapping(file_inode(iocb->ki_filp),
+					  iocb->ki_pos);
 	if (ret)
 		goto out;
 
@@ -355,7 +367,7 @@ static ssize_t orangefs_file_splice_read(struct file *in, loff_t *ppos,
 	orangefs_stats.reads++;
 
 	down_read(&inode->i_rwsem);
-	ret = orangefs_revalidate_mapping(inode);
+	ret = orangefs_revalidate_mapping(inode, *ppos);
 	if (ret)
 		goto out;
 
@@ -372,7 +384,8 @@ static ssize_t orangefs_file_write_iter(struct kiocb *iocb,
 	orangefs_stats.writes++;
 
 	if (iocb->ki_pos > i_size_read(file_inode(iocb->ki_filp))) {
-		ret = orangefs_revalidate_mapping(file_inode(iocb->ki_filp));
+		ret = orangefs_revalidate_mapping(file_inode(iocb->ki_filp),
+						  iocb->ki_pos);
 		if (ret)
 			return ret;
 	}
@@ -410,7 +423,7 @@ static int orangefs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	int ret;
 
-	ret = orangefs_revalidate_mapping(file_inode(file));
+	ret = orangefs_revalidate_mapping(file_inode(file), -1); /* no pos */
 	if (ret)
 		return ret;
 
