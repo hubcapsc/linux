@@ -287,7 +287,6 @@ int orangefs_revalidate_mapping(struct inode *inode, loff_t pos)
 	struct folio *folio;
 	int ret;
 
-
 	while (1) {
 		ret = wait_on_bit(bitlock, 1, TASK_KILLABLE);
 		if (ret)
@@ -313,22 +312,23 @@ int orangefs_revalidate_mapping(struct inode *inode, loff_t pos)
 		goto out;
 	}
 
-	if (folio) {
+	if (folio && mapping) {
 		time64_t old_mtime_sec = inode->i_mtime_sec;
 		__u32 old_mtime_nsec = inode->i_mtime_nsec;
+		loff_t start = pos & PAGE_MASK;
+		loff_t end = start + PAGE_SIZE - 1;
 
 		ret = orangefs_inode_getattr(inode, ORANGEFS_GETATTR_NEW);
 		if (ret == -ESTALE ||
-			(ret == 0 && (inode->i_mtime_sec != old_mtime_sec ||
-			inode->i_mtime_nsec != old_mtime_nsec))) {
-				unmap_mapping_range(mapping, 0, 0, 0);
-				folio_put(folio);
-				ret = filemap_write_and_wait(mapping);
-				if (!ret)
-					ret = invalidate_inode_pages2(mapping);
-		} else {
-			folio_put(folio);
-                }
+		    (ret == 0 && (inode->i_mtime_sec != old_mtime_sec ||
+		    inode->i_mtime_nsec != old_mtime_nsec))) {
+
+			unmap_mapping_range(mapping, start, PAGE_SIZE, 0);
+			ret = filemap_write_and_wait_range(mapping, start, end);
+			if (!ret)
+				truncate_inode_pages_range(mapping, start, end);
+		}
+		folio_put(folio);
 	}
 
 out:
