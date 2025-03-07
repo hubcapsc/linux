@@ -308,7 +308,7 @@ int orangefs_revalidate_mapping(struct inode *inode, loff_t pos)
 				  (pos >= 0) ? (pos >> PAGE_SHIFT) : 0);
 
 	if (IS_ERR(folio)) {
-		ret = PTR_ERR(folio);
+		ret = 0;
 		goto out;
 	}
 
