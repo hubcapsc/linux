@@ -139,8 +139,8 @@ static int get(struct slot_map *m)
 /* used to describe mapped buffers */
 struct orangefs_bufmap_desc {
 	void __user *uaddr;		/* user space address pointer */
-	struct page **page_array;	/* array of mapped pages */
-	int array_count;		/* size of above arrays */
+	struct folio **folio_array;	/* array of mapped folios */
+	int folio_count;		/* size of above arrays */
 	struct list_head list_link;
 };
 
@@ -150,8 +150,10 @@ static struct orangefs_bufmap {
 	int desc_count;
 	int total_size;
 	int page_count;
+	int folio_count;
 
 	struct page **page_array;
+	struct folio **folio_array;
 	struct orangefs_bufmap_desc *desc_array;
 
 	/* array to track usage of buffer descriptors */
@@ -213,6 +215,7 @@ orangefs_bufmap_alloc(struct ORANGEFS_dev_map_desc *user_desc)
 	bufmap->desc_count = user_desc->count;
 	bufmap->desc_size = user_desc->size;
 	bufmap->desc_shift = ilog2(bufmap->desc_size);
+	bufmap->page_count = bufmap->total_size / PAGE_SIZE;
 
 	bufmap->buffer_index_array = bitmap_zalloc(bufmap->desc_count, GFP_KERNEL);
 	if (!bufmap->buffer_index_array)
@@ -223,16 +226,21 @@ orangefs_bufmap_alloc(struct ORANGEFS_dev_map_desc *user_desc)
 	if (!bufmap->desc_array)
 		goto out_free_index_array;
 
-	bufmap->page_count = bufmap->total_size / PAGE_SIZE;
-
 	/* allocate storage to track our page mappings */
 	bufmap->page_array =
 		kzalloc_objs(struct page *, bufmap->page_count);
 	if (!bufmap->page_array)
 		goto out_free_desc_array;
 
+	/* allocate folio array. */
+	bufmap->folio_array = kzalloc_objs(struct folio *, bufmap->page_count);
+	if (!bufmap->folio_array)
+		goto out_free_page_array;
+
 	return bufmap;
 
+out_free_page_array:
+	kfree(bufmap->page_array);
 out_free_desc_array:
 	kfree(bufmap->desc_array);
 out_free_index_array:
@@ -243,16 +251,58 @@ out:
 	return NULL;
 }
 
+static int orangefs_bufmap_group_folios(struct orangefs_bufmap *bufmap)
+{
+	int i = 0;
+	int f = 0;
+	int k;
+	int num_pages;
+	struct page *page;
+	struct folio *folio;
+
+	while (i < bufmap->page_count) {
+		page = bufmap->page_array[i];
+		folio = page_folio(page);
+		num_pages = folio_nr_pages(folio);
+		gossip_debug(GOSSIP_BUFMAP_DEBUG,
+			"%s: i:%d: num_pages:%d: \n", __func__, i, num_pages);
+
+		for (k = 1; k < num_pages; k++) {
+			if (bufmap->page_array[i + k] != folio_page(folio, k)) {
+				gossip_err(%s: bad match,  i:%d: k:%d:\n",
+					__func__, i, k);
+				return -EINVAL;
+			}
+		}
+
+		bufmap->folio_array[f++] = folio;
+		i += num_pages;
+	}
+
+	bufmap->folio_count = f;
+	return 0;
+}
+
+
 static int
 orangefs_bufmap_map(struct orangefs_bufmap *bufmap,
 		struct ORANGEFS_dev_map_desc *user_desc)
 {
 	int pages_per_desc = bufmap->desc_size / PAGE_SIZE;
-	int offset = 0, ret, i;
+	int ret;
+	int i;
+	int current_folio = 0;
+	int desc_pages_needed;
+	int desc_folio_count;
+	int remaining_pages = 0;
+	int need_avail_min;
+	struct folio *folio;
 
 	/* map the pages */
 	ret = pin_user_pages_fast((unsigned long)user_desc->ptr,
-			     bufmap->page_count, FOLL_WRITE, bufmap->page_array);
+		bufmap->page_count,
+		FOLL_WRITE,
+		bufmap->page_array);
 
 	if (ret < 0)
 		return ret;
@@ -260,7 +310,6 @@ orangefs_bufmap_map(struct orangefs_bufmap *bufmap,
 	if (ret != bufmap->page_count) {
 		gossip_err("orangefs error: asked for %d pages, only got %d.\n",
 				bufmap->page_count, ret);
-
 		for (i = 0; i < ret; i++)
 			unpin_user_page(bufmap->page_array[i]);
 		return -ENOMEM;
@@ -275,16 +324,67 @@ orangefs_bufmap_map(struct orangefs_bufmap *bufmap,
 	for (i = 0; i < bufmap->page_count; i++)
 		flush_dcache_page(bufmap->page_array[i]);
 
-	/* build a list of available descriptors */
-	for (offset = 0, i = 0; i < bufmap->desc_count; i++) {
-		bufmap->desc_array[i].page_array = &bufmap->page_array[offset];
-		bufmap->desc_array[i].array_count = pages_per_desc;
+	/*
+	 * Group pages into folios.
+	 */
+	ret = orangefs_bufmap_group_folios(bufmap);
+	if (ret)
+		goto unpin;
+
+	current_folio = 0;
+	for (i = 0; i < bufmap->desc_count; i++) {
+		desc_pages_needed = pages_per_desc;
+		desc_folio_count = 0;
+
+		/*
+		 * We hope there was enough memory that each desc is
+		 * covered by a THP/folio, if not we want to keep on
+		 * working even if there's only one page per folio.
+		 */
+		bufmap->desc_array[i].folio_array =
+			kalloc(pages_per_desc,
+				sizeof(struct folio *),
+				GFP_KERNEL);
+		if (!bufmap->desc_array[i].folio_array) {
+			ret = -ENOMEM;
+			goto unpin;
+		}
+
 		bufmap->desc_array[i].uaddr =
-		    (user_desc->ptr + (i * pages_per_desc * PAGE_SIZE));
-		offset += pages_per_desc;
+			(user_desc->ptr +(i + bufmap->desc_size));
+
+		/*
+		 * Accumulate folios until desc is full.
+		 */
+		while (desc_pages_needed > 0) {
+			if ((remaining_pages == 0) {
+				/* shouldn't happen. */
+				if (current_folio >= bufmap->folio_count)) {
+					ret = -EINVAL;
+					goto unpin;
+				}
+				folio = bufmap->folio_array[current_folio++];
+				remaining_pages = folio_nr_pages(folio);
+			} else {
+				folio = bufmap->folio_array[current_folio - 1];
+			}
+
+			need_avail_min =
+				min(desc_pages_needed, remaining_pages);
+
+			bufmap->desc_array[i].folio_array[desc_folio_count++] =
+				folio;
+			desc_pages_needed -= need_avail_min;
+			remaining_pages -= need_avail_min;
+		}
+
+		bufmap->desc_array[i].folio_count = desc_folio_count;
 	}
 
 	return 0;
+unpin:
+	unpin_user_pages(bufmap->page_array, bufmap->page_count);
+	return ret;
 }
 
 /*
