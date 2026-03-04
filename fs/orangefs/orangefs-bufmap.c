@@ -637,14 +637,14 @@ int orangefs_bufmap_copy_from_iovec(struct iov_iter *iter,
 	size_t copied;
 	void *kaddr;
 
+	to = &__orangefs_bufmap->desc_array[buffer_index];
+
 	gossip_debug(GOSSIP_BUFMAP_DEBUG,
 		"%s: buffer_index:%d size:%zu folio_count:%d\n",
 		__func__,
 		buffer_index,
 		size,
 		to->folio_count);
-
-	to = &__orangefs_bufmap->desc_array[buffer_index];
 
 	while (remaining > 0) {
 
@@ -695,15 +695,14 @@ int orangefs_bufmap_copy_to_iovec(struct iov_iter *iter,
 	size_t copied;
 	void *kaddr;
 
+	from = &__orangefs_bufmap->desc_array[buffer_index];
+
 	gossip_debug(GOSSIP_BUFMAP_DEBUG,
 		"%s: buffer_index:%d size:%zu folio_count:%d\n",
 		__func__,
 		buffer_index,
 		size,
 		from->folio_count);
-
-
-	from = &__orangefs_bufmap->desc_array[buffer_index];
 
 	while (remaining > 0) {
 
