@@ -181,6 +181,17 @@ orangefs_bufmap_unmap(struct orangefs_bufmap *bufmap)
 static void
 orangefs_bufmap_free(struct orangefs_bufmap *bufmap)
 {
+	int i;
+
+	if (!bufmap)
+		return;
+
+	for (i = 0; i < bufmap->desc_count; i++) {
+		kfree(bufmap->desc_array[i].folio_array);
+		kfree(bufmap->desc_array[i].folio_offsets);
+		bufmap->desc_array[i].folio_array = NULL;
+		bufmap->desc_array[i].folio_offsets = NULL;
+	}
 	kfree(bufmap->page_array);
 	kfree(bufmap->desc_array);
 	bitmap_free(bufmap->buffer_index_array);
@@ -373,7 +384,7 @@ orangefs_bufmap_map(struct orangefs_bufmap *bufmap,
 		}
 
 		bufmap->desc_array[i].uaddr =
-			(user_desc->ptr +(i + bufmap->desc_size));
+			user_desc->ptr + (size_t)i * bufmap->desc_size;
 
 		/*
 		 * Accumulate folios until desc is full.
@@ -414,10 +425,18 @@ orangefs_bufmap_map(struct orangefs_bufmap *bufmap,
 unpin:
 	/*
 	 * rollback any allocations we got so far...
+	 * Memory pressure, like in generic/340, led me
+	 * to write the rollback this way.
 	 */
 	for (j = 0; j <= i; j++) {
-		kfree(bufmap->desc_array[j].folio_array);
-		kfree(bufmap->desc_array[j].folio_offsets);
+		if (bufmap->desc_array[j].folio_array) {
+			kfree(bufmap->desc_array[j].folio_array);
+			bufmap->desc_array[j].folio_array = NULL;
+		}
+		if (bufmap->desc_array[j].folio_offsets) {
+			kfree(bufmap->desc_array[j].folio_offsets);
+			bufmap->desc_array[j].folio_offsets = NULL;
+		}
 	}
 	unpin_user_pages(bufmap->page_array, bufmap->page_count);
 	return ret;
