@@ -296,9 +296,7 @@ static int orangefs_bufmap_group_folios(struct orangefs_bufmap *bufmap)
 	}
 
 	bufmap->folio_count = f;
-	/*gossip_debug(GOSSIP_BUFMAP_DEBUG,*/
-	gossip_err(
-		"%s: Grouped %d folios from %d pages.\n",
+	pr_info("%s: Grouped %d folios from %d pages.\n",
 		__func__,
 		bufmap->folio_count,
 		bufmap->page_count);
