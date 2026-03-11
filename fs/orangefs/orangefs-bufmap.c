@@ -363,7 +363,7 @@ orangefs_bufmap_map(struct orangefs_bufmap *bufmap,
 
 		/*
 		 * We hope there was enough memory that each desc is
-		 * covered by a THP/folio, if not we want to keep on
+		 * covered by two THPs/folios, if not we want to keep on
 		 * working even if there's only one page per folio.
 		 */
 		bufmap->desc_array[i].folio_array =
