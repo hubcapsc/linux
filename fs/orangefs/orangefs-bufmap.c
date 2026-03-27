@@ -619,12 +619,27 @@ int orangefs_bufmap_copy_from_iovec(struct iov_iter *iter,
 	void *kaddr;
 
 	gossip_debug(GOSSIP_BUFMAP_DEBUG,
-		     "%s: buffer_index:%d: size:%zu:\n",
-		     __func__, buffer_index, size);
+		"%s: buffer_index:%d size:%zu folio_count:%d\n",
+		__func__,
+		buffer_index,
+		size,
+		to->folio_count);
 
 	to = &__orangefs_bufmap->desc_array[buffer_index];
 
 	while (remaining > 0) {
+
+		if (unlikely(folio_index >= to->folio_count ||
+			to->folio_array[folio_index] == NULL)) {
+				gossip_err("folio_index:%d: >= folio_count:%d: "
+		                   "(size %zu, buffer %d)\n",
+					folio_index,
+					to->folio_count,
+					size,
+					buffer_index);
+				return -EFAULT;
+		}
+
 		folio = to->folio_array[folio_index];
 		folio_offset = to->folio_offsets[folio_index];
 		folio_avail = folio_nr_pages(folio) * PAGE_SIZE - folio_offset;
@@ -662,12 +677,28 @@ int orangefs_bufmap_copy_to_iovec(struct iov_iter *iter,
 	void *kaddr;
 
 	gossip_debug(GOSSIP_BUFMAP_DEBUG,
-		     "%s: buffer_index:%d: size:%zu:\n",
-		     __func__, buffer_index, size);
+		"%s: buffer_index:%d size:%zu folio_count:%d\n",
+		__func__,
+		buffer_index,
+		size,
+		from->folio_count);
+
 
 	from = &__orangefs_bufmap->desc_array[buffer_index];
 
 	while (remaining > 0) {
+
+		if (unlikely(folio_index >= from->folio_count ||
+			from->folio_array[folio_index] == NULL)) {
+				gossip_err("folio_index:%d: >= folio_count:%d: "
+		                   "(size %zu, buffer %d)\n",
+					folio_index,
+					from->folio_count,
+					size,
+					buffer_index);
+				return -EFAULT;
+		}
+
 		folio = from->folio_array[folio_index];
 		folio_offset = from->folio_offsets[folio_index];
 		folio_avail = folio_nr_pages(folio) * PAGE_SIZE - folio_offset;
