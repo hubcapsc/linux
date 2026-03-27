@@ -139,9 +139,14 @@ static int get(struct slot_map *m)
 /* used to describe mapped buffers */
 struct orangefs_bufmap_desc {
 	void __user *uaddr;		/* user space address pointer */
-	struct folio **folio_array;	/* array of mapped folios */
-	int folio_count;		/* size of above arrays */
-	struct list_head list_link;
+	struct folio **folio_array;
+	/*
+	 * folio_offsets could be needed when userspace sets custom
+	 * sizes in user_desc, or when folios aren't all backed by
+	 * 2MB THPs.
+	 */
+	size_t *folio_offsets;
+	int folio_count;
 };
 
 static struct orangefs_bufmap {
@@ -269,7 +274,7 @@ static int orangefs_bufmap_group_folios(struct orangefs_bufmap *bufmap)
 
 		for (k = 1; k < num_pages; k++) {
 			if (bufmap->page_array[i + k] != folio_page(folio, k)) {
-				gossip_err(%s: bad match,  i:%d: k:%d:\n",
+				gossip_err("%s: bad match,  i:%d: k:%d:\n",
 					__func__, i, k);
 				return -EINVAL;
 			}
@@ -280,6 +285,11 @@ static int orangefs_bufmap_group_folios(struct orangefs_bufmap *bufmap)
 	}
 
 	bufmap->folio_count = f;
+	gossip_debug(GOSSIP_BUFMAP_DEBUG,
+		"%s: Grouped %d folios from %d pages.\n",
+		__func__,
+		bufmap->folio_count,
+		bufmap->page_count);
 	return 0;
 }
 
@@ -290,12 +300,15 @@ orangefs_bufmap_map(struct orangefs_bufmap *bufmap,
 {
 	int pages_per_desc = bufmap->desc_size / PAGE_SIZE;
 	int ret;
-	int i;
+	int i = 0;
+	int j;
 	int current_folio = 0;
 	int desc_pages_needed;
 	int desc_folio_count;
 	int remaining_pages = 0;
 	int need_avail_min;
+	size_t current_offset;
+	size_t adjust_offset;
 	struct folio *folio;
 
 	/* map the pages */
@@ -342,11 +355,20 @@ orangefs_bufmap_map(struct orangefs_bufmap *bufmap,
 		 * working even if there's only one page per folio.
 		 */
 		bufmap->desc_array[i].folio_array =
-			kalloc(pages_per_desc,
+			kcalloc(pages_per_desc,
 				sizeof(struct folio *),
 				GFP_KERNEL);
 		if (!bufmap->desc_array[i].folio_array) {
 			ret = -ENOMEM;
+			goto unpin;
+		}
+
+		bufmap->desc_array[i].folio_offsets = kcalloc(pages_per_desc,
+								sizeof(size_t),
+								GFP_KERNEL);
+		if (!bufmap->desc_array[i].folio_offsets) {
+			ret = -ENOMEM;
+			kfree(bufmap->desc_array[i].folio_array);
 			goto unpin;
 		}
 
@@ -356,26 +378,33 @@ orangefs_bufmap_map(struct orangefs_bufmap *bufmap,
 		/*
 		 * Accumulate folios until desc is full.
 		 */
+		current_offset = 0;
 		while (desc_pages_needed > 0) {
-			if ((remaining_pages == 0) {
+			if (remaining_pages == 0) {
 				/* shouldn't happen. */
-				if (current_folio >= bufmap->folio_count)) {
+				if (current_folio >= bufmap->folio_count) {
 					ret = -EINVAL;
 					goto unpin;
 				}
 				folio = bufmap->folio_array[current_folio++];
 				remaining_pages = folio_nr_pages(folio);
+				current_offset = 0;
 			} else {
 				folio = bufmap->folio_array[current_folio - 1];
 			}
 
 			need_avail_min =
 				min(desc_pages_needed, remaining_pages);
+			adjust_offset = need_avail_min * PAGE_SIZE;
 
-			bufmap->desc_array[i].folio_array[desc_folio_count++] =
+			bufmap->desc_array[i].folio_array[desc_folio_count] =
 				folio;
+			bufmap->desc_array[i].folio_offsets[desc_folio_count] =
+				current_offset;
+			desc_folio_count++;
 			desc_pages_needed -= need_avail_min;
 			remaining_pages -= need_avail_min;
+			current_offset += adjust_offset;
 		}
 
 		bufmap->desc_array[i].folio_count = desc_folio_count;
@@ -383,6 +412,13 @@ orangefs_bufmap_map(struct orangefs_bufmap *bufmap,
 
 	return 0;
 unpin:
+	/*
+	 * rollback any allocations we got so far...
+	 */
+	for (j = 0; j <= i; j++) {
+		kfree(bufmap->desc_array[j].folio_array);
+		kfree(bufmap->desc_array[j].folio_offsets);
+	}
 	unpin_user_pages(bufmap->page_array, bufmap->page_count);
 	return ret;
 }
@@ -392,6 +428,8 @@ unpin:
  *
  * initializes the mapped buffer interface
  *
+ * user_desc is the parameters provided by userspace for the bufmap.
+ *
  * returns 0 on success, -errno on failure
  */
 int orangefs_bufmap_initialize(struct ORANGEFS_dev_map_desc *user_desc)
@@ -400,8 +438,8 @@ int orangefs_bufmap_initialize(struct ORANGEFS_dev_map_desc *user_desc)
 	int ret = -EINVAL;
 
 	gossip_debug(GOSSIP_BUFMAP_DEBUG,
-		     "orangefs_bufmap_initialize: called (ptr ("
-		     "%p) sz (%d) cnt(%d).\n",
+		     "%s: called (ptr (" "%p) sz (%d) cnt(%d).\n",
+		     __func__,
 		     user_desc->ptr,
 		     user_desc->size,
 		     user_desc->count);
@@ -471,7 +509,7 @@ int orangefs_bufmap_initialize(struct ORANGEFS_dev_map_desc *user_desc)
 	spin_unlock(&orangefs_bufmap_lock);
 
 	gossip_debug(GOSSIP_BUFMAP_DEBUG,
-		     "orangefs_bufmap_initialize: exiting normally\n");
+		     "%s: exiting normally\n", __func__);
 	return 0;
 
 out_unmap_bufmap:
@@ -571,22 +609,37 @@ int orangefs_bufmap_copy_from_iovec(struct iov_iter *iter,
 				size_t size)
 {
 	struct orangefs_bufmap_desc *to;
-	int i;
+	size_t remaining = size;
+	int folio_index = 0;
+	struct folio *folio;
+	size_t folio_offset;
+	size_t folio_avail;
+	size_t copy_amount;
+	size_t copied;
+	void *kaddr;
 
 	gossip_debug(GOSSIP_BUFMAP_DEBUG,
 		     "%s: buffer_index:%d: size:%zu:\n",
 		     __func__, buffer_index, size);
 
 	to = &__orangefs_bufmap->desc_array[buffer_index];
-	for (i = 0; size; i++) {
-		struct page *page = to->page_array[i];
-		size_t n = size;
-		if (n > PAGE_SIZE)
-			n = PAGE_SIZE;
-		if (copy_page_from_iter(page, 0, n, iter) != n)
+
+	while (remaining > 0) {
+		folio = to->folio_array[folio_index];
+		folio_offset = to->folio_offsets[folio_index];
+		folio_avail = folio_nr_pages(folio) * PAGE_SIZE - folio_offset;
+		copy_amount = min(remaining, folio_avail);
+		kaddr = kmap_local_folio(folio, folio_offset);
+		copied = copy_from_iter(kaddr, copy_amount, iter);
+		kunmap_local(kaddr);
+
+		if (copied != copy_amount)
 			return -EFAULT;
-		size -= n;
+
+		remaining -= copied;
+		folio_index++;
 	}
+
 	return 0;
 }
 
@@ -599,23 +652,37 @@ int orangefs_bufmap_copy_to_iovec(struct iov_iter *iter,
 				    size_t size)
 {
 	struct orangefs_bufmap_desc *from;
-	int i;
+	size_t remaining = size;
+	int folio_index = 0;
+	struct folio *folio;
+	size_t folio_offset;
+	size_t folio_avail;
+	size_t copy_amount;
+	size_t copied;
+	void *kaddr;
 
-	from = &__orangefs_bufmap->desc_array[buffer_index];
 	gossip_debug(GOSSIP_BUFMAP_DEBUG,
 		     "%s: buffer_index:%d: size:%zu:\n",
 		     __func__, buffer_index, size);
 
+	from = &__orangefs_bufmap->desc_array[buffer_index];
 
-	for (i = 0; size; i++) {
-		struct page *page = from->page_array[i];
-		size_t n = size;
-		if (n > PAGE_SIZE)
-			n = PAGE_SIZE;
-		n = copy_page_to_iter(page, 0, n, iter);
-		if (!n)
+	while (remaining > 0) {
+		folio = from->folio_array[folio_index];
+		folio_offset = from->folio_offsets[folio_index];
+		folio_avail = folio_nr_pages(folio) * PAGE_SIZE - folio_offset;
+		copy_amount = min(remaining, folio_avail);
+
+		kaddr = kmap_local_folio(folio, folio_offset);
+		copied = copy_to_iter(kaddr, copy_amount, iter);
+		kunmap_local(kaddr);
+
+		if (copied != copy_amount)
 			return -EFAULT;
-		size -= n;
+
+		remaining -= copied;
+		folio_index++;
 	}
+
 	return 0;
 }
