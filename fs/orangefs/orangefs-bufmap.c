@@ -310,13 +310,14 @@ orangefs_bufmap_map(struct orangefs_bufmap *bufmap,
 {
 	int pages_per_desc = bufmap->desc_size / PAGE_SIZE;
 	int ret;
-	int i = 0;
+	int i;
 	int j;
-	int current_folio = 0;
+	int current_folio;
 	int desc_pages_needed;
 	int desc_folio_count;
-	int remaining_pages = 0;
+	int remaining_pages;
 	int need_avail_min;
+	int pages_assigned_to_this_desc;
 	size_t current_offset;
 	size_t adjust_offset;
 	struct folio *folio;
@@ -354,10 +355,17 @@ orangefs_bufmap_map(struct orangefs_bufmap *bufmap,
 	if (ret)
 		goto unpin;
 
+	pr_info("%s: desc_size=%d bytes (%d pages per desc), total folios=%d\n",
+			__func__, bufmap->desc_size, pages_per_desc, 
+			bufmap->folio_count);
+
 	current_folio = 0;
+	remaining_pages = 0;
+	current_offset = 0;
 	for (i = 0; i < bufmap->desc_count; i++) {
 		desc_pages_needed = pages_per_desc;
 		desc_folio_count = 0;
+		pages_assigned_to_this_desc = 0;
 
 		/*
 		 * We hope there was enough memory that each desc is
@@ -388,7 +396,6 @@ orangefs_bufmap_map(struct orangefs_bufmap *bufmap,
 		/*
 		 * Accumulate folios until desc is full.
 		 */
-		current_offset = 0;
 		while (desc_pages_needed > 0) {
 			if (remaining_pages == 0) {
 				/* shouldn't happen. */
@@ -412,12 +419,17 @@ orangefs_bufmap_map(struct orangefs_bufmap *bufmap,
 			bufmap->desc_array[i].folio_offsets[desc_folio_count] =
 				current_offset;
 			desc_folio_count++;
+			pages_assigned_to_this_desc += need_avail_min;
 			desc_pages_needed -= need_avail_min;
 			remaining_pages -= need_avail_min;
 			current_offset += adjust_offset;
 		}
 
 		bufmap->desc_array[i].folio_count = desc_folio_count;
+		pr_info(" descriptor %d: folio_count=%d, "
+			"pages_assigned=%d (should be %d)\n",
+			i, desc_folio_count, pages_assigned_to_this_desc,
+			pages_per_desc);
 	}
 
 	return 0;
@@ -628,6 +640,9 @@ int orangefs_bufmap_copy_from_iovec(struct iov_iter *iter,
 {
 	struct orangefs_bufmap_desc *to;
 	size_t remaining = size;
+/*
+	size_t remaining;
+*/
 	int folio_index = 0;
 	struct folio *folio;
 	size_t folio_offset;
@@ -637,6 +652,12 @@ int orangefs_bufmap_copy_from_iovec(struct iov_iter *iter,
 	void *kaddr;
 
 	to = &__orangefs_bufmap->desc_array[buffer_index];
+
+	/* Don't overflow... */
+/*
+	remaining = min(size, (size_t)__orangefs_bufmap->desc_size);
+*/
+	if (size > 4194304) pr_info("%s: size:%ld\n", __func__, size);
 
 	gossip_debug(GOSSIP_BUFMAP_DEBUG,
 		"%s: buffer_index:%d size:%zu folio_count:%d\n",
@@ -649,8 +670,10 @@ int orangefs_bufmap_copy_from_iovec(struct iov_iter *iter,
 
 		if (unlikely(folio_index >= to->folio_count ||
 			to->folio_array[folio_index] == NULL)) {
-				gossip_err("folio_index:%d: >= folio_count:%d: "
+				gossip_err("%s: "
+				   "folio_index:%d: >= folio_count:%d: "
 		                   "(size %zu, buffer %d)\n",
+					__func__,
 					folio_index,
 					to->folio_count,
 					size,
@@ -696,6 +719,12 @@ int orangefs_bufmap_copy_to_iovec(struct iov_iter *iter,
 
 	from = &__orangefs_bufmap->desc_array[buffer_index];
 
+	/* Don't overflow the slot ... */
+/*
+	remaining = min(size, (size_t)__orangefs_bufmap->desc_size);
+*/
+	if (size > 4194304) pr_info("%s: size:%ld\n", __func__, size);
+
 	gossip_debug(GOSSIP_BUFMAP_DEBUG,
 		"%s: buffer_index:%d size:%zu folio_count:%d\n",
 		__func__,
@@ -707,8 +736,10 @@ int orangefs_bufmap_copy_to_iovec(struct iov_iter *iter,
 
 		if (unlikely(folio_index >= from->folio_count ||
 			from->folio_array[folio_index] == NULL)) {
-				gossip_err("folio_index:%d: >= folio_count:%d: "
+				gossip_err("%s: "
+				   "folio_index:%d: >= folio_count:%d: "
 		                   "(size %zu, buffer %d)\n",
+					__func__,
 					folio_index,
 					from->folio_count,
 					size,
