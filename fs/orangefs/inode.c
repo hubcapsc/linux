@@ -224,6 +224,9 @@ static void orangefs_readahead(struct readahead_control *rac)
 	loff_t new_start = readahead_pos(rac);
 	int ret;
 	size_t new_len = 0;
+	size_t this_size;
+	size_t remaining;
+int flag = 0;
 
 	loff_t bytes_remaining = inode->i_size - readahead_pos(rac);
 	loff_t pages_remaining = bytes_remaining / PAGE_SIZE;
@@ -236,19 +239,38 @@ static void orangefs_readahead(struct readahead_control *rac)
 	if (new_len)
 		readahead_expand(rac, new_start, new_len);
 
+if (readahead_length(rac) > 4194304) {
+pr_info("%s: len:%ld:\n", __func__, readahead_length(rac));
+flag = 1;
+}
+
 	offset = readahead_pos(rac);
 	i_pages = &rac->mapping->i_pages;
 
 	iov_iter_xarray(&iter, ITER_DEST, i_pages, offset, readahead_length(rac));
 
-	/* read in the pages. */
-	if ((ret = wait_for_direct_io(ORANGEFS_IO_READ, inode,
-			&offset, &iter, readahead_length(rac),
-			inode->i_size, NULL, NULL, rac->file)) < 0)
-		gossip_debug(GOSSIP_FILE_DEBUG,
-			"%s: wait_for_direct_io failed. \n", __func__);
-	else
-		ret = 0;
+	remaining = readahead_length(rac);
+	while (remaining) {
+		if (remaining > 4194304)
+			this_size = 4194304;
+		else
+			this_size = remaining;
+
+		/* read in the pages. */
+		if ((ret = wait_for_direct_io(ORANGEFS_IO_READ, inode,
+				&offset, &iter, this_size,
+				inode->i_size, NULL, NULL, rac->file)) < 0)
+			gossip_debug(GOSSIP_FILE_DEBUG,
+				"%s: wait_for_direct_io failed. \n", __func__);
+		else
+{
+if (flag) pr_info("%s: ret:%d:\n", __func__, ret);
+			ret = 0;
+}
+
+		remaining -= this_size;
+		offset += this_size;
+	}
 
 	/* clean up. */
 	while ((folio = readahead_folio(rac))) {
@@ -273,6 +295,8 @@ static int orangefs_read_folio(struct file *file, struct folio *folio)
 	bvec_set_folio(&bv, folio, folio_size(folio), 0);
 	iov_iter_bvec(&iter, ITER_DEST, &bv, 1, folio_size(folio));
 
+if (folio_size(folio) > 4194304)
+pr_info("%s: folio_size(folio):%ld:\n", __func__, folio_size(folio));
 	ret = wait_for_direct_io(ORANGEFS_IO_READ, inode, &off, &iter,
 			folio_size(folio), inode->i_size, NULL, NULL, file);
 	/* this will only zero remaining unread portions of the folio data */
@@ -535,6 +559,8 @@ static ssize_t orangefs_direct_IO(struct kiocb *iocb,
 			     handle,
 			     (int)*offset);
 
+if ((type == ORANGEFS_IO_READ) && (each_count > 4194304))
+pr_info("%s: size_query/each_count:%ld:\n", __func__, each_count);
 		ret = wait_for_direct_io(type, inode, offset, iter,
 				each_count, 0, NULL, NULL, file);
 		gossip_debug(GOSSIP_FILE_DEBUG,
