@@ -83,6 +83,7 @@ struct orangefs_writepages {
 	size_t len;
 	kuid_t uid;
 	kgid_t gid;
+	u32 open_access;
 	int maxpages;
 	int nfolios;
 	struct address_space *mapping;
@@ -119,6 +120,7 @@ static int orangefs_writepages_work(struct orangefs_writepages *ow,
 	off = ow->off;
 	wr.uid = ow->uid;
 	wr.gid = ow->gid;
+	wr.open_access = ow->open_access;
 	ret = wait_for_direct_io(ORANGEFS_IO_WRITE, inode, &off, &iter, ow->len,
 	    0, &wr, NULL, NULL);
 	if (ret < 0)
@@ -162,6 +164,7 @@ static int orangefs_writepages_callback(struct folio *folio,
 		ow->len = wr->len;
 		ow->uid = wr->uid;
 		ow->gid = wr->gid;
+		ow->open_access = wr->open_access;
 		ow->folios[ow->nfolios++] = folio;
 		ret = 0;
 		goto done;
@@ -176,6 +179,7 @@ static int orangefs_writepages_callback(struct folio *folio,
 		if (ow->len + wr->len > orangefs_bufmap_size_query())
 			goto done;
 		ow->len += wr->len;
+		ow->open_access |= wr->open_access;
 		ow->folios[ow->nfolios++] = folio;
 		ret = 0;
 		goto done;
@@ -418,6 +422,7 @@ static int orangefs_write_begin(const struct kiocb *iocb,
 		    uid_eq(wr->uid, current_fsuid()) &&
 		    gid_eq(wr->gid, current_fsgid())) {
 			wr->len += len;
+			wr->open_access |= orangefs_fmode_access(iocb->ki_filp);
 			goto okay;
 		} else {
 			/*
@@ -441,6 +446,7 @@ static int orangefs_write_begin(const struct kiocb *iocb,
 	wr->len = len;
 	wr->uid = current_fsuid();
 	wr->gid = current_fsgid();
+	wr->open_access = orangefs_fmode_access(iocb->ki_filp);
 	folio_attach_private(folio, wr);
 okay:
 	return 0;
@@ -745,6 +751,8 @@ vm_fault_t orangefs_page_mkwrite(struct vm_fault *vmf)
 		    gid_eq(wr->gid, current_fsgid())) {
 			wr->pos = folio_pos(folio);
 			wr->len = folio_size(folio);
+			wr->open_access |=
+				orangefs_fmode_access(vmf->vma->vm_file);
 			goto okay;
 		} else {
 			if (orangefs_launder_folio(folio)) {
@@ -762,6 +770,7 @@ vm_fault_t orangefs_page_mkwrite(struct vm_fault *vmf)
 	wr->len = folio_size(folio);
 	wr->uid = current_fsuid();
 	wr->gid = current_fsgid();
+	wr->open_access = orangefs_fmode_access(vmf->vma->vm_file);
 	folio_attach_private(folio, wr);
 okay:
 

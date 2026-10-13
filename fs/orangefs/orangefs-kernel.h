@@ -227,6 +227,18 @@ struct orangefs_cached_xattr {
 };
 
 /*
+ * Directions the VFS already allowed. Writeback has no struct file, so
+ * the mask rides on the folio write range. file.c sends it, and sends
+ * the real uid, only when the client reports ORANGEFS_FEATURE_OPEN_ACCESS.
+ * The magic is stored in the I/O upcall pad ahead of the file offset.
+ * The first upcall word stays zero. Userspace calls that word
+ * async_vfs_io.
+ */
+#define ORANGEFS_OPEN_READ		0x1
+#define ORANGEFS_OPEN_WRITE		0x2
+#define ORANGEFS_OPEN_ACCESS_MAGIC	0x4f410000
+
+/*
  * One dirty byte range on a folio. The folio may be a 2 MiB hugepage,
  * so pos/len are not limited to PAGE_SIZE. A folio has only one range;
  * a non-contiguous write launders the recorded range first.
@@ -236,7 +248,19 @@ struct orangefs_write_range {
 	size_t len;
 	kuid_t uid;
 	kgid_t gid;
+	u32 open_access;
 };
+
+static inline u32 orangefs_fmode_access(const struct file *file)
+{
+	u32 access = 0;
+
+	if (file->f_mode & FMODE_READ)
+		access |= ORANGEFS_OPEN_READ;
+	if (file->f_mode & FMODE_WRITE)
+		access |= ORANGEFS_OPEN_WRITE;
+	return access;
+}
 
 extern struct orangefs_stats orangefs_stats;
 

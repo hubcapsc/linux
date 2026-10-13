@@ -46,6 +46,7 @@
 
 /* features is a 64-bit unsigned bitmask */
 #define ORANGEFS_FEATURE_READAHEAD 1
+#define ORANGEFS_FEATURE_OPEN_ACCESS 2
 
 /*
  * Misc constants. Please retain them as multiples of 8!

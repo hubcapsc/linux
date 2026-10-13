@@ -14,10 +14,17 @@
  * client-core and device
  */
 struct orangefs_io_request_s {
+	/* Userspace calls this async_vfs_io. This module leaves it zero. */
 	__s32 __pad1;
 	__s32 buf_index;
 	__s32 count;
-	__s32 __pad2;
+	/*
+	 * ORANGEFS_OPEN_ACCESS_MAGIC in the high half plus
+	 * ORANGEFS_OPEN_READ / ORANGEFS_OPEN_WRITE in the low half.
+	 * Userspace calls this word __pad1 in pvfs2_io_request_t.
+	 * The field stays so offset remains 8-byte aligned.
+	 */
+	__s32 open_access;
 	__s64 offset;
 	struct orangefs_object_kref refn;
 	enum ORANGEFS_io_type io_type;

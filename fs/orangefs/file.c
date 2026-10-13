@@ -57,6 +57,7 @@ ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
 	int buffer_index;
 	ssize_t ret;
 	size_t copy_amount;
+	u32 open_access;
 	bool open_for_read;
 	bool open_for_write;
 
@@ -95,37 +96,40 @@ populate_shared_memory:
 		new_op->upcall.gid = from_kgid(&init_user_ns, wr->gid);
 	}
 	/*
-	 * Orangefs has no open, and orangefs checks file permissions
-	 * on each file access. Posix requires that file permissions
-	 * be checked on open and nowhere else. Orangefs-through-the-kernel
-	 * needs to seem posix compliant.
+	 * OrangeFS has no open. It mints a capability from the caller
+	 * uid and the mode at that moment, then checks that capability
+	 * on every I/O. POSIX checks the mode at open and not again,
+	 * including across chmod and across a create whose mode does
+	 * not grant the creator write.
 	 *
-	 * The VFS opens files, even if the filesystem provides no
-	 * method. We can see if a file was successfully opened for
-	 * read and or for write by looking at file->f_mode.
+	 * A client that sets ORANGEFS_FEATURE_OPEN_ACCESS understands
+	 * the open-access word. Send the real uid and the directions
+	 * the VFS already allowed. The client turns them into a hint
+	 * and the server re-signs only READ and WRITE. Writeback has
+	 * no struct file; the folio write range holds the mask captured
+	 * when the bytes were dirtied.
 	 *
-	 * When writes are flowing from the page cache, file is no
-	 * longer available. We can trust the VFS to have checked
-	 * file->f_mode before writing to the page cache.
-	 *
-	 * The mode of a file might change between when it is opened
-	 * and IO commences, or it might be created with an arbitrary mode.
-	 *
-	 * We'll make sure we don't hit EACCES during the IO stage by
-	 * using UID 0. Some of the time we have access without changing
-	 * to UID 0 - how to check?
+	 * Any other client keeps uid 0 and a zero pad word.
 	 */
-	if (file) {
+	if (orangefs_features & ORANGEFS_FEATURE_OPEN_ACCESS) {
+		if (file)
+			open_access = orangefs_fmode_access(file);
+		else if (wr && type == ORANGEFS_IO_WRITE)
+			open_access = wr->open_access;
+		else
+			open_access = 0;
+		new_op->upcall.req.io.open_access =
+			ORANGEFS_OPEN_ACCESS_MAGIC | open_access;
+	} else if (file) {
 		open_for_write = file->f_mode & FMODE_WRITE;
 		open_for_read = file->f_mode & FMODE_READ;
-	} else {
-		open_for_write = 1;
-		open_for_read = 0; /* not relevant? */
+		if (type == ORANGEFS_IO_WRITE && open_for_write)
+			new_op->upcall.uid = 0;
+		if (type == ORANGEFS_IO_READ && open_for_read)
+			new_op->upcall.uid = 0;
+	} else if (type == ORANGEFS_IO_WRITE) {
+		new_op->upcall.uid = 0;
 	}
-	if ((type == ORANGEFS_IO_WRITE) && open_for_write)
-		new_op->upcall.uid = 0;
-	if ((type == ORANGEFS_IO_READ) && open_for_read)
-		new_op->upcall.uid = 0;
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
 		     "%s(%pU): offset: %llu total_size: %zd\n",
